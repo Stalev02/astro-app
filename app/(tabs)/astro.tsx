@@ -1,29 +1,24 @@
 // app/(tabs)/astro.tsx
+import { ENDPOINTS } from '@/src/shared/config/api';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import * as Speech from 'expo-speech';
 import React, { useMemo, useRef, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TextInput,
-    useWindowDimensions,
-    View,
+  Alert,
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
 } from 'react-native';
-
-/* ================== CONFIG ================== */
-const BACKEND = 'http://127.0.0.1:3000';           // 👈 ЗАМЕНИТЕ НА СВОЙ IP
-const SPEECH_URL = `${BACKEND}/speech`;
-const CHAT_URL   = `${BACKEND}/chat`;
-
-/* ================== TYPES ================== */
+import { useProfiles } from '../../src/store/profiles'; // берем deviceId
 
 type AstroStats = {
   sun: string;
@@ -36,7 +31,6 @@ type AstroStats = {
 
 type Msg = { id: string; role: 'user' | 'bot'; text: string; ts: number };
 
-/* ================== MOCK DATA ================== */
 function useMockStats(): AstroStats {
   return useMemo(
     () => ({
@@ -51,29 +45,34 @@ function useMockStats(): AstroStats {
   );
 }
 
-/* ================== SCREEN ================== */
-
 export default function AstroScreen() {
   const { width } = useWindowDimensions();
   const chartSize = Math.min(width - 32, 360);
   const stats = useMockStats();
 
-  /* CHAT STATE */
+  const { deviceId } = useProfiles(); // <- важное
+
   const [messages, setMessages] = useState<Msg[]>([
     { id: 'm1', role: 'bot', text: 'Привет! Спроси что-нибудь по своей карте 🌌', ts: Date.now() },
   ]);
   const [draft, setDraft] = useState('');
   const listRef = useRef<FlatList<Msg>>(null);
 
-  /* VOICE STATE */
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
-  const [isBusy, setIsBusy] = useState(false); // чтобы не спамили запросами
+  const [isBusy, setIsBusy] = useState(false);
 
   const scrollToEnd = () =>
     requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
 
-  /* --- TEXT SEND (кнопка "Отправить") --- */
+  async function speak(text: string) {
+    try {
+      if (Speech.isSpeakingAsync && (await Speech.isSpeakingAsync())) Speech.stop();
+    } catch {}
+    Speech.speak(String(text), { language: 'ru-RU', pitch: 1.0, rate: 0.98 });
+  }
+
+  // ==== TEXT → /ai/query (с deviceId) ====
   const sendText = async (textIn: string) => {
     const text = textIn.trim();
     if (!text || isBusy) return;
@@ -85,40 +84,32 @@ export default function AstroScreen() {
 
     try {
       setIsBusy(true);
-      const r = await fetch(CHAT_URL, {
+      const r = await fetch(ENDPOINTS.aiQuery, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ deviceId, question: text }),
       });
 
-      const ct = r.headers.get('content-type') || '';
-let botText = '';
-if (ct.includes('application/json')) {
-  const data = await r.json();
-  botText = data?.reply ?? data?.text ?? 'Ок.';
-} else {
-  botText = await r.text();
-}
+      if (!r.ok) {
+        const errBody = await r.text().catch(() => '');
+        throw new Error(`HTTP ${r.status}: ${errBody}`);
+      }
 
-      // заменить "…" на ответ
+      const ct = r.headers.get('content-type') || '';
+      const data = ct.includes('application/json') ? await r.json() : { reply: await r.text() };
+      const botText = data?.reply ?? 'Ок.';
+
       setMessages(prev =>
         prev.map(m => (m.id === user.id + ':wait' ? { ...m, text: String(botText) } : m))
       );
       scrollToEnd();
-
-      // TTS ответа
-      if (botText) {
-        Speech.speak(String(botText), {
-          language: 'ru-RU',
-          pitch: 1.0,
-          rate: 0.98,
-        });
-      }
-    } catch (e) {
-      console.error('chat error', e);
+      if (botText) await speak(String(botText));
+    } catch (e: any) {
+      console.error('ai/query error', e);
       setMessages(prev =>
-        prev.map(m => (m.id === user.id + ':wait' ? { ...m, text: 'Ошибка связи с чат-сервером' } : m))
+        prev.map(m => (m.id === user.id + ':wait' ? { ...m, text: 'Ошибка связи с сервером' } : m))
       );
+      Alert.alert('Чат', e?.message || 'Ошибка сети');
     } finally {
       setIsBusy(false);
     }
@@ -126,7 +117,7 @@ if (ct.includes('application/json')) {
 
   const onPressSend = () => sendText(draft);
 
-  /* --- VOICE: start --- */
+  // ==== VOICE ====
   const startRecording = async () => {
     try {
       const { status } = await Audio.requestPermissionsAsync();
@@ -134,7 +125,6 @@ if (ct.includes('application/json')) {
         Alert.alert('Микрофон', 'Разрешите доступ к микрофону в настройках');
         return;
       }
-
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
@@ -142,12 +132,8 @@ if (ct.includes('application/json')) {
         staysActiveInBackground: false,
         interruptionModeAndroid: 1,
       });
-
-      const rec = new Audio.Recording();
-      await rec.prepareToRecordAsync(Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY);
-      await rec.startAsync();
-
-      setRecording(rec);
+      const created = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      setRecording(created.recording);
       setIsRecording(true);
     } catch (e) {
       console.error('startRecording error', e);
@@ -155,7 +141,6 @@ if (ct.includes('application/json')) {
     }
   };
 
-  /* --- VOICE: stop, STT, chat, TTS --- */
   const stopRecording = async () => {
     try {
       if (!recording) return;
@@ -166,18 +151,21 @@ if (ct.includes('application/json')) {
       setRecording(null);
       if (!uri) return;
 
-      // отправка аудио на /speech
+      const resp = await fetch(uri);
+      const blob = await resp.blob();
+
       const fd = new FormData();
-      fd.append('audio', {
-        // @ts-ignore – RN form-data файл
-        uri,
-        name: 'voice.m4a',
-        type: 'audio/m4a',
-      });
+      fd.append('audio', blob, 'voice.m4a');
 
       setIsBusy(true);
-      const sttResp = await fetch(SPEECH_URL, { method: 'POST', body: fd });
-      const stt = await sttResp.json();
+      const sttResp = await fetch(ENDPOINTS.speech, { method: 'POST', body: fd });
+
+      if (!sttResp.ok) {
+        const t = await sttResp.text().catch(() => '');
+        throw new Error(`STT HTTP ${sttResp.status}: ${t}`);
+      }
+
+      const stt = await sttResp.json().catch(() => ({} as any));
       const text = (stt?.text || '').trim();
 
       if (!text) {
@@ -186,40 +174,37 @@ if (ct.includes('application/json')) {
         return;
       }
 
-      // показать как пользовательское сообщение и отправить в чат
       const userMsg: Msg = { id: String(Date.now()), role: 'user', text, ts: Date.now() };
       setMessages(prev => [...prev, userMsg, { id: userMsg.id + ':wait', role: 'bot', text: '…', ts: Date.now() + 1 }]);
       scrollToEnd();
 
-      const r = await fetch(CHAT_URL, {
+      const r = await fetch(ENDPOINTS.aiQuery, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ deviceId, question: text }),
       });
 
+      if (!r.ok) {
+        const errBody = await r.text().catch(() => '');
+        throw new Error(`HTTP ${r.status}: ${errBody}`);
+      }
+
       const ct = r.headers.get('content-type') || '';
-      const botText = ct.includes('application/json')
-        ? (await r.json())?.reply ?? (await r.json())?.text ?? 'Ок.'
-        : await r.text();
+      const data = ct.includes('application/json') ? await r.json() : { reply: await r.text() };
+      const botText = data?.reply ?? 'Ок.';
 
       setMessages(prev =>
         prev.map(m => (m.id === userMsg.id + ':wait' ? { ...m, text: String(botText) } : m))
       );
       scrollToEnd();
-
-      // озвучить ответ
-      if (botText) {
-        Speech.speak(String(botText), { language: 'ru-RU', pitch: 1.0, rate: 0.98 });
-      }
-    } catch (e) {
+      if (botText) await speak(String(botText));
+    } catch (e: any) {
       console.error('stopRecording error', e);
-      Alert.alert('Ошибка', 'Проблема с отправкой голоса');
+      Alert.alert('Ошибка', e?.message || 'Проблема с отправкой голоса');
     } finally {
       setIsBusy(false);
     }
   };
-
-  /* UI */
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -230,14 +215,10 @@ if (ct.includes('application/json')) {
           ListHeaderComponent={
             <>
               <Text style={styles.title}>Моя Астро-Карта</Text>
-
-              {/* карточка с астрокартой */}
               <View style={styles.card}>
                 <View style={[styles.chartWrap, { width: chartSize, height: chartSize }]}>
                   <Image
-                    source={{
-                      uri: 'https://upload.wikimedia.org/wikipedia/commons/8/82/Astrological_chart_-_natal_chart_example.png',
-                    }}
+                    source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/8/82/Astrological_chart_-_natal_chart_example.png' }}
                     resizeMode="contain"
                     style={{ width: '100%', height: '100%' }}
                     accessible
@@ -276,7 +257,6 @@ if (ct.includes('application/json')) {
           renderItem={({ item }) => <Bubble item={item} />}
         />
 
-        {/* input bar */}
         <View style={styles.inputBar}>
           <TextInput
             style={styles.input}
@@ -286,22 +266,18 @@ if (ct.includes('application/json')) {
             multiline
             accessibilityLabel="Поле ввода сообщения"
           />
-
-          {/* Кнопка микрофона */}
           <Pressable
             onPress={isRecording ? stopRecording : startRecording}
-            style={[styles.iconBtn, isRecording && { backgroundColor: '#ef4444' }]}
+            style={[styles.iconBtn, isRecording && { backgroundColor: '#ef4444' }, isBusy && { opacity: 0.6 }]}
             accessibilityRole="button"
             accessibilityLabel={isRecording ? 'Остановить запись' : 'Начать запись'}
             disabled={isBusy}
           >
             <Ionicons name={isRecording ? 'stop' : 'mic'} size={18} color="#fff" />
           </Pressable>
-
-          {/* Кнопка Отправить */}
           <Pressable
             onPress={onPressSend}
-            style={styles.sendBtn}
+            style={[styles.sendBtn, isBusy && { opacity: 0.6 }]}
             accessibilityRole="button"
             accessibilityLabel="Отправить"
             disabled={isBusy}
@@ -313,8 +289,6 @@ if (ct.includes('application/json')) {
     </SafeAreaView>
   );
 }
-
-/* ============= UI bits ============= */
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -361,100 +335,28 @@ function Bubble({ item }: { item: Msg }) {
   );
 }
 
-/* ============= styles ============= */
-
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#0b0b0c' },
   title: { color: '#fff', fontSize: 22, fontWeight: '700', marginBottom: 12 },
   subtitle: { color: '#fff', fontSize: 18, fontWeight: '600', marginTop: 12, marginBottom: 8 },
-
-  card: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-  },
-
-  chartWrap: {
-    alignSelf: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.09)',
-    marginBottom: 14,
-  },
-
+  card: { backgroundColor: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderRadius: 16, padding: 16, marginBottom: 12 },
+  chartWrap: { alignSelf: 'center', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.09)', marginBottom: 14 },
   row: { flexDirection: 'row', gap: 8, marginBottom: 10, flexWrap: 'wrap' },
-
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: 'rgba(79,70,229,0.12)',
-  },
+  pill: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 999, backgroundColor: 'rgba(79,70,229,0.12)' },
   pillText: { color: '#e5e7eb', fontSize: 13 },
-
   sectionTitle: { color: '#c7c9d1', fontSize: 14, fontWeight: '700', letterSpacing: 0.3 },
-
   barRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   barLabel: { color: '#d1d5db', fontSize: 13 },
   barValue: { color: '#9ca3af', fontSize: 13 },
   barTrack: { height: 8, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
   barFill: { height: 8, borderRadius: 8, backgroundColor: '#4f46e5' },
-
   bubbleWrap: { paddingVertical: 4 },
-  bubble: {
-    maxWidth: '86%',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  bubble: { maxWidth: '86%', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 14, flexDirection: 'row', alignItems: 'center' },
   me: { backgroundColor: '#4f46e5' },
   bot: { backgroundColor: 'rgba(255,255,255,0.08)' },
   bubbleText: { color: '#e5e7eb', fontSize: 15 },
-
-  inputBar: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: '#0b0b0c',
-  },
-  input: {
-    flex: 1,
-    minHeight: 40,
-    maxHeight: 110,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: '#fff',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 12,
-    fontSize: 15,
-  },
-  sendBtn: {
-    height: 40,
-    width: 40,
-    borderRadius: 12,
-    backgroundColor: '#4f46e5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconBtn: {
-    height: 40,
-    width: 40,
-    borderRadius: 12,
-    backgroundColor: '#6b7280',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  inputBar: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.12)', backgroundColor: '#0b0b0c' },
+  input: { flex: 1, minHeight: 40, maxHeight: 110, paddingHorizontal: 12, paddingVertical: 10, color: '#fff', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, fontSize: 15 },
+  sendBtn: { height: 40, width: 40, borderRadius: 12, backgroundColor: '#4f46e5', alignItems: 'center', justifyContent: 'center' },
+  iconBtn: { height: 40, width: 40, borderRadius: 12, backgroundColor: '#6b7280', alignItems: 'center', justifyContent: 'center' },
 });

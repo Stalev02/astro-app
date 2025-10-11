@@ -1,4 +1,4 @@
-// app/store/profiles.ts
+// src/store/profiles.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
@@ -6,10 +6,23 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 export type PersonProfile = {
   id: string;
   name: string;
-  date: string;      // YYYY-MM-DD
-  time?: string;     // HH:mm | undefined (если неизвестно)
-  place?: string;    // текст до интеграции автокомплита
-  gender?: 'male' | 'female' | 'other';
+
+  // старые поля (совместимость с существующими экранами)
+  date: string;            // YYYY-MM-DD
+  time?: string;           // HH:mm
+  place?: string;
+
+  // новые поля, которыми пользуется modal.tsx
+  birthDateISO?: string;   // YYYY-MM-DD
+  timeKnown?: boolean;     // известно ли точное время
+  seconds?: number;        // 0..59
+  birthPlace?: string;
+  livesElsewhere?: boolean;
+  currentCity?: string;
+  fullDateTimeISO?: string; // YYYY-MM-DDTHH:mm:ss
+
+  gender?: 'male' | 'female' | 'other' | 'na';
+  email?: string;
 };
 
 type ProfilesState = {
@@ -32,6 +45,7 @@ export const useProfiles = create<ProfilesState>()(
     {
       name: 'profiles-store',
       storage: createJSONStorage(() => AsyncStorage),
+      // при желании: version/migrate, чтобы не терять старые данные
     }
   )
 );
