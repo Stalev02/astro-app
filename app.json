@@ -5,9 +5,10 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "astroapp",
+    "scheme": "cosmotell",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "extra": {},
     "ios": {
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Нужен доступ к микрофону для голосового ввода."
@@ -15,7 +16,7 @@
       "supportsTablet": true
     },
     "android": {
-       "permissions": ["RECORD_AUDIO"],
+      "permissions": ["RECORD_AUDIO"],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -42,7 +43,9 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -1,39 +1,50 @@
 // app/_layout.tsx
 import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import React from 'react';
+import * as SplashScreen from 'expo-splash-screen';
+import { useEffect } from 'react';
 
-const BG = '#0b0b0c';
-const HEADER_BG = '#0e0f12';
-const HEADER_BORDER = 'rgba(255,255,255,0.06)';
-const HEADER_TEXT = '#ffffff';
+// предотвращаем авто-скрытие splash-экрана до инициализации
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
+  useEffect(() => {
+    const prepare = async () => {
+      // короткая пауза для стабильного скрытия splash-экрана
+      await new Promise((r) => setTimeout(r, 80));
+      await SplashScreen.hideAsync();
+    };
+    prepare();
+  }, []);
+
   return (
-    <>
-      <StatusBar style="light" />
-      <Stack
-        screenOptions={{
-          contentStyle: { backgroundColor: BG },      // фон всех экранов по умолчанию
-          headerStyle: { backgroundColor: HEADER_BG },
-          headerTitleStyle: { color: HEADER_TEXT },
-          headerTintColor: HEADER_TEXT,
-          headerShadowVisible: true,
-          headerTransparent: false,
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: '#0b0b0c' },
+      }}
+    >
+      {/* Главный экран → index.tsx */}
+      <Stack.Screen name="index" />
+
+      {/* Онбординг */}
+      <Stack.Screen name="onboarding" />
+      <Stack.Screen name="onboarding-profile" />
+
+      {/* Авторизация (экран логина и регистрации) */}
+      <Stack.Screen name="auth/login" />
+      <Stack.Screen name="auth/register" />
+
+      {/* Основные вкладки */}
+      <Stack.Screen name="(tabs)" />
+
+      {/* Модальное окно анкеты / ректификации */}
+      <Stack.Screen
+        name="modal"
+        options={{
+          presentation: 'modal',
+          headerShown: false,
         }}
-      >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="modal"
-          options={{
-            title: 'Анкета',
-            presentation: 'modal',
-            headerStyle: { backgroundColor: HEADER_BG },
-            headerTitleStyle: { color: HEADER_TEXT },
-            headerTintColor: HEADER_TEXT,
-          }}
-        />
-      </Stack>
-    </>
+      />
+    </Stack>
   );
 }

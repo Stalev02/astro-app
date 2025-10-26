@@ -105,13 +105,12 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="community"
+        name="settings"
         options={{
-          title: 'Сообщество и друзья',
-          // Если хочешь длинное слово полностью — дадим перенос:
-          tabBarLabel: ({ color }) => <Label color={color} text={'Сообщество'} />,
+          title: 'Настройки',
+          tabBarLabel: ({ color }) => <Label color={color} text={'Настройки'} />,
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubbles-outline" size={size - 2} color={color} />
+            <Ionicons name="settings-outline" size={size - 2} color={color} />
           ),
         }}
       />

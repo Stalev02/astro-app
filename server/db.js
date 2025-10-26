@@ -5,7 +5,7 @@ const {
   DB_HOST = '127.0.0.1',
   DB_PORT = '3306',
   DB_USER = 'cosmo',
-  DB_PASSWORD = 'secretpass',
+  DB_PASSWORD = '',
   DB_NAME = 'cosmotell',
 } = process.env;
 
@@ -21,49 +21,44 @@ export const pool = mysql.createPool({
   timezone: 'Z', // UTC
 });
 
-let engine = { isMaria: false, version: '' };
 let useJsonColumns = true;
 
-async function detectEngine(conn) {
-  const [rows] = await conn.query('SELECT VERSION() AS v');
-  const v = rows?.[0]?.v || '';
-  const isMaria = /mariadb/i.test(v);
-  return { isMaria, version: v };
+/** Определяем движок/версию, чтобы понимать — есть ли JSON-тип */
+async function detectEngine() {
+  const conn = await pool.getConnection();
+  try {
+    const [rows] = await conn.query('SELECT VERSION() AS v');
+    const v = rows?.[0]?.v || '';
+    const isMaria = /mariadb/i.test(v);
+    useJsonColumns = !isMaria; // у MariaDB старых версий JSON = LONGTEXT
+    console.log(`[db] engine=${v} (isMaria=${isMaria}) jsonColumns=${useJsonColumns}`);
+  } finally {
+    conn.release();
+  }
 }
 
 /** Создаёт таблицу profiles, если её ещё нет */
 export async function initDb() {
+  await detectEngine();
+
   const conn = await pool.getConnection();
   try {
-    engine = await detectEngine(conn);
-    useJsonColumns = !engine.isMaria; // для MySQL — JSON, для Maria — LONGTEXT
+    const jsonOrText = useJsonColumns ? 'JSON' : 'LONGTEXT';
 
-    const createSql = useJsonColumns
-      ? `
-        CREATE TABLE IF NOT EXISTS profiles (
-          id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-          device_id VARCHAR(64) NOT NULL,
-          me JSON NULL,
-          other JSON NULL,
-          updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          PRIMARY KEY (id),
-          UNIQUE KEY uniq_device (device_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-      `
-      : `
-        CREATE TABLE IF NOT EXISTS profiles (
-          id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-          device_id VARCHAR(64) NOT NULL,
-          me LONGTEXT NULL,
-          other LONGTEXT NULL,
-          updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          PRIMARY KEY (id),
-          UNIQUE KEY uniq_device (device_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-      `;
-
+    const createSql = `
+      CREATE TABLE IF NOT EXISTS profiles (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        device_id VARCHAR(64) NOT NULL,
+        me ${jsonOrText} NULL,
+        other ${jsonOrText} NULL,
+        chart_svg LONGTEXT NULL,
+        chart_data ${jsonOrText} NULL,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY uniq_device (device_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `;
     await conn.query(createSql);
-    console.log(`[db] engine=${engine.version} (isMaria=${engine.isMaria}) jsonColumns=${useJsonColumns}`);
   } finally {
     conn.release();
   }
@@ -80,15 +75,28 @@ function fromDb(val) {
 
 export async function getProfile(deviceId) {
   const [rows] = await pool.query(
-    'SELECT device_id, me, other, UNIX_TIMESTAMP(updated_at)*1000 AS updatedAt FROM profiles WHERE device_id = ? LIMIT 1',
+    `SELECT
+       device_id,
+       me,
+       other,
+       chart_svg,
+       chart_data,
+       UNIX_TIMESTAMP(updated_at)*1000 AS updatedAt
+     FROM profiles
+     WHERE device_id = ?
+     LIMIT 1`,
     [deviceId]
   );
   const row = rows?.[0];
   if (!row) return null;
+
   return {
     device_id: row.device_id,
-    me: fromDb(row.me),
-    other: fromDb(row.other),
+    me: typeof row.me === 'string' ? fromDb(row.me) : row.me,
+    other: typeof row.other === 'string' ? fromDb(row.other) : row.other,
+    chart_svg: row.chart_svg ?? null,
+    chart_data:
+      typeof row.chart_data === 'string' ? fromDb(row.chart_data) : row.chart_data ?? null,
     updatedAt: Number(row.updatedAt) || Date.now(),
   };
 }
@@ -118,4 +126,43 @@ export async function upsertProfile(deviceId, me, other) {
     );
   }
   return await getProfile(deviceId);
+}
+
+// ===== Сохраняем SVG и метаданные карты =====
+export async function saveChartSvg(deviceId, svg, meta = null) {
+  const chartData = meta ? JSON.stringify(meta) : null;
+
+  async function alter() {
+    // На старых MySQL/MariaDB IF NOT EXISTS может не поддерживаться — оборачиваем в try/catch
+    try {
+      await pool.query(`ALTER TABLE profiles ADD COLUMN chart_svg LONGTEXT NULL`);
+    } catch {}
+    try {
+      await pool.query(
+        `ALTER TABLE profiles ADD COLUMN chart_data ${useJsonColumns ? 'JSON' : 'LONGTEXT'} NULL`
+      );
+    } catch {}
+  }
+
+  async function update() {
+    await pool.query(
+      `UPDATE profiles SET chart_svg = ?, chart_data = ? WHERE device_id = ?`,
+      [svg, chartData, deviceId]
+    );
+  }
+
+  try {
+    await update();
+    console.log(`[db] chart_svg сохранён для ${deviceId}`);
+  } catch (e) {
+    if (e?.code === 'ER_BAD_FIELD_ERROR') {
+      console.warn('[db] нет колонок chart_svg/chart_data — добавляю...');
+      await alter();
+      await update();
+      console.log(`[db] chart_svg сохранён (после ALTER) для ${deviceId}`);
+    } else {
+      console.error('[db] ошибка при сохранении chart_svg:', e);
+      throw e;
+    }
+  }
 }

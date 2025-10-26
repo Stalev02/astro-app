@@ -1,14 +1,14 @@
 // app/(tabs)/rectification.tsx
 import React, { useMemo, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    Pressable,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  Alert,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 
 const C = {
@@ -23,183 +23,242 @@ const C = {
 };
 
 type EventItem = { id: string; date: string; kind: string };
-
-// -------- Mock scoring engine (эвристика) --------
-// Мы делим сутки на 24 слота по часу и держим баллы по каждому.
 type Scores = number[]; // length 24
 
-function emptyScores(): Scores { return new Array(24).fill(0); }
+/* ----------------- helpers ----------------- */
+function emptyScores(): Scores {
+  return new Array(24).fill(0);
+}
 
+// Поддержка диапазонов через полночь (wrap-around)
 function addScoreRange(scores: Scores, fromHour: number, toHour: number, weight = 1) {
-  for (let h = fromHour; h <= toHour; h++) scores[h % 24] += weight;
+  let f = ((fromHour % 24) + 24) % 24;
+  let t = ((toHour % 24) + 24) % 24;
+
+  if (f <= t) {
+    for (let h = f; h <= t; h++) scores[h] += weight;
+  } else {
+    for (let h = f; h < 24; h++) scores[h] += weight;
+    for (let h = 0; h <= t; h++) scores[h] += weight;
+  }
+}
+
+function parseHourSafe(v: string | undefined): number | undefined {
+  if (v == null || v.trim() === '') return undefined;
+  const n = Number(v);
+  return Number.isInteger(n) && n >= 0 && n <= 23 ? n : undefined;
+}
+
+// Разрешаем только цифры, максимум 2, ограничиваем 0–23 и паддим до 2 знаков
+function clampHourText(t: string) {
+  const digits = t.replace(/\D/g, '').slice(0, 2);
+  if (digits.length === 0) return '';
+  const n = Math.min(23, Number(digits));
+  if (Number.isNaN(n)) return '';
+  return String(n).padStart(2, '0');
 }
 
 function estimate(scores: Scores, baseFrom?: number, baseTo?: number) {
-  // ограничим базовым диапазоном, если задан
-  const mask = new Array(24).fill(0);
-  for (let h = 0; h < 24; h++) {
-    const inside = baseFrom == null || baseTo == null ? true
-      : baseFrom <= baseTo
-        ? h >= baseFrom && h <= baseTo
-        : h >= baseFrom || h <= baseTo; // если диапазон через полночь
-    mask[h] = inside ? 1 : 0.4; // за пределами диапазона уменьшаем вес
+  // Маска диапазона применяется только если оба часа валидны
+  const useMask = baseFrom !== undefined && baseTo !== undefined;
+  const mask = new Array(24).fill(1);
+  if (useMask) {
+    for (let h = 0; h < 24; h++) {
+      const inside =
+        baseFrom! <= baseTo!
+          ? h >= baseFrom! && h <= baseTo!
+          : h >= baseFrom! || h <= baseTo!;
+      mask[h] = inside ? 1 : 0.4; // вне базового диапазона понижаем вес
+    }
   }
+
   const weighted = scores.map((v, i) => v * mask[i]);
-  const max = Math.max(...weighted);
-  const best = weighted.findIndex(v => v === max);
-  const conf = Math.min(1, max / (weighted.reduce((a, b) => a + b, 0) / 24 + 0.0001));
-  // вернём центр часа как hh:mm
-  const hh = best.toString().padStart(2, '0');
-  return { hhmm: `${hh}:30`, hour: best, confidence: Math.round(conf * 100) };
+  const sum = weighted.reduce((a, b) => a + b, 0);
+  const max = Math.max(...weighted, 0);
+  const best = weighted.findIndex((v) => v === max);
+
+  // Плотностной штраф — чем меньше сигнал (sum), тем ниже потолок уверенности
+  const densityPenalty = Math.min(1, sum / 50); // эвристика
+  const avg = sum / 24 + 1e-4;
+  const conf = Math.round(100 * Math.min(1, (max / avg) * densityPenalty));
+
+  // Возвращаем центр часа как HH:00 (без «:30», чтобы не вводить в заблуждение)
+  const hh = String(best).padStart(2, '0');
+  return { hhmm: `${hh}:00`, hour: best, confidence: conf };
 }
 
-// -------- Screen --------
-
+/* ----------------- screen ----------------- */
 export default function RectificationScreen() {
-  // базовый диапазон (часы)
+  // Базовый диапазон (часы)
   const [knowRange, setKnowRange] = useState(false);
-  const [from, setFrom] = useState('09'); // строка "HH"
+  const [from, setFrom] = useState('09'); // "HH"
   const [to, setTo] = useState('12');
 
-  // ответы (мультивыбор) и события
+  // Ответы (мультивыбор) и события
   const [traits, setTraits] = useState<string[]>([]);
   const [style, setStyle] = useState<string | null>(null);
   const [speed, setSpeed] = useState<string | null>(null);
   const [events, setEvents] = useState<EventItem[]>([]);
 
-  // расчёт
+  // Парсим часы безопасно
+  const baseFrom = knowRange ? parseHourSafe(from) : undefined;
+  const baseTo = knowRange ? parseHourSafe(to) : undefined;
+  const hoursInvalid = knowRange && (baseFrom === undefined || baseTo === undefined);
+
+  // Расчёт
   const result = useMemo(() => {
     const s = emptyScores();
 
-    // эвристики — просто для шаблона UI:
-    // черты внешности/впечатления
+    // эвристики — прототип:
     if (traits.includes('атлетичный')) addScoreRange(s, 6, 10, 1.2);
     if (traits.includes('хрупкий')) addScoreRange(s, 0, 3, 1.1);
     if (traits.includes('плотный')) addScoreRange(s, 16, 21, 1.15);
     if (traits.includes('проникающий взгляд')) addScoreRange(s, 22, 23, 1.2);
     if (traits.includes('мягкая мимика')) addScoreRange(s, 11, 15, 1.1);
 
-    // социальная манера
     if (style === 'спокойный') addScoreRange(s, 3, 6, 1.1);
     if (style === 'директивный') addScoreRange(s, 9, 11, 1.2);
     if (style === 'общительный') addScoreRange(s, 12, 15, 1.15);
     if (style === 'отстранённый') addScoreRange(s, 18, 21, 1.1);
 
-    // скорость
     if (speed === 'быстрая') addScoreRange(s, 5, 9, 1.1);
     if (speed === 'средняя') addScoreRange(s, 10, 14, 1.05);
     if (speed === 'медленная') addScoreRange(s, 20, 23, 1.1);
 
-    // жизненные события (очень условно “якорим” в разные часы)
+    // жизненные события — якорим к окрестности псевдо-часа
     for (const ev of events) {
       const hash = (ev.date + ev.kind).length % 24;
       addScoreRange(s, (hash + 23) % 24, (hash + 1) % 24, 1.25);
     }
 
-    const baseFrom = knowRange ? parseInt(from, 10) : undefined;
-    const baseTo = knowRange ? parseInt(to, 10) : undefined;
     const est = estimate(s, baseFrom, baseTo);
     return { est, scores: s };
-  }, [traits, style, speed, events, knowRange, from, to]);
+  }, [traits, style, speed, events, baseFrom, baseTo]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
-      <FlatList
-        contentContainerStyle={{ padding: 16, paddingBottom: 28 }}
-        ListHeaderComponent={
-          <>
-            <Text style={st.title}>Ректификация (уточнение времени)</Text>
-            <View style={st.card}>
-              <Text style={st.p}>
-                Если точного времени нет — мы сузим диапазон по ответам. Это ориентир, а не медицинский факт.
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }}>
+        <Text style={st.title}>Ректификация (уточнение времени)</Text>
+
+        <View style={st.card}>
+          <Text style={st.p}>
+            Если точного времени нет — сузим диапазон по ответам. Это ориентир, а не медицинский факт.
+          </Text>
+        </View>
+
+        {/* Базовый диапазон */}
+        <View style={st.card}>
+          <Row>
+            <Text style={st.cardTitle}>Мой базовый диапазон</Text>
+            <Pressable
+              onPress={() => setKnowRange(!knowRange)}
+              style={[st.switch, knowRange && st.switchOn]}
+              accessibilityRole="button"
+              accessibilityLabel="Переключить известен ли базовый диапазон времени рождения"
+            >
+              <Text style={{ color: '#fff', fontWeight: '700' }}>
+                {knowRange ? 'Диапазон известен' : 'Не знаю'}
               </Text>
-            </View>
+            </Pressable>
+          </Row>
 
-            {/* Базовый диапазон */}
-            <View style={st.card}>
-              <Row>
-                <Text style={st.cardTitle}>Мой базовый диапазон</Text>
-                <Pressable
-                  onPress={() => setKnowRange(!knowRange)}
-                  style={[st.switch, knowRange && st.switchOn]}
-                  accessibilityRole="button"
-                >
-                  <Text style={{ color: '#fff', fontWeight: '700' }}>{knowRange ? 'Задан' : 'Не знаю'}</Text>
-                </Pressable>
-              </Row>
-
-              {knowRange && (
-                <View style={{ flexDirection: 'row', gap: 12, marginTop: 10 }}>
-                  <Field label="От (часы)" value={from} onChangeText={setFrom} placeholder="09" />
-                  <Field label="До (часы)" value={to} onChangeText={setTo} placeholder="12" />
-                </View>
+          {knowRange && (
+            <>
+              <View style={{ flexDirection: 'row', gap: 12, marginTop: 10 }}>
+                <Field
+                  label="От (часы 0–23)"
+                  value={from}
+                  onChangeText={(t) => setFrom(clampHourText(t))}
+                  placeholder="09"
+                />
+                <Field
+                  label="До (часы 0–23)"
+                  value={to}
+                  onChangeText={(t) => setTo(clampHourText(t))}
+                  placeholder="12"
+                />
+              </View>
+              {hoursInvalid && (
+                <Text style={{ color: C.warn, marginTop: 8, fontSize: 12 }}>
+                  Введите часы от 00 до 23. Маска диапазона временно не применяется.
+                </Text>
               )}
-            </View>
+            </>
+          )}
+        </View>
 
-            {/* A. Черты */}
-            <Section title="A. Внешность и первое впечатление (Асцендент)">
-              <TagGrid
-                options={['атлетичный','хрупкий','плотный','проникающий взгляд','мягкая мимика']}
-                values={traits}
-                onToggle={(v) =>
-                  setTraits((prev) => (prev.includes(v) ? prev.filter(x => x!==v) : [...prev, v]))
-                }
-              />
-            </Section>
+        {/* A. Черты */}
+        <Section title="A. Внешность и первое впечатление (Асцендент)">
+          <TagGrid
+            options={['атлетичный', 'хрупкий', 'плотный', 'проникающий взгляд', 'мягкая мимика']}
+            values={traits}
+            onToggle={(v) =>
+              setTraits((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]))
+            }
+          />
+        </Section>
 
-            {/* B. Социальная манера + скорость */}
-            <Section title="B. Манера и темп">
-              <Text style={st.dim}>Социальная манера</Text>
-              <BtnRow
-                options={['спокойный','директивный','общительный','отстранённый']}
-                value={style}
-                onSelect={setStyle}
-              />
-              <Text style={[st.dim, { marginTop: 8 }]}>Скорость походки/жестикуляции</Text>
-              <BtnRow
-                options={['быстрая','средняя','медленная']}
-                value={speed}
-                onSelect={setSpeed}
-              />
-            </Section>
+        {/* B. Социальная манера + скорость */}
+        <Section title="B. Манера и темп">
+          <Text style={st.dim}>Социальная манера</Text>
+          <BtnRow
+            options={['спокойный', 'директивный', 'общительный', 'отстранённый']}
+            value={style}
+            onSelect={setStyle}
+          />
+          <Text style={[st.dim, { marginTop: 8 }]}>Скорость походки/жестикуляции</Text>
+          <BtnRow options={['быстрая', 'средняя', 'медленная']} value={speed} onSelect={setSpeed} />
+        </Section>
 
-            {/* C. События */}
-            <Section title="C. Яркие события (дата + тип)">
-              <EventEditor
-                items={events}
-                onAdd={(e) => setEvents((prev) => [{ id: String(Date.now()), ...e }, ...prev])}
-                onRemove={(id) => setEvents((prev) => prev.filter(x => x.id !== id))}
-              />
-            </Section>
+        {/* C. События */}
+        <Section title="C. Яркие события (дата + тип)">
+          <EventEditor
+            items={events}
+            onAdd={(e) => setEvents((prev) => [{ id: String(Date.now()), ...e }, ...prev])}
+            onRemove={(id) => setEvents((prev) => prev.filter((x) => x.id !== id))}
+          />
+        </Section>
 
-            {/* Визуальная шкала и результат */}
-            <Section title="Оценка времени">
-              <HeatBar scores={result.scores} base={knowRange ? { from: parseInt(from,10), to: parseInt(to,10) } : null} />
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 }}>
-                <Text style={st.est}>Оценка: {result.est.hhmm}</Text>
-                <Badge text={`Уверенность ${result.est.confidence}%`} />
-              </View>
-              <Text style={st.pSmall}>
-                Точность повысится, если добавить ещё 1–2 события или отметить больше черт.
-              </Text>
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
-                <Primary onPress={() => Alert.alert('Сохранено', 'Оценка сохранена локально (мок).')} text="Сохранить оценку" />
-                <Ghost onPress={() => Alert.alert('Поделиться', 'Шеринг добавим позже.')} text="Поделиться" />
-              </View>
-            </Section>
-          </>
-        }
-        data={[]}
-        renderItem={null}
-      />
+        {/* Визуальная шкала и результат */}
+        <Section title="Оценка времени">
+          <HeatBar
+            scores={result.scores}
+            base={
+              knowRange && !hoursInvalid && baseFrom !== undefined && baseTo !== undefined
+                ? { from: baseFrom, to: baseTo }
+                : null
+            }
+          />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 }}>
+            <Text style={st.est}>Оценка: {result.est.hhmm}</Text>
+            <Badge text={`Уверенность ${result.est.confidence}%`} />
+          </View>
+          <Text style={st.pSmall}>
+            Точность повысится, если добавить ещё 1–2 события или отметить больше черт.
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+            <Primary
+              onPress={() =>
+                Alert.alert('Сохранено', 'Оценка сохранена локально (мок). Интеграцию подключим позже.')
+              }
+              text="Сохранить оценку"
+            />
+            <Ghost onPress={() => Alert.alert('Поделиться', 'Шеринг добавим позже.')} text="Поделиться" />
+          </View>
+        </Section>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-/* ------------ UI helpers / components ------------ */
+/* ----------------- UI components ----------------- */
 
 function Row({ children }: { children: React.ReactNode }) {
-  return <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>{children}</View>;
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+      {children}
+    </View>
+  );
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -211,7 +270,17 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Field({ label, value, onChangeText, placeholder }: { label: string; value: string; onChangeText: (t: string) => void; placeholder?: string }) {
+function Field({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (t: string) => void;
+  placeholder?: string;
+}) {
   return (
     <View style={{ flex: 1 }}>
       <Text style={st.dim}>{label}</Text>
@@ -228,7 +297,15 @@ function Field({ label, value, onChangeText, placeholder }: { label: string; val
   );
 }
 
-function TagGrid({ options, values, onToggle }: { options: string[]; values: string[]; onToggle: (v: string) => void }) {
+function TagGrid({
+  options,
+  values,
+  onToggle,
+}: {
+  options: string[];
+  values: string[];
+  onToggle: (v: string) => void;
+}) {
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
       {options.map((opt) => {
@@ -243,7 +320,15 @@ function TagGrid({ options, values, onToggle }: { options: string[]; values: str
   );
 }
 
-function BtnRow({ options, value, onSelect }: { options: string[]; value: string | null; onSelect: (v: string) => void }) {
+function BtnRow({
+  options,
+  value,
+  onSelect,
+}: {
+  options: string[];
+  value: string | null;
+  onSelect: (v: string) => void;
+}) {
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
       {options.map((opt) => {
@@ -258,19 +343,47 @@ function BtnRow({ options, value, onSelect }: { options: string[]; value: string
   );
 }
 
-function EventEditor({ items, onAdd, onRemove }: { items: EventItem[]; onAdd: (e: Omit<EventItem, 'id'>) => void; onRemove: (id: string) => void }) {
+function EventEditor({
+  items,
+  onAdd,
+  onRemove,
+}: {
+  items: EventItem[];
+  onAdd: (e: Omit<EventItem, 'id'>) => void;
+  onRemove: (id: string) => void;
+}) {
   const [date, setDate] = useState('');
   const [kind, setKind] = useState('');
+
+  function isValidDateISO(s: string) {
+    // простая проверка формата YYYY-MM-DD
+    return /^\d{4}-\d{2}-\d{2}$/.test(s);
+  }
+
   return (
     <View>
       <View style={{ flexDirection: 'row', gap: 8 }}>
         <View style={{ flex: 1 }}>
           <Text style={st.dim}>Дата (ГГГГ-ММ-ДД)</Text>
-          <TextInput style={st.input} placeholder="2018-06-10" placeholderTextColor="#9aa0aa" value={date} onChangeText={setDate} />
+          <TextInput
+            style={st.input}
+            placeholder="2018-06-10"
+            placeholderTextColor="#9aa0aa"
+            value={date}
+            onChangeText={setDate}
+            keyboardType="numbers-and-punctuation"
+            maxLength={10}
+          />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={st.dim}>Тип события</Text>
-          <TextInput style={st.input} placeholder="переезд / брак / травма ..." placeholderTextColor="#9aa0aa" value={kind} onChangeText={setKind} />
+          <TextInput
+            style={st.input}
+            placeholder="переезд / брак / травма ..."
+            placeholderTextColor="#9aa0aa"
+            value={kind}
+            onChangeText={setKind}
+          />
         </View>
       </View>
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
@@ -278,8 +391,11 @@ function EventEditor({ items, onAdd, onRemove }: { items: EventItem[]; onAdd: (e
           text="Добавить"
           onPress={() => {
             if (!date || !kind) return Alert.alert('Заполните дату и тип события');
+            if (!isValidDateISO(date))
+              return Alert.alert('Неверный формат даты', 'Используйте формат ГГГГ-ММ-ДД');
             onAdd({ date, kind });
-            setDate(''); setKind('');
+            setDate('');
+            setKind('');
           }}
         />
       </View>
@@ -288,8 +404,12 @@ function EventEditor({ items, onAdd, onRemove }: { items: EventItem[]; onAdd: (e
         <View style={{ marginTop: 10, gap: 6 }}>
           {items.map((ev) => (
             <View key={ev.id} style={st.evRow}>
-              <Text style={st.evText}>• {ev.date} — {ev.kind}</Text>
-              <Pressable onPress={() => onRemove(ev.id)}><Text style={{ color: C.dim }}>Удалить</Text></Pressable>
+              <Text style={st.evText}>
+                • {ev.date} — {ev.kind}
+              </Text>
+              <Pressable onPress={() => onRemove(ev.id)}>
+                <Text style={{ color: C.dim }}>Удалить</Text>
+              </Pressable>
             </View>
           ))}
         </View>
@@ -301,17 +421,33 @@ function EventEditor({ items, onAdd, onRemove }: { items: EventItem[]; onAdd: (e
 function HeatBar({ scores, base }: { scores: number[]; base: { from: number; to: number } | null }) {
   const max = Math.max(...scores, 1);
   return (
-    <View accessible accessibilityLabel="Тепловая полоса вероятности времени" style={{ borderRadius: 10, overflow: 'hidden', borderColor: C.border, borderWidth: 1 }}>
+    <View
+      accessible
+      accessibilityLabel="Тепловая полоса вероятности времени"
+      style={{ borderRadius: 10, overflow: 'hidden', borderColor: C.border, borderWidth: 1 }}
+    >
       <View style={{ flexDirection: 'row' }}>
         {scores.map((v, i) => {
           const intensity = v / max;
-          const inBase = !base || (base.from <= base.to ? i >= base.from && i <= base.to : i >= base.from || i <= base.to);
+          const inBase =
+            !base ||
+            (base.from <= base.to ? i >= base.from && i <= base.to : i >= base.from || i <= base.to);
           const bg = inBase ? C.primary : '#313244';
-          return <View key={i} style={{ height: 18, width: `${100/24}%` as any, backgroundColor: bg, opacity: Math.max(0.25, intensity) }} />;
+          return (
+            <View
+              key={i}
+              style={{ height: 18, flex: 1, backgroundColor: bg, opacity: Math.max(0.25, intensity) }}
+            />
+          );
         })}
       </View>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 6, paddingVertical: 4 }}>
-        <Text style={st.tick}>00</Text><Text style={st.tick}>06</Text><Text style={st.tick}>12</Text><Text style={st.tick}>18</Text><Text style={st.tick}>24</Text>
+      <View
+        style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 6, paddingVertical: 4 }}
+      >
+        <Text style={st.tick}>00</Text>
+        <Text style={st.tick}>06</Text>
+        <Text style={st.tick}>12</Text>
+        <Text style={st.tick}>18</Text>
       </View>
     </View>
   );
@@ -319,7 +455,16 @@ function HeatBar({ scores, base }: { scores: number[]; base: { from: number; to:
 
 function Badge({ text }: { text: string }) {
   return (
-    <View style={{ backgroundColor: 'rgba(79,70,229,0.2)', borderColor: C.border, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 }}>
+    <View
+      style={{
+        backgroundColor: 'rgba(79,70,229,0.2)',
+        borderColor: C.border,
+        borderWidth: 1,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 999,
+      }}
+    >
       <Text style={{ color: '#fff', fontWeight: '700' }}>{text}</Text>
     </View>
   );
@@ -340,30 +485,74 @@ function Ghost({ text, onPress }: { text: string; onPress: () => void }) {
   );
 }
 
-/* ------------ styles ------------ */
+/* ----------------- styles ----------------- */
 const st = StyleSheet.create({
   title: { color: '#fff', fontSize: 20, fontWeight: '800', marginBottom: 10 },
   p: { color: C.text, fontSize: 14, lineHeight: 20 },
   pSmall: { color: C.dim, fontSize: 12, marginTop: 6 },
 
-  card: { backgroundColor: C.card, borderColor: C.border, borderWidth: 1, borderRadius: 16, padding: 12, marginBottom: 12 },
+  card: {
+    backgroundColor: C.card,
+    borderColor: C.border,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 12,
+  },
   cardTitle: { color: '#fff', fontWeight: '700', fontSize: 15, marginBottom: 6 },
   dim: { color: C.dim, fontSize: 13 },
 
-  input: { backgroundColor: 'rgba(255,255,255,0.06)', borderColor: C.border, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, color: '#fff', marginTop: 4 },
+  input: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: C.border,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    color: '#fff',
+    marginTop: 4,
+  },
 
-  tag: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: C.border },
+  tag: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: C.border,
+  },
   tagOn: { backgroundColor: C.primary, borderColor: C.primary },
 
-  btn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: C.border },
+  btn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: C.border,
+  },
   btnOn: { backgroundColor: C.primary, borderColor: C.primary },
 
-  switch: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: C.border },
+  switch: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: C.border,
+  },
   switchOn: { backgroundColor: C.primary, borderColor: C.primary },
 
   est: { color: '#fff', fontSize: 18, fontWeight: '800' },
 
-  evRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6, borderBottomColor: C.border, borderBottomWidth: StyleSheet.hairlineWidth },
+  evRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderBottomColor: C.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
   evText: { color: C.text, fontSize: 14 },
 
   tick: { color: C.dim, fontSize: 10 },
