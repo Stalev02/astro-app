@@ -1,0 +1,63 @@
+📄 .env
+📁 .expo
+  📄 README.md
+  📄 devices.json
+  📄 settings.json
+  📁 types
+    📄 router.d.ts
+📄 .gitignore
+📄 ALL_SOURCE_COMBINED_FULL.txt
+📄 README.md
+📁 app
+  📁 (tabs)
+    📄 _layout.tsx
+    📄 astro.tsx
+    📄 compatibility.tsx
+    📄 forecasts.tsx
+    📄 rectification.tsx
+    📄 settings.tsx
+  📄 _layout.tsx
+  📁 auth
+    📄 login.tsx
+    📄 register.tsx
+  📄 index.tsx
+  📄 modal.tsx
+  📄 onboarding-profile.tsx
+  📄 onboarding.tsx
+📄 app.json
+📁 assets
+  📁 images
+    📄 android-icon-background.png
+    📄 android-icon-foreground.png
+    📄 android-icon-monochrome.png
+    📄 favicon.png
+    📄 icon.png
+    📄 partial-react-logo.png
+    📄 react-logo.png
+    📄 react-logo@2x.png
+    📄 react-logo@3x.png
+    📄 splash-icon.png
+📄 combine.js
+📄 eslint.config.js
+📄 expo-env.d.ts
+📄 package-lock.json
+📄 package.json
+📁 server
+  📄 .env
+  📄 db.js
+  📄 index.js
+📁 src
+  📁 lib
+    📄 supabase.ts
+  📁 shared
+    📁 api
+      📄 profiles.ts
+    📁 config
+      📄 api.ts
+  📁 store
+    📄 app.ts
+    📄 profiles.ts
+  📄 types.ts
+📄 structure.txt
+📄 tree.js
+📄 tsconfig.json
