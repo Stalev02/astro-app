@@ -4,18 +4,19 @@ import { PersonProfile, useProfiles } from '@/src/store/profiles';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    Pressable,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TextInput,
-    useWindowDimensions,
-    View,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
 } from 'react-native';
 
 const C = {
@@ -28,7 +29,7 @@ const C = {
   err: '#ef4444',
 };
 
-const TOP_OFFSET = 80; // смещение модалки вниз
+const TOP_OFFSET = 80;
 
 type PickedGeo = {
   id: string;
@@ -41,13 +42,10 @@ type PickedGeo = {
 };
 
 type StepKey =
-  | 'name'
+  | 'name'         // имя + пол
   | 'birthDate'
-  | 'birthTime'
-  | 'birthPlace'
-  | 'liveElse'
-  | 'gender'
-  | 'email'
+  | 'birthTime'    // + ректификация
+  | 'birthPlace'   // место рождения + проживание
   | 'final';
 
 const genders: Array<{ key: PersonProfile['gender'] | 'na'; label: string }> = [
@@ -63,11 +61,11 @@ export default function OnboardingProfileWizard() {
   const loading = useProfiles((s) => s.loading);
 
   const [name, setName] = useState<string>('');
-  const [birthDate, setBirthDate] = useState<string>(''); // YYYY-MM-DD
+  const [birthDate, setBirthDate] = useState<string>('');
 
   const [timeKnown, setTimeKnown] = useState<boolean>(true);
-  const [birthTime, setBirthTime] = useState<string>(''); // HH:mm
-  const [seconds, setSeconds] = useState<string>('00');   // SS
+  const [birthTime, setBirthTime] = useState<string>('');
+  const [seconds, setSeconds] = useState<string>('00');
 
   const [placeQuery, setPlaceQuery] = useState<string>('');
   const [pickedGeo, setPickedGeo] = useState<PickedGeo | null>(null);
@@ -78,11 +76,9 @@ export default function OnboardingProfileWizard() {
   const [currentCity, setCurrentCity] = useState<string>('');
 
   const [gender, setGender] = useState<PersonProfile['gender'] | 'na'>('na');
-  const [email, setEmail] = useState<string>('');
 
   const [step, setStep] = useState<StepKey>('name');
 
-  // ── поиск подсказок места
   useEffect(() => {
     let t: ReturnType<typeof setTimeout> | null = null;
     const q = placeQuery.trim();
@@ -111,14 +107,9 @@ export default function OnboardingProfileWizard() {
       setSuggest([]);
       setShowSuggest(false);
     }
-    return () => {
-      if (t) {
-        clearTimeout(t);
-      }
-    };
+    return () => { if (t) clearTimeout(t); };
   }, [placeQuery, step]);
 
-  // при ручном редактировании после выбора — сбросить pickedGeo
   useEffect(() => {
     if (!pickedGeo) return;
     const normalized = `${pickedGeo.city}${pickedGeo.nation ? ', ' + pickedGeo.nation : ''}`;
@@ -127,15 +118,13 @@ export default function OnboardingProfileWizard() {
     }
   }, [placeQuery, pickedGeo]);
 
-  // ── навигация по шагам
-  const order: StepKey[] = ['name', 'birthDate', 'birthTime', 'birthPlace', 'liveElse', 'gender', 'email', 'final'];
+  const order: StepKey[] = ['name', 'birthDate', 'birthTime', 'birthPlace', 'final'];
   const idx = order.indexOf(step);
   const canPrev = idx > 0;
 
   const goPrev = () => setStep(order[Math.max(0, idx - 1)]);
   const goNext = () => setStep(order[Math.min(order.length - 1, idx + 1)]);
 
-  // ── валидация и переходы
   function validateAndNext() {
     switch (step) {
       case 'name':
@@ -150,29 +139,21 @@ export default function OnboardingProfileWizard() {
         if (!/^\d{2}$/.test(seconds)) return Alert.alert('Секунды', '00–59.');
         return goNext();
       case 'birthPlace':
-        if (!pickedGeo) return Alert.alert('Место рождения', 'Выбери место из списка подсказок.');
-        return goNext();
-      case 'liveElse':
+        if (!pickedGeo) return Alert.alert('Место рождения', 'Выбери место из подсказок.');
         if (livesElsewhere && !currentCity.trim())
           return Alert.alert('Проживание', 'Укажи текущий город или отключи «Проживаю в другом месте».');
-        return goNext();
-      case 'gender':
-        return goNext();
-      case 'email':
-        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return Alert.alert('Email', 'Укажи корректный email.');
         return goNext();
       default:
         return;
     }
   }
 
-  // ── финальное сохранение (онбординг → БД/API → карта → переход в Astro)
   async function saveProfile() {
     try {
       if (!name.trim()) return Alert.alert('Имя', 'Укажи имя.');
       if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return Alert.alert('Дата', 'Формат ГГГГ-ММ-ДД.');
       if (timeKnown && !/^\d{2}:\d{2}$/.test(birthTime)) return Alert.alert('Время', 'Формат ЧЧ:ММ.');
-      if (!pickedGeo) return Alert.alert('Место рождения', 'Выбери место из списка подсказок.');
+      if (!pickedGeo) return Alert.alert('Место рождения', 'Выбери место из подсказок.');
 
       const input: Partial<PersonProfile> = {
         name: name.trim(),
@@ -186,7 +167,6 @@ export default function OnboardingProfileWizard() {
         livesElsewhere,
         currentCity: livesElsewhere ? currentCity.trim() : undefined,
         gender: gender === 'na' ? undefined : (gender as any),
-        email: email.trim() || undefined,
         fullDateTimeISO: timeKnown ? `${birthDate}T${birthTime}:${seconds || '00'}` : undefined,
         coords: pickedGeo ? { lat: pickedGeo.lat, lng: pickedGeo.lng } : undefined,
         tz: pickedGeo?.tz || undefined,
@@ -205,7 +185,14 @@ export default function OnboardingProfileWizard() {
         <View style={{ flex: 1, padding: 16 }}>
           <Header step={idx + 1} total={order.length} onBack={canPrev ? goPrev : undefined} />
           <View style={{ flex: 1, marginTop: 8 }}>
-            {step === 'name' && <ScreenName name={name} setName={setName} />}
+            {step === 'name' && (
+              <ScreenNameGender
+                name={name}
+                setName={setName}
+                gender={gender}
+                setGender={(g: PersonProfile['gender'] | 'na') => setGender(g)}
+              />
+            )}
             {step === 'birthDate' && <ScreenBirthDate value={birthDate} setValue={setBirthDate} />}
             {step === 'birthTime' && (
               <ScreenBirthTime
@@ -218,7 +205,7 @@ export default function OnboardingProfileWizard() {
               />
             )}
             {step === 'birthPlace' && (
-              <ScreenBirthPlace
+              <ScreenBirthPlaceWithLive
                 placeQuery={placeQuery}
                 setPlaceQuery={(t: string) => setPlaceQuery(t)}
                 pickedGeo={pickedGeo}
@@ -226,28 +213,13 @@ export default function OnboardingProfileWizard() {
                 suggest={suggest}
                 showSuggest={showSuggest}
                 setShowSuggest={(v: boolean) => setShowSuggest(v)}
-              />
-            )}
-            {step === 'liveElse' && (
-              <ScreenLiveElse
                 livesElsewhere={livesElsewhere}
                 setLivesElsewhere={(v: boolean) => setLivesElsewhere(v)}
                 currentCity={currentCity}
                 setCurrentCity={(t: string) => setCurrentCity(t)}
               />
             )}
-            {step === 'gender' && (
-              <ScreenGender
-                gender={gender}
-                setGender={(g: PersonProfile['gender'] | 'na') => setGender(g)}
-              />
-            )}
-            {step === 'email' && (
-              <ScreenEmail email={email} setEmail={(t: string) => setEmail(t)} />
-            )}
-            {step === 'final' && (
-              <ScreenReview onRect={() => router.push({ pathname: '/modal', params: { mode: 'rectification' } })} />
-            )}
+            {step === 'final' && <ScreenReview onRect={() => router.push({ pathname: '/modal', params: { mode: 'rectification' } })} />}
           </View>
 
           <View style={s.nav}>
@@ -267,7 +239,7 @@ export default function OnboardingProfileWizard() {
   );
 }
 
-/* ────────── Шаги UI ────────── */
+/* ────────── ШАГИ ────────── */
 
 function Header({ step, total, onBack }: { step: number; total: number; onBack?: () => void }) {
   return (
@@ -292,15 +264,58 @@ function Header({ step, total, onBack }: { step: number; total: number; onBack?:
   );
 }
 
-function ScreenName({ name, setName }: { name: string; setName: (t: string) => void }) {
+function Card({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View style={s.card}>
+      <Text style={s.h1}>{title}</Text>
+      <View style={{ marginTop: 8, gap: 8 }}>{children}</View>
+    </View>
+  );
+}
+
+function Input(props: React.ComponentProps<typeof TextInput>) {
+  return <TextInput {...props} style={[s.input, props.style]} placeholderTextColor="#8b8e97" />;
+}
+
+function Hint({ children }: { children: React.ReactNode }) {
+  return <Text style={{ color: C.dim, fontSize: 12 }}>{children}</Text>;
+}
+
+function Row({ children, style }: { children: React.ReactNode; style?: any }) {
+  return <View style={[{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 }, style]}>{children}</View>;
+}
+
+/* Имя + Пол */
+function ScreenNameGender({
+  name,
+  setName,
+  gender,
+  setGender,
+}: {
+  name: string;
+  setName: (t: string) => void;
+  gender: PersonProfile['gender'] | 'na';
+  setGender: (g: PersonProfile['gender'] | 'na') => void;
+}) {
   return (
     <Card title="Как тебя зовут?">
       <Input value={name} onChangeText={(t: string) => setName(t)} placeholder="Имя" autoFocus />
+      <Hint>Выбери пол (необязательно)</Hint>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {genders.map((g) => {
+          const active = gender === g.key;
+          return (
+            <Pressable key={g.key} onPress={() => setGender(g.key)} style={[s.tag, active && s.tagOn]}>
+              <Text style={{ color: active ? '#fff' : C.text, fontWeight: '600' }}>{g.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </Card>
   );
 }
 
-/* ── ПРОДВИНУТЫЙ ВЫБОР ДАТЫ ───────────────────────────────────────────── */
+/* Дата рождения — продвинутый выбор */
 function ScreenBirthDate({ value, setValue }: { value: string; setValue: (t: string) => void }) {
   const now = new Date();
   const CY = now.getFullYear();
@@ -316,19 +331,9 @@ function ScreenBirthDate({ value, setValue }: { value: string; setValue: (t: str
   const listHeight = Math.min(300, Math.max(220), Math.floor(sh * 0.45));
 
   const [open, setOpen] = useState<boolean>(false);
-
-  const [y, setY] = useState<number>(() => {
-    const m = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    return m ? Number(m[1]) : CY;
-  });
-  const [m, setM] = useState<number>(() => {
-    const mm = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    return mm ? Number(mm[2]) : CM;
-  });
-  const [d, setD] = useState<number>(() => {
-    const dd = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    return dd ? Number(dd[3]) : CD;
-  });
+  const [y, setY] = useState<number>(() => (value.match(/^(\d{4})-(\d{2})-(\d{2})$/) ? Number(value.slice(0, 4)) : CY));
+  const [m, setM] = useState<number>(() => (value.match(/^(\d{4})-(\d{2})-(\d{2})$/) ? Number(value.slice(5, 7)) : CM));
+  const [d, setD] = useState<number>(() => (value.match(/^(\d{4})-(\d{2})-(\d{2})$/) ? Number(value.slice(8, 10)) : CD));
 
   const [tmpY, setTmpY] = useState<number>(y);
   const [tmpM, setTmpM] = useState<number>(m);
@@ -343,9 +348,9 @@ function ScreenBirthDate({ value, setValue }: { value: string; setValue: (t: str
   const allMonths = useMemo(
     () => [
       { n: 1, title: 'Январь' }, { n: 2, title: 'Февраль' }, { n: 3, title: 'Март' },
-      { n: 4, title: 'Апрель' }, { n: 5, title: 'Май' }, { n: 6, title: 'Июнь' },
-      { n: 7, title: 'Июль' }, { n: 8, title: 'Август' }, { n: 9, title: 'Сентябрь' },
-      { n: 10, title: 'Октябрь' }, { n: 11, title: 'Ноябрь' }, { n: 12, title: 'Декабрь' },
+      { n: 4, title: 'Апрель' },  { n: 5, title: 'Май' },     { n: 6, title: 'Июнь' },
+      { n: 7, title: 'Июль' },    { n: 8, title: 'Август' },  { n: 9, title: 'Сентябрь' },
+      { n: 10, title: 'Октябрь' },{ n: 11, title: 'Ноябрь' }, { n: 12, title: 'Декабрь' },
     ],
     []
   );
@@ -399,38 +404,13 @@ function ScreenBirthDate({ value, setValue }: { value: string; setValue: (t: str
           <View style={[s.modalCard, { width: modalWidth, marginTop: TOP_OFFSET }]}>
             <Text style={[s.h1, { marginBottom: 8 }]}>Выбери дату</Text>
             <View style={[s.pickerRow, { gap: innerGap }]}>
-              <PickerColumnNumber
-                title="Год"
-                data={years}
-                selected={tmpY}
-                onSelect={(n: number) => setTmpY(n)}
-                style={{ width: colWidth }}
-                listHeight={listHeight}
-              />
-              <PickerColumnMonth
-                title="Месяц"
-                data={months}
-                selected={tmpM}
-                onSelect={(n: number) => setTmpM(n)}
-                style={{ width: colWidth }}
-                listHeight={listHeight}
-              />
-              <PickerColumnNumber
-                title="День"
-                data={days}
-                selected={tmpD}
-                onSelect={(n: number) => setTmpD(n)}
-                style={{ width: colWidth }}
-                listHeight={listHeight}
-              />
+              <PickerColumnNumber title="Год" data={years} selected={tmpY} onSelect={(n) => setTmpY(n)} style={{ width: colWidth }} listHeight={listHeight} />
+              <PickerColumnMonth  title="Месяц" data={months} selected={tmpM} onSelect={(n) => setTmpM(n)} style={{ width: colWidth }} listHeight={listHeight} />
+              <PickerColumnNumber title="День" data={days}  selected={tmpD} onSelect={(n) => setTmpD(n)} style={{ width: colWidth }} listHeight={listHeight} />
             </View>
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
-              <Pressable onPress={() => setOpen(false)} style={[s.btn, s.ghost, { flex: 1 }]}>
-                <Text style={s.btnText}>Отмена</Text>
-              </Pressable>
-              <Pressable onPress={confirm} style={[s.btn, s.primary, { flex: 1 }]}>
-                <Text style={[s.btnText, { color: '#fff' }]}>Готово</Text>
-              </Pressable>
+              <Pressable onPress={() => setOpen(false)} style={[s.btn, s.ghost, { flex: 1 }]}><Text style={s.btnText}>Отмена</Text></Pressable>
+              <Pressable onPress={confirm} style={[s.btn, s.primary, { flex: 1 }]}><Text style={[s.btnText, { color: '#fff' }]}>Готово</Text></Pressable>
             </View>
           </View>
         </View>
@@ -438,9 +418,8 @@ function ScreenBirthDate({ value, setValue }: { value: string; setValue: (t: str
     </Card>
   );
 }
-/* ─────────────────────────────────────────────────────────────────────── */
 
-/* ── ПРОДВИНУТЫЙ ВЫБОР ВРЕМЕНИ ────────────────────────────────────────── */
+/* Время рождения — с кнопкой Ректификация */
 function ScreenBirthTime({
   timeKnown,
   setTimeKnown,
@@ -456,6 +435,7 @@ function ScreenBirthTime({
   seconds: string;
   setSeconds: (t: string) => void;
 }) {
+  const router = useRouter();
   const { width: sw, height: sh } = useWindowDimensions();
   const MODAL_PAD = 14;
   const modalWidth = Math.min(sw - 32, 360);
@@ -478,10 +458,7 @@ function ScreenBirthTime({
   const mins  = useMemo<number[]>(() => Array.from({ length: 60 }, (_, i) => i), []);
   const secs  = mins;
 
-  function openPicker() {
-    setTmpH(curH); setTmpM(curM); setTmpS(curS);
-    setOpen(true);
-  }
+  function openPicker() { setTmpH(curH); setTmpM(curM); setTmpS(curS); setOpen(true); }
   function confirm() {
     const HH = String(tmpH).padStart(2, '0');
     const MM = String(tmpM).padStart(2, '0');
@@ -497,15 +474,7 @@ function ScreenBirthTime({
 
   return (
     <Card title="Время рождения">
-      <Pressable
-        onPress={() => setTimeKnown(!timeKnown)}
-        style={[s.btn, s.ghost, { alignSelf: 'flex-start', borderColor: C.primary, borderWidth: 1, marginBottom: 12 }]}
-      >
-        <Text style={[s.btnText, { color: C.primary, fontWeight: '700' }]}>
-          {timeKnown ? 'Не знаю точное время' : 'Знаю точное время'}
-        </Text>
-      </Pressable>
-
+      {/* Выбор времени показываем, только если время известно */}
       {timeKnown ? (
         <>
           <Pressable onPress={openPicker} style={[s.chip]}>
@@ -516,58 +485,61 @@ function ScreenBirthTime({
           <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
             <View style={s.modalWrap}>
               <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpen(false)} />
-              <View style={[s.modalCard, { width: modalWidth, marginTop: TOP_OFFSET }]}>
+              <View style={[s.modalCard, { width: modalWidth, marginTop: 80 }]}>
                 <Text style={[s.h1, { marginBottom: 8 }]}>Выбери время</Text>
                 <View style={[s.pickerRow, { gap: innerGap }]}>
-                  <PickerColumnNumber
-                    title="Часы"
-                    data={hours}
-                    selected={tmpH}
-                    onSelect={(n: number) => setTmpH(n)}
-                    style={{ width: colWidth }}
-                    listHeight={listHeight}
-                    format={(n: number) => String(n).padStart(2, '0')}
-                  />
-                  <PickerColumnNumber
-                    title="Минуты"
-                    data={mins}
-                    selected={tmpM}
-                    onSelect={(n: number) => setTmpM(n)}
-                    style={{ width: colWidth }}
-                    listHeight={listHeight}
-                    format={(n: number) => String(n).padStart(2, '0')}
-                  />
-                  <PickerColumnNumber
-                    title="Секунды"
-                    data={secs}
-                    selected={tmpS}
-                    onSelect={(n: number) => setTmpS(n)}
-                    style={{ width: colWidth }}
-                    listHeight={listHeight}
-                    format={(n: number) => String(n).padStart(2, '0')}
-                  />
+                  <PickerColumnNumber title="Часы"   data={hours} selected={tmpH} onSelect={(n) => setTmpH(n)} style={{ width: colWidth }} listHeight={listHeight} format={(n) => String(n).padStart(2, '0')} />
+                  <PickerColumnNumber title="Минуты" data={mins}  selected={tmpM} onSelect={(n) => setTmpM(n)} style={{ width: colWidth }} listHeight={listHeight} format={(n) => String(n).padStart(2, '0')} />
+                  <PickerColumnNumber title="Секунды" data={secs} selected={tmpS} onSelect={(n) => setTmpS(n)} style={{ width: colWidth }} listHeight={listHeight} format={(n) => String(n).padStart(2, '0')} />
                 </View>
                 <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
-                  <Pressable onPress={() => setOpen(false)} style={[s.btn, s.ghost, { flex: 1 }]}>
-                    <Text style={s.btnText}>Отмена</Text>
-                  </Pressable>
-                  <Pressable onPress={confirm} style={[s.btn, s.primary, { flex: 1 }]}>
-                    <Text style={[s.btnText, { color: '#fff' }]}>Готово</Text>
-                  </Pressable>
+                  <Pressable onPress={() => setOpen(false)} style={[s.btn, s.ghost, { flex: 1 }]}><Text style={s.btnText}>Отмена</Text></Pressable>
+                  <Pressable onPress={confirm} style={[s.btn, s.primary, { flex: 1 }]}><Text style={[s.btnText, { color: '#fff' }]}>Готово</Text></Pressable>
                 </View>
               </View>
             </View>
           </Modal>
         </>
       ) : (
-        <Hint>Если не знаешь точное время, просто продолжай — можно будет уточнить позже.</Hint>
+        <Hint>Если не знаешь точное время, просто продолжай — можно уточнить позже.</Hint>
       )}
+
+      {/* Переключатель под блоком выбора времени */}
+      {/* Переключатель под блоком выбора времени — компактный и кликабельный всей строкой */}
+<Pressable
+  onPress={() => setTimeKnown(!timeKnown)}
+  style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingVertical: 6 }}
+  hitSlop={8}
+>
+  <Text style={[s.label, { fontSize: 15, fontWeight: '700' }]}>
+    Не знаю точное время
+  </Text>
+  <Switch
+    value={!timeKnown}
+    onValueChange={(v) => setTimeKnown(!v)}
+    ios_backgroundColor="rgba(255,255,255,0.2)"
+    trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#4f46e5' }}
+    thumbColor={'#ffffff'}
+    style={{ marginLeft: 12, transform: [{ scaleX: 0.96 }, { scaleY: 0.96 }] }}
+  />
+</Pressable>
+
+
+      {/* Кнопка ректификации */}
+      <View style={{ height: 10 }} />
+      <Pressable
+        onPress={() => router.push({ pathname: '/modal', params: { mode: 'rectification' } })}
+        style={[s.btn, s.outline, { alignSelf: 'flex-start' }]}
+      >
+        <Text style={s.btnText}>Ректификация</Text>
+      </Pressable>
     </Card>
   );
 }
-/* ─────────────────────────────────────────────────────────────────────── */
 
-function ScreenBirthPlace(props: {
+
+/* Место рождения + Проживание */
+function ScreenBirthPlaceWithLive(props: {
   placeQuery: string;
   setPlaceQuery: (t: string) => void;
   pickedGeo: PickedGeo | null;
@@ -575,18 +547,69 @@ function ScreenBirthPlace(props: {
   suggest: PickedGeo[];
   showSuggest: boolean;
   setShowSuggest: (v: boolean) => void;
+  livesElsewhere: boolean;
+  setLivesElsewhere: (v: boolean) => void;
+  currentCity: string;
+  setCurrentCity: (t: string) => void;
 }) {
-  const { placeQuery, setPlaceQuery, pickedGeo, setPickedGeo, suggest, showSuggest, setShowSuggest } = props;
+  const {
+    placeQuery, setPlaceQuery, pickedGeo, setPickedGeo,
+    suggest, showSuggest, setShowSuggest,
+    livesElsewhere, setLivesElsewhere, currentCity, setCurrentCity
+  } = props;
+
   const listRef = useRef<FlatList<PickedGeo>>(null);
 
+  // ── Локальные стейты для автодополнения «Проживание»
+  const [liveSuggest, setLiveSuggest] = useState<PickedGeo[]>([]);
+  const [showLiveSuggest, setShowLiveSuggest] = useState<boolean>(false);
+  const liveSeqRef = useRef(0);
+
+  // Дебаунс-поиск для поля «Проживание»
+  useEffect(() => {
+    if (!livesElsewhere) {
+      setLiveSuggest([]);
+      setShowLiveSuggest(false);
+      return;
+    }
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const q = currentCity.trim();
+    if (q.length >= 2) {
+      t = setTimeout(async () => {
+        const mySeq = ++liveSeqRef.current;
+        try {
+          const res = await searchPlaces(q);
+          if (mySeq !== liveSeqRef.current) return;
+          const items: PickedGeo[] = (res.items || []).map((it: any) => ({
+            id: it.id,
+            city: it.city,
+            nation: it.nation || null,
+            lat: it.lat,
+            lng: it.lng,
+            tz: it.tz || null,
+            displayName: it.displayName,
+          }));
+          setLiveSuggest(items);
+          setShowLiveSuggest(true);
+        } catch {
+          if (mySeq !== liveSeqRef.current) return;
+          setLiveSuggest([]);
+          setShowLiveSuggest(false);
+        }
+      }, 250);
+    } else {
+      setLiveSuggest([]);
+      setShowLiveSuggest(false);
+    }
+    return () => { if (t) clearTimeout(t); };
+  }, [currentCity, livesElsewhere]);
+
   return (
-    <Card title="Место рождения">
+    <Card title="Место рождения и проживание">
+      {/* Место рождения */}
       <Input
         value={placeQuery}
-        onChangeText={(t: string) => {
-          setPlaceQuery(t);
-          setPickedGeo(null);
-        }}
+        onChangeText={(t: string) => { setPlaceQuery(t); setPickedGeo(null); }}
         placeholder="Начни вводить (пример: Москва, RU)"
         onFocus={() => placeQuery.trim().length >= 2 && setShowSuggest(true)}
         onBlur={() => setTimeout(() => setShowSuggest(false), 120)}
@@ -617,62 +640,91 @@ function ScreenBirthPlace(props: {
         </View>
       )}
       <Hint>Выбери вариант из подсказок.</Hint>
-    </Card>
-  );
-}
 
-function ScreenLiveElse(props: {
-  livesElsewhere: boolean;
-  setLivesElsewhere: (v: boolean) => void;
-  currentCity: string;
-  setCurrentCity: (t: string) => void;
-}) {
-  const { livesElsewhere, setLivesElsewhere, currentCity, setCurrentCity } = props;
-  return (
-    <Card title="Проживание">
-      <Row>
-        <Text style={s.label}>Проживаю в другом месте</Text>
-        <Toggle value={livesElsewhere} onValueChange={(v: boolean) => setLivesElsewhere(v)} />
-      </Row>
+      {/* Проживание */}
+      <View style={{ height: 12 }} />
+      <Text style={s.h1}>Проживание</Text>
+
+      {/* Тумблер в стиле "Не знаю точное время" */}
+      <Pressable
+        onPress={() => setLivesElsewhere(!livesElsewhere)}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          marginTop: 10,
+          paddingVertical: 6,
+        }}
+        hitSlop={8}
+      >
+        <Text style={[s.label, { fontSize: 15, fontWeight: '700' }]}>
+          Проживаю в другом месте
+        </Text>
+        <Switch
+          value={livesElsewhere}
+          onValueChange={(v) => setLivesElsewhere(v)}
+          ios_backgroundColor="rgba(255,255,255,0.2)"
+          trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#4f46e5' }}
+          thumbColor={'#ffffff'}
+          style={{ marginLeft: 12, transform: [{ scaleX: 0.96 }, { scaleY: 0.96 }] }}
+        />
+      </Pressable>
+
       {livesElsewhere && (
-        <Input value={currentCity} onChangeText={(t: string) => setCurrentCity(t)} placeholder="Текущий город (например: Стамбул, TR)" />
+        <View style={{ position: 'relative', marginTop: 6 }}>
+          <Input
+            value={currentCity}
+            onChangeText={(t: string) => setCurrentCity(t)}
+            placeholder="Текущий город (например: Стамбул, TR)"
+            onFocus={() => currentCity.trim().length >= 2 && setShowLiveSuggest(true)}
+            onBlur={() => setTimeout(() => setShowLiveSuggest(false), 120)}
+          />
+          {showLiveSuggest && liveSuggest.length > 0 && (
+            <View
+              style={{
+                position: 'absolute',
+                top: 48,
+                left: 0,
+                right: 0,
+                backgroundColor: 'rgba(20,20,22,0.98)',
+                borderColor: 'rgba(255,255,255,0.12)',
+                borderWidth: 1,
+                borderRadius: 8,
+                maxHeight: 240,
+                overflow: 'hidden',
+                zIndex: 20,
+                elevation: 12,
+              }}
+            >
+              <FlatList
+                keyboardShouldPersistTaps="handled"
+                data={liveSuggest}
+                keyExtractor={(it) => it.id}
+                renderItem={({ item }) => (
+                  <Pressable
+                    onPress={() => {
+                      setCurrentCity(item.displayName);
+                      setShowLiveSuggest(false);
+                    }}
+                    style={s.suggestItem}
+                  >
+                    <Text style={{ color: '#fff' }}>{item.displayName}</Text>
+                    <Text style={{ color: '#9aa0aa', fontSize: 12 }}>
+                      {item.lat.toFixed(4)}, {item.lng.toFixed(4)} {item.tz ? `• ${item.tz}` : ''}
+                    </Text>
+                  </Pressable>
+                )}
+              />
+            </View>
+          )}
+        </View>
       )}
     </Card>
   );
 }
 
-function ScreenGender({
-  gender,
-  setGender,
-}: {
-  gender: PersonProfile['gender'] | 'na';
-  setGender: (g: PersonProfile['gender'] | 'na') => void;
-}) {
-  return (
-    <Card title="Пол">
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-        {genders.map((g) => {
-          const active = gender === g.key;
-          return (
-            <Pressable key={g.key} onPress={() => setGender(g.key)} style={[s.tag, active && s.tagOn]}>
-              <Text style={{ color: active ? '#fff' : C.text, fontWeight: '600' }}>{g.label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    </Card>
-  );
-}
 
-function ScreenEmail({ email, setEmail }: { email: string; setEmail: (t: string) => void }) {
-  return (
-    <Card title="Email (необязательно)">
-      <Input value={email} onChangeText={(t: string) => setEmail(t)} placeholder="you@email.com" keyboardType="email-address" autoCapitalize="none" />
-      <Hint>Нужен для входа и восстановления доступа, можем не использовать для рассылок.</Hint>
-    </Card>
-  );
-}
 
+/* Финал */
 function ScreenReview({ onRect }: { onRect: () => void }) {
   return (
     <Card title="Финальный шаг">
@@ -685,36 +737,7 @@ function ScreenReview({ onRect }: { onRect: () => void }) {
   );
 }
 
-/* ────────── UI helpers ────────── */
-
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View style={s.card}>
-      <Text style={s.h1}>{title}</Text>
-      <View style={{ marginTop: 8, gap: 8 }}>{children}</View>
-    </View>
-  );
-}
-
-function Input(props: React.ComponentProps<typeof TextInput>) {
-  return <TextInput {...props} style={[s.input, props.style]} placeholderTextColor="#8b8e97" />;
-}
-
-function Toggle({ value, onValueChange }: { value: boolean; onValueChange: (v: boolean) => void }) {
-  return (
-    <Pressable onPress={() => onValueChange(!value)} style={[s.tag, value && s.tagOn, { paddingVertical: 6, paddingHorizontal: 12 }]}>
-      <Text style={{ color: value ? '#fff' : C.text, fontWeight: '700' }}>{value ? 'Да' : 'Нет'}</Text>
-    </Pressable>
-  );
-}
-
-function Hint({ children }: { children: React.ReactNode }) {
-  return <Text style={{ color: C.dim, fontSize: 12 }}>{children}</Text>;
-}
-
-function Row({ children, style }: { children: React.ReactNode; style?: any }) {
-  return <View style={[{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 }, style]}>{children}</View>;
-}
+/* ────────── Пикеры ────────── */
 
 function PickerColumnNumber({
   title,
@@ -805,6 +828,26 @@ function PickerColumnMonth({
   );
 }
 
+function Toggle({ value, onValueChange }: { value: boolean; onValueChange: (v: boolean) => void }) {
+  return (
+    <Pressable
+      onPress={() => onValueChange(!value)}
+      style={[
+        s.tag,
+        value && s.tagOn,
+        { paddingVertical: 6, paddingHorizontal: 12, alignSelf: 'flex-start' },
+      ]}
+    >
+      <Text style={{ color: value ? '#fff' : C.text, fontWeight: '700' }}>
+        {value ? 'Да' : 'Нет'}
+      </Text>
+    </Pressable>
+  );
+}
+
+
+/* ────────── Стили ────────── */
+
 const s = StyleSheet.create({
   card: { backgroundColor: C.card, borderColor: C.border, borderWidth: 1, borderRadius: 16, padding: 16 },
   h1: { color: '#fff', fontWeight: '800', fontSize: 20 },
@@ -834,6 +877,7 @@ const s = StyleSheet.create({
   btnText: { color: C.text, fontWeight: '700' },
   primary: { backgroundColor: C.primary, borderColor: C.primary },
   ghost: { backgroundColor: 'transparent' },
+  outline: { borderWidth: 1, borderColor: C.primary, backgroundColor: 'transparent' },
 
   progressWrap: { flexDirection: 'row', gap: 6, marginBottom: 6, justifyContent: 'center' },
   progressDot: { flex: 1, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.15)' },
@@ -878,7 +922,6 @@ const s = StyleSheet.create({
     alignSelf: 'flex-start',
   },
 
-  // модальная «шторка» для Modal
   modalWrap: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -899,7 +942,7 @@ const s = StyleSheet.create({
     borderColor: C.border,
     borderWidth: 1,
     borderRadius: 10,
-    overflow: 'hidden', // клипуем элементы списков
+    overflow: 'hidden',
   },
   colTitle: {
     color: C.dim,

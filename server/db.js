@@ -2,12 +2,14 @@
 import mysql from 'mysql2/promise';
 
 const {
-  DB_HOST = '127.0.0.1',
+  DB_HOST='astroappdb2.mysql.database.azure.com',
   DB_PORT = '3306',
-  DB_USER = 'cosmo',
-  DB_PASSWORD = '',
-  DB_NAME = 'cosmotell',
+  DB_USER = 'master',
+  DB_PASSWORD = '4YU2c7@@v2zUUdQxJ',
+  DB_NAME = 'astro_data',
 } = process.env;
+
+
 
 export const pool = mysql.createPool({
   host: DB_HOST,
@@ -22,6 +24,8 @@ export const pool = mysql.createPool({
 });
 
 let useJsonColumns = true;
+
+const TABLE = 'users';
 
 /** Определяем движок/версию, чтобы понимать — есть ли JSON-тип */
 async function detectEngine() {

@@ -1,5 +1,6 @@
 // app/(tabs)/settings.tsx
 import { getSupabase } from '@/src/lib/supabase';
+import { useApp } from '@/src/store/app';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
@@ -15,6 +16,7 @@ const C = {
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const { testMode, disableTestMode } = useApp();
 
   async function logout() {
     try {
@@ -40,6 +42,15 @@ export default function SettingsScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
       <View style={s.wrap}>
         <Text style={s.title}>Настройки</Text>
+        {testMode && (
+          <View style={[s.card, { borderColor: '#4f46e5' }]}>
+            <Text style={[s.section, { color: '#cfd2da' }]}>Тест-режим включен</Text>
+            <Pressable onPress={() => disableTestMode()} style={[s.btn, s.btnRow]}>
+              <Ionicons name="flask-outline" size={18} color="#fff" />
+              <Text style={s.btnTxt}>Выключить тест-режим</Text>
+            </Pressable>
+          </View>
+        )}
 
         {/* Анкеты */}
         <View style={s.card}>

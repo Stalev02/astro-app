@@ -1,5 +1,6 @@
 // app/auth/register.tsx
 import { getSupabase } from '@/src/lib/supabase';
+import { useApp } from '@/src/store/app';
 import { makeRedirectUri } from 'expo-auth-session';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -17,6 +18,7 @@ const C = {
 
 export default function Register() {
   const router = useRouter();
+  const { enableTestMode } = useApp();
 
   // ВАЖНО: добавь этот redirectUri в Supabase → Auth → Redirect URLs
   const redirectUri = useMemo(
@@ -152,6 +154,18 @@ export default function Register() {
 
         <Pressable onPress={() => router.back()} disabled={loading} style={[s.link]}>
           <Text style={[s.btnTxt, { color: C.dim }]}>Уже есть аккаунт? Войти</Text>
+        </Pressable>
+
+        {/* ── КНОПКА ПРОПУСТИТЬ (ТЕСТ-РЕЖИМ) ───────────────────────── */}
+        <View style={{ height: 8 }} />
+        <Pressable
+          onPress={() => {
+            enableTestMode();      // включаем флаг
+            router.replace('/onboarding'); // сразу в онбординг
+          }}
+          style={[s.btn, { borderColor: '#6b7280', borderWidth: 1 }]}
+        >
+          <Text style={[s.btnTxt, { color: '#cfd2da' }]}>Пропустить • Тест-режим</Text>
         </Pressable>
       </View>
     </SafeAreaView>

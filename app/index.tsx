@@ -7,7 +7,7 @@ import { ActivityIndicator, SafeAreaView, Text, View } from 'react-native';
 
 export default function Index() {
   const navState = useRootNavigationState();
-  const { onboardingDone } = useApp();
+  const { onboardingDone, testMode } = useApp();
   const [ready, setReady] = useState(false);
   const [target, setTarget] = useState<string | null>(null);
 
@@ -19,7 +19,10 @@ export default function Index() {
           data: { session },
         } = await sb.auth.getSession();
 
-        if (!session) {
+        if (testMode) {
+          // ТЕСТ-РЕЖИМ: всегда идём в онбординг (и дальше в рантайме можно открывать «первый вход» экраны)
+          setTarget('/onboarding');
+        } else if (!session) {
           // пользователь не вошёл → экран логина
           setTarget('/auth/login');
         } else if (!onboardingDone) {
@@ -38,7 +41,7 @@ export default function Index() {
     };
 
     init();
-  }, [onboardingDone]);
+  }, [onboardingDone, testMode]);
 
   // ждём, пока смонтируется навигатор
   if (!navState?.key || !ready) {

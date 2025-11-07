@@ -25,3 +25,5 @@ function printTree(dir, indent = "", depth = 0) {
 }
 
 printTree(".");
+
+// the command is node tree.js > structure.txt
