@@ -1,4 +1,5 @@
 // server/db.js
+import fs from 'fs';
 import mysql from 'mysql2/promise';
 
 const {
@@ -7,9 +8,31 @@ const {
   DB_USER = 'master',
   DB_PASSWORD = '4YU2c7@@v2zUUdQxJ',
   DB_NAME = 'astro_data',
+
+   DB_SSL = 'require',                              // 'require' | 'disable'
+  DB_SSL_CA_PATH = '',                             // path to DigiCert/Baltimore CA if you want strict pinning
 } = process.env;
 
-
+let ssl;
+if (DB_SSL !== 'disable') {
+  const caPath = (DB_SSL_CA_PATH || '').trim();
+  if (caPath) {
+    try {
+      ssl = { ca: fs.readFileSync(caPath), rejectUnauthorized: true };
+      console.log('[db] SSL: using CA from', caPath);
+    } catch (e) {
+      console.warn('[db] SSL CA read failed:', e?.message, '→ falling back to generic TLS');
+      ssl = { rejectUnauthorized: true };
+    }
+  } else {
+    // Generic TLS – works for Azure without pinning a CA file
+    ssl = { rejectUnauthorized: true };
+    console.log('[db] SSL: generic TLS (no CA path provided)');
+  }
+} else {
+  ssl = undefined;
+  console.log('[db] SSL disabled by env');
+}
 
 export const pool = mysql.createPool({
   host: DB_HOST,
@@ -20,7 +43,8 @@ export const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  timezone: 'Z', // UTC
+  timezone: 'Z',
+  ssl, // ← important for Azure
 });
 
 let useJsonColumns = true;

@@ -12,6 +12,8 @@ const INACTIVE = '#a3a6ae';
 const HEADER_BG = '#0e0f12';
 const HEADER_TEXT = '#ffffff';
 
+
+
 // Универсальный компонент подписи на 2 строки
 function Label({ text, color }: { text: string; color: string }) {
   return (
@@ -30,6 +32,7 @@ function Label({ text, color }: { text: string; color: string }) {
     </Text>
   );
 }
+
 
 export default function TabsLayout() {
   return (

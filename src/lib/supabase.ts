@@ -1,10 +1,17 @@
-// src/lib/supabase.ts
+
+/* eslint-disable import/order */ 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import 'react-native-url-polyfill/auto';
 
+
+
+
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+console.log("[supabase env]", { url, anon: anon ? "present" : "missing" });
+
 
 let client: SupabaseClient | null = null;
 

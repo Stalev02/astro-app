@@ -1,10 +1,17 @@
 // src/store/profiles.ts
+import { supabase } from '@/src/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { fetchChartSvg, syncProfiles } from '../shared/api/profiles';
 
 /* ───────────────── Types ───────────────── */
+
+const makeDeviceId = async () => {
+  const session = await supabase?.auth.getSession().then(r => r.data.session).catch(() => null);
+  const uid = session?.user?.id;
+  return uid ? `uid-${uid}` : 'dev-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+};
 
 export type PersonProfile = {
   id: string;
@@ -135,27 +142,46 @@ export const useProfiles = create<ProfilesState>()(
         }
       },
 
-      async reloadChart() {
-        const { deviceId, me } = get();
-        if (!me) {
-          console.warn('[profiles] reloadChart: нет профиля');
-          return;
-        }
+      // src/store/profiles.ts (фрагмент)
+async reloadChart() {
+  const { deviceId, me } = get();
+  if (!me) {
+    console.warn('[profiles] reloadChart: нет профиля');
+    return;
+  }
 
-        set({ loading: true, error: null });
-        try {
-          const res = await fetchChartSvg(deviceId);
-          const chart: NatalChart = { chart_svg: res.chart_svg ?? null };
-          set({ chart, loading: false });
-          console.log('[profiles] chart reloaded');
-        } catch (e: any) {
-          set({
-            loading: false,
-            error: e?.message ?? 'Не удалось обновить карту',
-          });
-          console.warn('[profiles] reloadChart failed', e);
-        }
-      },
+  set({ loading: true, error: null });
+  try {
+    const res = await fetchChartSvg(deviceId);
+    const chart: NatalChart = { chart_svg: res.chart_svg ?? null };
+    set({ chart, loading: false });
+    console.log('[profiles] chart reloaded');
+  } catch (e: any) {
+    const msg = String(e?.message || '');
+    // Если сервер ответил 404 not found для chart — вероятно, профиль не записался
+    if (msg.includes('404')) {
+      console.warn('[profiles] chart 404 → попробую sync() и повторить');
+      try {
+        await get().sync();
+        // короткая пауза, чтобы бэк успел создать запись
+        await new Promise(r => setTimeout(r, 250));
+        const res2 = await fetchChartSvg(deviceId);
+        const chart2: NatalChart = { chart_svg: res2.chart_svg ?? null };
+        set({ chart: chart2, loading: false });
+        return;
+      } catch (e2) {
+        // упало снова — пробросим ниже
+        console.warn('[profiles] повторный reload после sync не удался', e2);
+      }
+    }
+    set({
+      loading: false,
+      error: e?.message ?? 'Не удалось обновить карту',
+    });
+    console.warn('[profiles] reloadChart failed', e);
+  }
+},
+
     }),
     {
       name: 'profiles-store',

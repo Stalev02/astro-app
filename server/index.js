@@ -15,19 +15,44 @@ import multer from 'multer';
 import tzLookup from 'tz-lookup';
 
 // DB
-import { getProfile, initDb, saveChartSvg, upsertProfile } from './db.js';
+import { getProfile, initDb, pool, saveChartSvg, upsertProfile } from './db.js';
 
-// ── Инициализация БД
-await initDb();
-console.log('✅ MySQL connected and initialized');
+// ── Create app FIRST (so routes can be registered even if DB init fails)
+const app = express();
+// CORS headers on every response
+app.use(cors({ origin: true }));
+
+// Preflight responder for ALL routes (no path pattern needed)
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*'); // or lock down to your domains
+  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  // Short-circuit preflight
+  if (req.method === 'OPTIONS') {
+    res.header('Access-Control-Max-Age', '86400'); // cache preflight (optional)
+    return res.sendStatus(204);
+  }
+  next();
+});
+
+// увеличиваем лимиты тела запроса, чтобы /profiles/sync не падал 413
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+app.use((req, _res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  next();
+});
+
+app.post('/echo', (req, res) => res.json({ ok: true, body: req.body || null }));
+
+
 
 // ── ffmpeg нужен только если будешь реально перекодировать аудио
 ffmpeg.setFfmpegPath(ffmpegPath.path);
 
-const app = express();
-app.use(cors());
-app.use(express.json());
-
+// ── Env (used by routes below)
 const {
   N8N_CHAT_URL = '',
   N8N_SPEECH_URL = '',
@@ -51,6 +76,31 @@ const sign = (body, ts) => {
   const data = typeof body === 'string' ? body : JSON.stringify(body ?? {});
   return crypto.createHmac('sha256', N8N_SECRET).update(ts + '.' + data).digest('hex');
 };
+
+/* ============================= HEALTH (early) ============================= */
+app.get('/health', async (_req, res) => {
+  let dbOk = false;
+  try {
+    await pool.query('SELECT 1');
+    dbOk = true;
+  } catch {}
+  res.json({
+    ok: true,
+    db: dbOk,
+    n8n: Boolean(N8N_CHAT_URL || N8N_SPEECH_URL),
+    astroKey: Boolean(ASTRO_API_KEY),
+    theme: ASTRO_THEME,
+  });
+});
+
+/* ============================= DB INIT (non-fatal) ============================= */
+try {
+  await initDb();
+  console.log('✅ MySQL connected and initialized');
+} catch (e) {
+  console.error('❌ MySQL init failed:', e?.message || e);
+  // Do not exit; keep server running so /health and other mocks still work.
+}
 
 /* ===== helper: разбираем "Город, Страна" → { city, nation } ===== */
 function parsePlace(me) {
@@ -194,16 +244,6 @@ app.get('/geo/search', async (req, res) => {
     return res.json({ items: [] });
   }
 });
-
-/* ============================= HEALTH ============================= */
-app.get('/health', (_, res) =>
-  res.json({
-    ok: true,
-    n8n: Boolean(N8N_CHAT_URL || N8N_SPEECH_URL),
-    astroKey: Boolean(ASTRO_API_KEY),
-    theme: ASTRO_THEME,
-  })
-);
 
 /* ============================= MOCK CHAT/SPEECH ============================= */
 app.post('/chat', async (req, res) => {

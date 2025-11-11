@@ -116,28 +116,43 @@ export default function Register() {
         </View>
 
         <View style={s.row}>
-          <Text style={s.label}>Пароль</Text>
-          <TextInput
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            placeholder="••••••••"
-            placeholderTextColor="#8b8e97"
-            style={s.input}
-          />
-        </View>
+  <Text style={s.label}>Пароль</Text>
+  <TextInput
+    value={password}
+    onChangeText={setPassword}
+    secureTextEntry
+    autoCapitalize="none"
+    autoCorrect={false}
+    spellCheck={false}
+    // iOS: корректная роль поля "новый пароль" без навязчивой плашки
+    textContentType="newPassword"
+    // Если у какого-то устройства всё ещё всплывает «Automatic Strong Password» и мешает вводу,
+    // раскомментируй следующую строку — она полностью отключает подсказку (iOS-хак):
+    // textContentType="oneTimeCode"
+    placeholder="••••••••"
+    placeholderTextColor="#8b8e97"
+    style={s.input}
+  />
+</View>
 
         <View style={s.row}>
-          <Text style={s.label}>Повтори пароль</Text>
-          <TextInput
-            value={confirm}
-            onChangeText={setConfirm}
-            secureTextEntry
-            placeholder="••••••••"
-            placeholderTextColor="#8b8e97"
-            style={s.input}
-          />
-        </View>
+  <Text style={s.label}>Повтори пароль</Text>
+  <TextInput
+    value={confirm}
+    onChangeText={setConfirm}
+    secureTextEntry
+    autoCapitalize="none"
+    autoCorrect={false}
+    spellCheck={false}
+    textContentType="newPassword"
+    // Альтернатива для проблемных устройств (см. комментарий выше):
+    // textContentType="oneTimeCode"
+    placeholder="••••••••"
+    placeholderTextColor="#8b8e97"
+    style={s.input}
+  />
+</View>
+
 
         <Pressable onPress={signUpEmail} disabled={loading} style={[s.btn, s.primary]}>
           <Text style={[s.btnTxt, { color: '#fff' }]}>{loading ? 'Создаём…' : 'Зарегистрироваться'}</Text>

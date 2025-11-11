@@ -11,6 +11,76 @@ const C = {
   text: '#e5e7eb', dim: '#c7c9d1', primary: '#4f46e5'
 };
 
+(async () => {
+  try {
+    const base = process.env.EXPO_PUBLIC_SUPABASE_URL!;
+    console.log("➡️ auth health:", base + "/auth/v1/health");
+    const r = await fetch(base + "/auth/v1/health");
+    console.log("✅ auth health:", r.status, await r.text());
+  } catch (e: any) {
+    console.log("❌ auth health failed:", e?.message || e);
+  }
+})();
+
+// ------- deep network probes (temporary) -------
+(async () => {
+  const base = process.env.EXPO_PUBLIC_SUPABASE_URL!;
+  const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+  const logErr = (tag: string, e: any) =>
+    console.log(tag, e?.message || e, e?.name || '', e?.stack ? String(e.stack).slice(0, 300) : '');
+
+  try {
+    // 0) Print exactly what we use
+    console.log('🧭 SUPABASE', { base, anon_present: !!anon, anon_prefix: anon?.slice(0, 6) });
+
+    // 1) Generic HTTPS reachability (should ALWAYS succeed)
+    try {
+      const r = await fetch('https://httpbin.org/get');
+      console.log('✅ httpbin', r.status);
+    } catch (e) {
+      logErr('❌ httpbin', e);
+    }
+
+    // 2) Your Supabase /auth/v1/health (simple GET)
+    try {
+      const r = await fetch(base + '/auth/v1/health');
+      console.log('✅ supabase health', r.status, await r.text());
+    } catch (e) {
+      logErr('❌ supabase health', e);
+    }
+
+    // 3) DNS probe via Google DNS-over-HTTPS for your exact host (no CORS in RN)
+    try {
+      const host = new URL(base).host;
+      const r = await fetch('https://dns.google/resolve?name=' + host + '&type=A');
+      console.log('✅ dns doh', r.status, await r.text());
+    } catch (e) {
+      logErr('❌ dns doh', e);
+    }
+
+    // 4) Raw password grant (POST) without SDK — proves auth path openness
+    //    Use a known test email/password that exists in your Supabase project.
+    try {
+      const r = await fetch(base + '/auth/v1/token?grant_type=password', {
+        method: 'POST',
+        headers: {
+          'apikey': anon,
+          'Authorization': `Bearer ${anon}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: 'test@example.com', password: 'not-the-real-pass' }),
+      });
+      const body = await r.text();
+      console.log('🧪 raw login status', r.status, body.slice(0, 200));
+    } catch (e) {
+      logErr('❌ raw login', e);
+    }
+  } catch (e) {
+    logErr('❌ probes crashed', e);
+  }
+})();
+
+
 export default function Login() {
   const router = useRouter();
   const { onboardingDone } = useApp();
