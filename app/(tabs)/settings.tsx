@@ -23,10 +23,11 @@ export default function SettingsScreen() {
       const sb = getSupabase();      // если .env настроен
       await sb.auth.signOut();       // очищаем сессию Supabase
     } catch (e: any) {
-      // если Supabase не сконфигурирован — просто идём на экран логина
+      // если Supabase не сконфигурирован — просто идём на gate
       console.warn('[logout]', e?.message || e);
     } finally {
-      router.replace('/auth/login'); // гарантированно возвращаем на "Вход"
+      // ✅ Возвращаемся на gate (index), который сам решит: /auth/login или что-то ещё
+      router.replace('/');
     }
   }
 

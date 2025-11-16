@@ -173,7 +173,7 @@ export default function OnboardingProfileWizard() {
       };
 
       await submitOnboarding(input);
-      router.replace('/(tabs)/astro');
+      router.replace('/(tabs)/astro-map');
     } catch (e: any) {
       Alert.alert('Ошибка', e?.message || 'Не удалось сохранить анкету');
     }

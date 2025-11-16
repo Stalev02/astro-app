@@ -13,7 +13,7 @@ import {
   Switch,
   Text,
   TextInput,
-  View
+  View,
 } from 'react-native';
 
 const C = {
@@ -37,14 +37,17 @@ export default function Onboarding() {
   const prev = () => setPage((p) => Math.max(0, p - 1));
 
   const goProfile = () => router.push('/onboarding-profile');
-  const goRect = () => router.push('/(tabs)/rectification');
-  const finish = () => router.replace('/(tabs)/astro');
+  const goRect = () =>
+  router.push({ pathname: '/modal', params: { mode: 'rectification' } });
+  const finish = () => router.replace('/(tabs)/astro-map');
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
       <View style={{ flex: 1, padding: 16 }}>
         <Progress step={page} />
-        <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', gap: 16 }}>
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', gap: 16 }}
+        >
           {page === 0 && <ScreenUniverse onNext={next} />}
           {page === 1 && <ScreenAuth onNext={next} />}
           {page === 2 && <ScreenTOS tos={tos} setTos={setTos} />}
@@ -54,8 +57,12 @@ export default function Onboarding() {
 
         <View style={s.nav}>
           {page > 0 ? (
-            <Pressable onPress={prev} style={[s.btn, s.ghost]}><Text style={s.btnText}>Назад</Text></Pressable>
-          ) : <View />}
+            <Pressable onPress={prev} style={[s.btn, s.ghost]}>
+              <Text style={s.btnText}>Назад</Text>
+            </Pressable>
+          ) : (
+            <View />
+          )}
 
           {page < 4 ? (
             <Pressable
@@ -95,7 +102,7 @@ function ScreenUniverse({ onNext }: { onNext: () => void }) {
 function ScreenAuth({ onNext }: { onNext: () => void }) {
   return (
     <Card>
-      <Text style={s.h1}>Создай аккаунт или войди</Text>
+      <Text style={s.h1}>Вход или регистрация</Text>
       <LoginForm onSuccess={onNext} />
     </Card>
   );
@@ -123,11 +130,19 @@ function ScreenTOS({ tos, setTos }: { tos: boolean; setTos: (v: boolean) => void
   );
 }
 
-function ScreenProfile({ goProfile, goRect }: { goProfile: () => void; goRect: () => void }) {
+function ScreenProfile({
+  goProfile,
+  goRect,
+}: {
+  goProfile: () => void;
+  goRect: () => void;
+}) {
   return (
     <Card>
       <Text style={s.h1}>Заполни анкету</Text>
-      <Text style={s.p}>Чтобы ответы были точнее, укажи место, дату и время рождения.</Text>
+      <Text style={s.p}>
+        Чтобы ответы были точнее, укажи место, дату и время рождения.
+      </Text>
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
         <Pressable onPress={goProfile} style={[s.btn, s.primary]}>
           <Text style={[s.btnText, { color: '#fff' }]}>Заполнить анкету</Text>
@@ -136,7 +151,9 @@ function ScreenProfile({ goProfile, goRect }: { goProfile: () => void; goRect: (
           <Text style={s.btnText}>Ректификация</Text>
         </Pressable>
       </View>
-      <Text style={[s.p, { color: C.dim, marginTop: 8 }]}>Если не знаешь точное время — пройди ректификацию.</Text>
+      <Text style={[s.p, { color: C.dim, marginTop: 8 }]}>
+        Если не знаешь точное время — пройди ректификацию.
+      </Text>
     </Card>
   );
 }
@@ -155,16 +172,18 @@ function ScreenFinal({ onStart }: { onStart: () => void }) {
   );
 }
 
-/* ───────────────── Login form ───────────────── */
+/* ───────────────── Login + Registration ───────────────── */
 
 function LoginForm({ onSuccess }: { onSuccess: () => void }) {
-  const router = useRouter();
-  const redirectUri = useMemo(() => makeRedirectUri({ scheme: 'cosmotell', path: 'auth' }), []);
-  console.log('[auth] redirectUri =', redirectUri);
-
+  const redirectUri = useMemo(
+    () => makeRedirectUri({ scheme: 'cosmotell', path: 'auth' }),
+    []
+  );
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
+  const [creating, setCreating] = useState(false); // toggle registration
 
   async function signInEmail() {
     try {
@@ -176,7 +195,34 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
       if (error) throw error;
       onSuccess();
     } catch (e: any) {
-      Alert.alert('Ошибка входа', e.message || 'Не удалось войти');
+      Alert.alert('Ошибка входа', e?.message || 'Не удалось войти');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function signUpEmail() {
+    try {
+      const sb = getSupabase();
+      const em = email.trim().toLowerCase();
+      if (!em || !password) return Alert.alert('Регистрация', 'Заполни email и пароль');
+      if (password.length < 6)
+        return Alert.alert('Пароль', 'Минимум 6 символов');
+      if (password !== confirm)
+        return Alert.alert('Пароль', 'Пароли не совпадают');
+
+      setLoading(true);
+      const { error: e1 } = await sb.auth.signUp({ email: em, password });
+      if (e1) throw e1;
+
+      const { error: e2 } = await sb.auth.signInWithPassword({ email: em, password });
+      if (!e2) {
+        onSuccess();
+        return;
+      }
+      Alert.alert('Подтверди почту', 'После подтверждения войди в приложении.');
+    } catch (e: any) {
+      Alert.alert('Ошибка регистрации', e?.message || 'Не удалось создать аккаунт');
     } finally {
       setLoading(false);
     }
@@ -191,9 +237,9 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
         options: { redirectTo: redirectUri },
       });
       if (error) throw error;
-      // после возврата SDK сохранит сессию
+      onSuccess();
     } catch (e: any) {
-      Alert.alert('OAuth', e.message || 'Не удалось войти через провайдера');
+      Alert.alert('OAuth', e?.message || 'Не удалось войти через провайдера');
     } finally {
       setLoading(false);
     }
@@ -213,6 +259,7 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
           style={s.input}
         />
       </View>
+
       <View style={s.row}>
         <Text style={s.label}>Пароль</Text>
         <TextInput
@@ -225,23 +272,52 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
         />
       </View>
 
-      {/* Войти */}
-      <Pressable onPress={signInEmail} disabled={loading} style={[s.btn, s.primary]}>
-        <Text style={[s.btnText, { color: '#fff' }]}>{loading ? 'Входим…' : 'Войти'}</Text>
-      </Pressable>
+      {creating && (
+        <View style={s.row}>
+          <Text style={s.label}>Повтори пароль</Text>
+          <TextInput
+            value={confirm}
+            onChangeText={setConfirm}
+            secureTextEntry
+            placeholder="••••••••"
+            placeholderTextColor="#8b8e97"
+            style={s.input}
+          />
+        </View>
+      )}
 
-      {/* Регистрация — отдельный экран */}
-      <Pressable onPress={() => router.push('/auth/register')} disabled={loading} style={[s.btn, s.ghost]}>
-        <Text style={s.btnText}>Зарегистрироваться</Text>
-      </Pressable>
-
-      {/* Соц-входы */}
-      <View style={{ flexDirection: 'row', gap: 10 }}>
-        <Pressable onPress={() => signInWith('google')} disabled={loading} style={[s.btn, s.outline, { flex: 1 }]}>
-          <Text style={s.btnText}>Войти через Google</Text>
+      {creating ? (
+        <Pressable onPress={signUpEmail} disabled={loading} style={[s.btn, s.primary]}>
+          <Text style={[s.btnText, { color: '#fff' }]}>
+            {loading ? 'Создаём…' : 'Зарегистрироваться'}
+          </Text>
         </Pressable>
-        <Pressable onPress={() => signInWith('apple')} disabled={loading} style={[s.btn, s.outline, { flex: 1 }]}>
-          <Text style={s.btnText}>Войти через Apple</Text>
+      ) : (
+        <Pressable onPress={signInEmail} disabled={loading} style={[s.btn, s.primary]}>
+          <Text style={[s.btnText, { color: '#fff' }]}>{loading ? 'Входим…' : 'Войти'}</Text>
+        </Pressable>
+      )}
+
+      <Pressable onPress={() => setCreating(!creating)} disabled={loading} style={[s.btn, s.ghost]}>
+        <Text style={s.btnText}>
+          {creating ? 'У меня уже есть аккаунт' : 'Создать аккаунт'}
+        </Text>
+      </Pressable>
+
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <Pressable
+          onPress={() => signInWith('google')}
+          disabled={loading}
+          style={[s.btn, s.outline, { flex: 1 }]}
+        >
+          <Text style={s.btnText}>Google</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => signInWith('apple')}
+          disabled={loading}
+          style={[s.btn, s.outline, { flex: 1 }]}
+        >
+          <Text style={s.btnText}>Apple</Text>
         </Pressable>
       </View>
 
@@ -252,25 +328,44 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
   );
 }
 
-/* ───────────────── UI helpers ───────────────── */
+/* ───────────────── Helpers / Styles ───────────────── */
 
 function Progress({ step }: { step: number }) {
   return (
     <View style={s.progressWrap}>
       {[0, 1, 2, 3, 4].map((i) => (
-        <View key={i} style={[s.progressDot, step >= i && { backgroundColor: C.primary }]} />
+        <View
+          key={i}
+          style={[s.progressDot, step >= i && { backgroundColor: C.primary }]}
+        />
       ))}
     </View>
   );
 }
 
-function Card({ children, center }: { children: React.ReactNode; center?: boolean }) {
+function Card({
+  children,
+  center,
+}: {
+  children: React.ReactNode;
+  center?: boolean;
+}) {
   return <View style={[s.card, center && { alignItems: 'center' }]}>{children}</View>;
 }
 
 const s = StyleSheet.create({
-  progressWrap: { flexDirection: 'row', gap: 6, justifyContent: 'center', marginVertical: 6 },
-  progressDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.15)' },
+  progressWrap: {
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'center',
+    marginVertical: 6,
+  },
+  progressDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
 
   card: {
     backgroundColor: C.card,
@@ -285,7 +380,12 @@ const s = StyleSheet.create({
   h1: { color: '#fff', fontWeight: '800', fontSize: 20 },
   p: { color: C.text, fontSize: 14, lineHeight: 20 },
 
-  nav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 },
+  nav: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 14,
+  },
 
   row: { gap: 6 },
   label: { color: C.dim, fontSize: 13 },
@@ -309,7 +409,6 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   btnText: { color: C.text, fontWeight: '700' },
-
   primary: { backgroundColor: C.primary, borderColor: C.primary },
   ghost: { backgroundColor: 'transparent' },
   outline: { borderWidth: 1, borderColor: C.primary, backgroundColor: 'transparent' },

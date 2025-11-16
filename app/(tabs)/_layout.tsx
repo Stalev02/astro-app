@@ -1,5 +1,5 @@
 // app/(tabs)/_layout.tsx
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Text } from 'react-native';
@@ -12,9 +12,6 @@ const INACTIVE = '#a3a6ae';
 const HEADER_BG = '#0e0f12';
 const HEADER_TEXT = '#ffffff';
 
-
-
-// Универсальный компонент подписи на 2 строки
 function Label({ text, color }: { text: string; color: string }) {
   return (
     <Text
@@ -25,7 +22,7 @@ function Label({ text, color }: { text: string; color: string }) {
         lineHeight: 13,
         textAlign: 'center',
       }}
-      numberOfLines={2} // <— разрешаем 2 строки
+      numberOfLines={2}
       allowFontScaling
     >
       {text}
@@ -33,18 +30,16 @@ function Label({ text, color }: { text: string; color: string }) {
   );
 }
 
-
 export default function TabsLayout() {
   return (
     <Tabs
-      initialRouteName="astro"
+      initialRouteName="astro-map"
       screenOptions={{
         headerShown: true,
         headerStyle: { backgroundColor: HEADER_BG },
         headerTitleStyle: { color: HEADER_TEXT, fontWeight: '700' },
         headerTintColor: HEADER_TEXT,
         sceneStyle: { backgroundColor: BG },
-
         tabBarStyle: {
           backgroundColor: TAB_BG,
           borderTopColor: TAB_BORDER,
@@ -54,19 +49,13 @@ export default function TabsLayout() {
         },
         tabBarActiveTintColor: ACTIVE,
         tabBarInactiveTintColor: INACTIVE,
-
-        // немного шире каждую кнопку, чтобы тексту было где переноситься
-        tabBarItemStyle: {
-          paddingHorizontal: 2,
-        },
+        tabBarItemStyle: { paddingHorizontal: 2 },
       }}
     >
       <Tabs.Screen
-        name="astro"
+        name="astro-map"
         options={{
-          // Полный заголовок в шапке:
           title: 'Моя Астро-Карта',
-          // Короткая подпись в табе + перенос:
           tabBarLabel: ({ color }) => <Label color={color} text={'Астро-карта'} />,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="planet-outline" size={size - 2} color={color} />
@@ -74,36 +63,12 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="compatibility"
+        name="astro-chat"
         options={{
-          title: 'Совместимость',
-          tabBarLabel: ({ color }) => <Label color={color} text={'Совместимость'} />,
+          title: 'Чат по карте',
+          tabBarLabel: ({ color }) => <Label color={color} text={'Чат'} />,
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people-outline" size={size - 2} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="forecasts"
-        options={{
-          title: 'Прогнозы и транзиты',
-          tabBarLabel: ({ color }) => <Label color={color} text={'Прогнозы'} />,
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons
-              name="chart-timeline-variant"
-              size={size - 2}
-              color={color}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="rectification"
-        options={{
-          title: 'Уточнение времени рождения (Ректификация)',
-          tabBarLabel: ({ color }) => <Label color={color} text={'Ректификация'} />,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="time-outline" size={size - 2} color={color} />
+            <Ionicons name="chatbubble-ellipses-outline" size={size - 2} color={color} />
           ),
         }}
       />

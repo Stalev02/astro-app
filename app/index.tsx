@@ -12,48 +12,32 @@ export default function Index() {
   const [target, setTarget] = useState<string | null>(null);
 
   useEffect(() => {
-    const init = async () => {
+    (async () => {
       try {
         const sb = getSupabase();
-        const {
-          data: { session },
-        } = await sb.auth.getSession();
+        const { data: { session } } = await sb.auth.getSession();
 
         if (testMode) {
-          // ТЕСТ-РЕЖИМ: всегда идём в онбординг (и дальше в рантайме можно открывать «первый вход» экраны)
-          setTarget('/onboarding');
-        } else if (!session) {
-          // пользователь не вошёл → экран логина
-          setTarget('/auth/login');
+          setTarget('/onboarding');                             // Test mode forces onboarding
         } else if (!onboardingDone) {
-          // вошёл, но не прошёл онбординг → на онбординг
-          setTarget('/onboarding');
+          setTarget('/onboarding');                             // First app launch
+        } else if (!session) {
+          setTarget('/auth/login');                             // Subsequent launches w/out session
         } else {
-          // всё готово → основное приложение
-          setTarget('/(tabs)/astro');
+          setTarget('/(tabs)/astro-map');                           // Signed in
         }
-      } catch (e) {
-        console.warn('[index] init error', e);
+      } catch {
         setTarget('/auth/login');
       } finally {
         setReady(true);
       }
-    };
-
-    init();
+    })();
   }, [onboardingDone, testMode]);
 
-  // ждём, пока смонтируется навигатор
   if (!navState?.key || !ready) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#0b0b0c' }}>
-        <View
-          style={{
-            flex: 1,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator size="large" color="#4f46e5" />
           <Text style={{ color: '#c7c9d1', marginTop: 10 }}>Загрузка…</Text>
         </View>
