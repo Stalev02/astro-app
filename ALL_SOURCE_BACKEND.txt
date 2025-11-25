@@ -1,0 +1,1563 @@
+--- FILE: .gitignore ---
+--- LINES: 51 ---
+--- SHA256: 925eaf88e14eea4f3c7abd49b047d4dfeb4b18b4a7d7852a565fc806caa5e535 ---
+# Dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# Debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# Local env files (все варианты)
+.env
+.env*.local
+.env.development
+.env.production
+.env.test
+
+# TypeScript
+*.tsbuildinfo
+
+# Generated native folders
+/ios
+/android
+
+# Project-specific
+app-example
+ALL_SOURCE_COMBINED_FULL.txt
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+
+--- FILE: README.md ---
+--- LINES: 51 ---
+--- SHA256: 724011847f042c61ca1ddf8bc00a3fe723672734b00f37348e4e7ddef1965091 ---
+# Welcome to your Expo app 👋
+
+This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+
+## Get started
+
+1. Install dependencies
+
+   ```bash
+   npm install
+   ```
+
+2. Start the app
+
+   ```bash
+   npx expo start
+   ```
+
+In the output, you'll find options to open the app in a
+
+- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
+- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
+- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
+- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+
+You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+
+## Get a fresh project
+
+When you're ready, run:
+
+```bash
+npm run reset-project
+```
+
+This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+
+## Learn more
+
+To learn more about developing your project with Expo, look at the following resources:
+
+- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
+- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+
+## Join the community
+
+Join our community of developers creating universal apps.
+
+- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
+- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+
+--- FILE: app.json ---
+--- LINES: 78 ---
+--- SHA256: 0d62bee0a9a2d796adf04822c28286b70d17a87b9d7523bc173f8267ded8446d ---
+{
+  "expo": {
+    "name": "astro-app",
+    "slug": "astro-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "cosmotell",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "extra": {},
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Нужен доступ к микрофону для голосового ввода.",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSExceptionDomains": {
+            "localhost": {
+              "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+              "NSIncludesSubdomains": true
+            },
+            "127.0.0.1": {
+              "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+              "NSIncludesSubdomains": true
+            },
+            "10.0.2.2": {
+              "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+              "NSIncludesSubdomains": true
+            },
+            "192.168.0.0": {
+              "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+              "NSIncludesSubdomains": true
+            }
+          }
+        }
+      }
+    },
+    "android": {
+      "permissions": ["RECORD_AUDIO"],
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "usesCleartextTraffic": true
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "backgroundColor": "#000000"
+          }
+        }
+      ],
+      "expo-font",
+      "expo-web-browser"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
+
+
+--- FILE: combine.js ---
+--- LINES: 221 ---
+--- SHA256: 12ffc45387be0e7c0f268297ffaa4c6892c823e7e97294c6b40ff739fd137592 ---
+// combine.js — объединяет исходники в несколько текстовых файлов безопасно
+// Запуск: node combine.js
+// Результат:
+//   ALL_SOURCE_COMBINED_FULL.txt   — весь проект
+//   ALL_SOURCE_FRONTEND.txt        — только фронтенд
+//   ALL_SOURCE_BACKEND.txt         — только бэкенд
+
+import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
+
+const OUT_ALL = 'ALL_SOURCE_COMBINED_FULL.txt';
+const OUT_FRONT = 'ALL_SOURCE_FRONTEND.txt';
+const OUT_BACK = 'ALL_SOURCE_BACKEND.txt';
+
+// Папки, которые пропускаем полностью
+const IGNORE_DIRS = new Set([
+  'node_modules',
+  '.expo',
+  'dist',
+  'build',
+  'ios',
+  'android',
+  '.git',
+  '.idea',
+  '.vscode',
+  '.turbo',
+]);
+
+// Расширения, которые включаем
+const INCLUDE_EXTS = new Set([
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+  '.json',
+  '.md',
+  '.css',
+  '.scss',
+  '.yml',
+  '.yaml',
+  '.toml',
+  '.html',
+  '.mjs',
+  '.cjs',
+  '.config',
+  '.lock', // lock-файлы мы всё равно отфильтруем ниже
+]);
+
+// Файлы, которые исключаем по имени (точно)
+const IGNORE_FILES = new Set([
+  // безопасность
+  '.env',
+  '.env.local',
+  '.env.development',
+  '.env.production',
+  '.env.test',
+  // тяжёлые/неинформативные
+  'package-lock.json',
+  'pnpm-lock.yaml',
+  'yarn.lock',
+]);
+
+// Простая замена секретов, если вдруг попадутся
+const SECRET_KEYS = [
+  'API_KEY',
+  'SUPABASE_ANON_KEY',
+  'SUPABASE_URL',
+  'DB_PASSWORD',
+  'N8N_SECRET',
+  'ASTRO_API_KEY',
+  'ASTRO_API_BASE',
+  'NOMINATIM_EMAIL',
+];
+
+// ---------- КЛАССИФИКАЦИЯ: фронт / бэк ----------
+
+// Корневые папки фронтенда (можешь отредактировать под себя)
+const FRONT_ROOTS = new Set(['app', 'assets', 'src']);
+
+// Корневые папки бэкенда
+const BACK_ROOTS = new Set(['server']);
+
+// Отдельные бэкенд-скрипты в корне
+const BACK_FILES = new Set(['db_extraction.js', 'migrate_users2_to_profiles.js']);
+
+/**
+ * Возвращает "frontend" | "backend" | "both" для относительного пути файла.
+ * "both" → файл попадёт и во фронтовый, и в бэковый дамп (например конфиги).
+ */
+function classifyFile(relPath) {
+  const parts = relPath.split(path.sep);
+  const top = parts[0];
+  const base = parts[parts.length - 1];
+
+  if (FRONT_ROOTS.has(top)) return 'frontend';
+  if (BACK_ROOTS.has(top) || BACK_FILES.has(base)) return 'backend';
+
+  // Всё остальное считаем общим: tsconfig, eslint, package.json, combine.js и т.п.
+  return 'both';
+}
+
+// ---------- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ----------
+
+function isTextLike(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  const base = path.basename(filePath);
+
+  if (IGNORE_FILES.has(base)) return false;
+
+  if (
+    ext === '.png' ||
+    ext === '.jpg' ||
+    ext === '.jpeg' ||
+    ext === '.gif' ||
+    ext === '.webp' ||
+    ext === '.svg'
+  )
+    return false;
+  if (
+    ext === '.ttf' ||
+    ext === '.otf' ||
+    ext === '.woff' ||
+    ext === '.woff2'
+  )
+    return false;
+  if (
+    ext === '.mp3' ||
+    ext === '.m4a' ||
+    ext === '.wav' ||
+    ext === '.mp4' ||
+    ext === '.mov'
+  )
+    return false;
+  if (ext === '.env') return false; // на всякий случай
+
+  return INCLUDE_EXTS.has(ext) || ext === ''; // без расширения — включим, если текст
+}
+
+function redactSecrets(content) {
+  let out = content;
+  for (const key of SECRET_KEYS) {
+    // формат KEY=VALUE
+    const re = new RegExp(`(${key}\\s*=\\s*)([^\\n\\r]+)`, 'gi');
+    out = out.replace(re, (_m, p1) => `${p1}[REDACTED]`);
+
+    // формат "KEY": "VALUE"
+    const jsonRe = new RegExp(`("${key}"\\s*:\\s*)"(.*?)"`, 'gi');
+    out = out.replace(jsonRe, (_m, p1) => `${p1}"[REDACTED]"`);
+  }
+  return out;
+}
+
+function walk(dir, acc = []) {
+  for (const name of fs.readdirSync(dir)) {
+    const full = path.join(dir, name);
+    const st = fs.statSync(full);
+    if (st.isDirectory()) {
+      if (!IGNORE_DIRS.has(name)) walk(full, acc);
+    } else {
+      if (isTextLike(full)) acc.push(full);
+    }
+  }
+  return acc;
+}
+
+function sha256(str) {
+  return crypto.createHash('sha256').update(str).digest('hex');
+}
+
+// ---------- ОСНОВНАЯ ЛОГИКА ----------
+
+const root = process.cwd();
+const files = walk(root).sort();
+
+const allParts = [];
+const frontParts = [];
+const backParts = [];
+
+for (const absPath of files) {
+  const content = fs.readFileSync(absPath, 'utf8');
+  const safe = redactSecrets(content);
+  const lines = safe.split(/\r?\n/).length;
+  const hash = sha256(safe);
+
+  const relPath = path.relative(root, absPath);
+
+  const block = [
+    `--- FILE: ${relPath} ---`,
+    `--- LINES: ${lines} ---`,
+    `--- SHA256: ${hash} ---`,
+    safe,
+    '', // пустая строка-разделитель
+  ];
+
+  // полный дамп
+  allParts.push(...block);
+
+  // классификация для фронта/бэка
+  const kind = classifyFile(relPath);
+  if (kind === 'frontend' || kind === 'both') {
+    frontParts.push(...block);
+  }
+  if (kind === 'backend' || kind === 'both') {
+    backParts.push(...block);
+  }
+}
+
+// ---------- ЗАПИСЬ ФАЙЛОВ ----------
+
+fs.writeFileSync(OUT_ALL, allParts.join('\n'), 'utf8');
+fs.writeFileSync(OUT_FRONT, frontParts.join('\n'), 'utf8');
+fs.writeFileSync(OUT_BACK, backParts.join('\n'), 'utf8');
+
+console.log(
+  `✅ Combined ${files.length} files into:\n` +
+    `  - ${OUT_ALL}\n` +
+    `  - ${OUT_FRONT}\n` +
+    `  - ${OUT_BACK}`
+);
+
+
+--- FILE: db_extraction.js ---
+--- LINES: 17 ---
+--- SHA256: ff911e0f26718ce5d9a0d436ec617e0161de766f4f4002d4c8fa37f753fb114c ---
+import fs from "fs";
+import mysql from "mysql2/promise";
+
+const conn = await mysql.createConnection({
+  host: "astroappdb2.mysql.database.azure.com",
+  port: 3306,
+  user: "master",
+  password: "4YU2c7@@v2zUUdQxJ",       // <- fill in
+  database: "astroapp_db",
+  ssl: { rejectUnauthorized: false } // TLS; for strict verify, provide { ca: fs.readFileSync("/path/ca.pem") }
+});
+
+const table = "your_table";
+const [rows] = await conn.query(`SELECT * FROM \`${table}\``);
+fs.writeFileSync(`${table}.json`, JSON.stringify(rows, null, 2));
+await conn.end();
+console.log(`Wrote ${table}.json`);
+
+--- FILE: eslint.config.js ---
+--- LINES: 11 ---
+--- SHA256: 3b0c823fd936f964905db962e66e92e24773b7085c0c82750a4d4f0b1808c41c ---
+// https://docs.expo.dev/guides/using-eslint/
+const { defineConfig } = require('eslint/config');
+const expoConfig = require('eslint-config-expo/flat');
+
+module.exports = defineConfig([
+  expoConfig,
+  {
+    ignores: ['dist/*'],
+  },
+]);
+
+
+--- FILE: expo-env.d.ts ---
+--- LINES: 3 ---
+--- SHA256: 6fc02634da46d3edc5a88eec9173ba6bf709726be3cba83c73ebd8e859d5c147 ---
+/// <reference types="expo/types" />
+
+// NOTE: This file should not be edited and should be in your git ignore
+
+--- FILE: migrate_users2_to_profiles.js ---
+--- LINES: 180 ---
+--- SHA256: 4dafb5083c609f232e6a89f6888411cfe2042bd1f8682a77ae4b1adb4cd18732 ---
+/**
+ * node migrate_users2_to_profiles.js
+ * ENV: same .env as server (DB_HOST, DB_USER, DB_PASSWORD, DB_NAME).
+ */
+import { parse } from 'csv-parse/sync';
+import dotenv from 'dotenv';
+import fs from 'fs';
+import mysql from 'mysql2/promise';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// 🔧 load env from server/.env (same as your backend)
+dotenv.config({ path: path.join(__dirname, 'server/.env') });
+
+// now read DB_* from process.env
+const {
+  DB_HOST = 'astroappdb2.mysql.database.azure.com',
+  DB_PORT = '3306',
+  DB_USER = 'master',
+  DB_PASSWORD,
+  DB_NAME = 'astro_data',
+} = process.env;
+
+const csvPath = path.resolve(process.cwd(), 'astro_data.users2.csv');
+
+function pick(...vals) {
+  for (const v of vals) {
+    const s = (v ?? '').toString().trim();
+    if (s) return s;
+  }
+  return '';
+}
+function toISODate(y, m, d) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(y)) return y; // already iso
+  if (/^\d{4}-\d{2}-\d{2}$/.test(m)) return m;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+  if (y && m && d) return `${String(y).padStart(4,'0')}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  const raw = pick(y,m,d);
+  // Try to normalize things like "12.03.1993" or "03/12/1993"
+  const m2 = raw.match(/(\d{1,2}).(\d{1,2}).(\d{4})/);
+  if (m2) {
+    const [_, dd, mm, yy] = m2;
+    return `${yy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`;
+  }
+  return '';
+}
+function toHHmm(hh, mm, full) {
+  const t = pick(full);
+  if (/^\d{2}:\d{2}$/.test(t)) return t;
+  const h = (hh ?? '').toString().padStart(2,'0');
+  const m = (mm ?? '').toString().padStart(2,'0');
+  if (/^\d{2}$/.test(h) && /^\d{2}$/.test(m)) return `${h}:${m}`;
+  return '';
+}
+
+const pool = await mysql.createPool({
+  host: DB_HOST, port: Number(DB_PORT), user: DB_USER, password: DB_PASSWORD, database: DB_NAME,
+  waitForConnections: true, connectionLimit: 5, ssl: { rejectUnauthorized: false },
+});
+
+async function upsertUserLink(deviceId, telegramId) {
+  await pool.query(
+    `INSERT INTO user_links (device_id, telegram_chat_id)
+     VALUES (?, ?) ON DUPLICATE KEY UPDATE device_id=VALUES(device_id), telegram_chat_id=VALUES(telegram_chat_id)`,
+    [deviceId, telegramId]
+  );
+}
+
+async function upsertProfile(deviceId, me, other) {
+  const meStr = JSON.stringify(me ?? null);
+  const otherStr = JSON.stringify(other ?? null);
+
+  await pool.query(
+    `INSERT INTO profiles (device_id, me, other)
+     VALUES (?, CAST(? AS JSON), CAST(? AS JSON))
+     ON DUPLICATE KEY UPDATE me=VALUES(me), other=VALUES(other)`,
+    [deviceId, meStr, otherStr]
+  );
+}
+
+function buildPlace(city, cc) {
+  const cityS = (city ?? '').toString().trim();
+  const ccS = (cc ?? '').toString().trim();
+  if (cityS && ccS) return `${cityS}, ${ccS}`;
+  return pick(cityS, ccS);
+}
+
+const csv = fs.readFileSync(csvPath, 'utf8');
+
+let records;
+try {
+  // main attempt: comma-separated, NO quotes
+  records = parse(csv, {
+    columns: true,
+    skip_empty_lines: true,
+    delimiter: ',',
+    quote: '',              // 🔧 disable quote handling
+    relax_quotes: true,
+    relax_column_count: true,
+    trim: true,
+  });
+} catch (e1) {
+  console.warn('[csv] comma parse failed, trying semicolon:', e1.message);
+  // fallback: semicolon-separated, also no quotes
+  records = parse(csv, {
+    columns: true,
+    skip_empty_lines: true,
+    delimiter: ';',
+    quote: '',
+    relax_quotes: true,
+    relax_column_count: true,
+    trim: true,
+  });
+}
+
+
+let ok = 0, fail = 0;
+for (const r of records) {
+  try {
+    const tgId = String(r['MyTelegramID'] ?? r['TelegramID'] ?? '').trim();
+    if (!tgId) { fail++; continue; }
+
+    const deviceId = `tg-${tgId}`;
+
+    const name = pick(r['myFirstName'], r['myTelegramName'], r['myName']);
+    const birthDateISO = toISODate(r['MyFullDateOfBirth'], r['myYearOfBirth'] && `${r['myYearOfBirth']}-${r['myMonthOfBirth']}-${r['myDayOfBirth']}`, null);
+    const time = toHHmm(r['myHourOfBirth'], r['myMinuteOfBirth'], r['myFullTimeOfBirth']);
+    const birthPlace = buildPlace(r['myCityOfBirth'], r['myCountryCode']);
+    const tz = pick(r['myTimeZone'], r['myTimeZoneOfBirth'], r['timezone']);
+
+    const me = {
+      id: `p-${deviceId}`,
+      name: name || `tg-${tgId}`,
+      date: birthDateISO || undefined,
+      birthDateISO: birthDateISO || undefined,
+      timeKnown: Boolean(time),
+      time: time || undefined,
+      birthPlace: birthPlace || undefined,
+      place: birthPlace || undefined,
+      tz: tz || undefined,
+    };
+
+    // Optional partner (if present)
+    let other = null;
+    const pName = pick(r['PartnerName'], r['partnerName']);
+    const pDate = toISODate(r['PartnerFullDateOfBirth'], r['PartnerYearOfBirth'] && `${r['PartnerYearOfBirth']}-${r['PartnerMonthOfBirth']}-${r['PartnerDayOfBirth']}`, null);
+    const pTime = toHHmm(r['PartnerHourOfBirth'], r['PartnerMinuteOfBirth'], r['PartnerFullTimeOfBirth']);
+    const pPlace = buildPlace(r['PartnerCityOfBirth'], r['PartnerCountryCode']);
+    const pTz = pick(r['PartnerTimeZone'], r['partnerTimeZone']);
+
+    if (pName || pDate || pTime || pPlace) {
+      other = {
+        id: `p2-${deviceId}`,
+        name: pName || 'Partner',
+        date: pDate || undefined,
+        birthDateISO: pDate || undefined,
+        timeKnown: Boolean(pTime),
+        time: pTime || undefined,
+        birthPlace: pPlace || undefined,
+        place: pPlace || undefined,
+        tz: pTz || undefined,
+      };
+    }
+
+    await upsertUserLink(deviceId, tgId);
+    await upsertProfile(deviceId, me, other);
+
+    ok++;
+  } catch (e) {
+    console.error('row failed', e?.message);
+    fail++;
+  }
+}
+
+console.log({ ok, fail });
+await pool.end();
+
+
+--- FILE: package.json ---
+--- LINES: 74 ---
+--- SHA256: bbd0ef2d39aaeb41710408a9d9bf36604fffab11bc31e7772fe9575a8d9e3b7e ---
+{
+  "name": "astro-app",
+  "main": "expo-router/entry",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "expo start",
+    "server": "node server/index.js",
+    "tunnel": "ngrok http 3000",
+    "dev:api": "npm-run-all --parallel server tunnel",
+    "reset-project": "node ./scripts/reset-project.js",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "lint": "expo lint"
+  },
+  "dependencies": {
+    "@expo/metro-runtime": "~6.1.2",
+    "@expo/vector-icons": "^15.0.3",
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-navigation/bottom-tabs": "^7.4.0",
+    "@react-navigation/elements": "^2.6.3",
+    "@react-navigation/native": "^7.1.8",
+    "@supabase/supabase-js": "^2.76.1",
+    "cors": "^2.8.5",
+    "csv-parse": "^6.1.0",
+    "date-fns": "^4.1.0",
+    "dotenv": "^17.2.3",
+    "expo": "54.0.20",
+    "expo-auth-session": "^7.0.8",
+    "expo-av": "~16.0.7",
+    "expo-constants": "~18.0.10",
+    "expo-font": "~14.0.9",
+    "expo-haptics": "~15.0.7",
+    "expo-image": "~3.0.10",
+    "expo-linking": "~8.0.8",
+    "expo-router": "~6.0.13",
+    "expo-speech": "~14.0.7",
+    "expo-splash-screen": "~31.0.10",
+    "expo-status-bar": "~3.0.8",
+    "expo-symbols": "~1.0.7",
+    "expo-system-ui": "~6.0.8",
+    "expo-web-browser": "~15.0.8",
+    "express": "^5.1.0",
+    "fluent-ffmpeg": "^2.1.3",
+    "multer": "^2.0.2",
+    "mysql2": "^3.15.1",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-gesture-handler": "~2.28.0",
+    "react-native-reanimated": "~4.1.1",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0",
+    "react-native-svg": "15.12.1",
+    "react-native-url-polyfill": "^3.0.0",
+    "react-native-web": "~0.21.0",
+    "react-native-worklets": "0.5.1",
+    "tz-lookup": "^6.1.25",
+    "uuid": "^13.0.0",
+    "victory-native": "^36.9.2",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.0",
+    "eslint": "^9.25.0",
+    "eslint-config-expo": "~10.0.0",
+    "npm-run-all": "^4.1.5",
+    "typescript": "~5.9.2"
+  },
+  "private": true
+}
+
+
+--- FILE: server/auth.js ---
+--- LINES: 29 ---
+--- SHA256: 85bf7bb624138576cb8e6fb4f1982a5a81fc0880ed1c30808d76401547b157e5 ---
+// server/auth.js
+import { createClient } from '@supabase/supabase-js';
+
+const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
+
+// ВАЖНО: это админ-клиент ТОЛЬКО для сервера (service role key — секрет).
+// Никогда не добавляй этот ключ во фронтенд.
+const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+export async function requireAuth(req, res, next) {
+  try {
+    const auth = req.headers.authorization || '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+    if (!token) return res.status(401).json({ error: 'Missing Bearer token' });
+
+    const { data, error } = await admin.auth.getUser(token);
+    if (error || !data?.user) return res.status(401).json({ error: 'Invalid token' });
+
+    req.user = {
+      id: data.user.id,
+      email: data.user.email || null,
+    };
+    next();
+  } catch (e) {
+    console.error('[auth] verify failed:', e?.message || e);
+    return res.status(401).json({ error: 'Auth failed' });
+  }
+}
+
+
+--- FILE: server/db.js ---
+--- LINES: 197 ---
+--- SHA256: 53956ac5dc16ac1ccbeb1c4c6f9bbb348a1e4d2271f888eec680bd2b4c9d511d ---
+// server/db.js
+import fs from 'fs';
+import mysql from 'mysql2/promise';
+
+const {
+  DB_HOST='astroappdb2.mysql.database.azure.com',
+  DB_PORT = '3306',
+  DB_USER = 'master',
+  DB_PASSWORD = [REDACTED]
+  DB_NAME = 'astro_data',
+
+   DB_SSL = 'require',                              // 'require' | 'disable'
+  DB_SSL_CA_PATH = '',                             // path to DigiCert/Baltimore CA if you want strict pinning
+} = process.env;
+
+let ssl;
+if (DB_SSL !== 'disable') {
+  const caPath = (DB_SSL_CA_PATH || '').trim();
+  if (caPath) {
+    try {
+      ssl = { ca: fs.readFileSync(caPath), rejectUnauthorized: true };
+      console.log('[db] SSL: using CA from', caPath);
+    } catch (e) {
+      console.warn('[db] SSL CA read failed:', e?.message, '→ falling back to generic TLS');
+      ssl = { rejectUnauthorized: true };
+    }
+  } else {
+    // Generic TLS – works for Azure without pinning a CA file
+    ssl = { rejectUnauthorized: true };
+    console.log('[db] SSL: generic TLS (no CA path provided)');
+  }
+} else {
+  ssl = undefined;
+  console.log('[db] SSL disabled by env');
+}
+
+export const pool = mysql.createPool({
+  host: DB_HOST,
+  port: Number(DB_PORT),
+  user: DB_USER,
+  password: DB_PASSWORD,
+  database: DB_NAME,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+  timezone: 'Z',
+  ssl, // ← important for Azure
+});
+
+let useJsonColumns = true;
+
+const TABLE = 'users';
+
+/** Определяем движок/версию, чтобы понимать — есть ли JSON-тип */
+async function detectEngine() {
+  const conn = await pool.getConnection();
+  try {
+    const [rows] = await conn.query('SELECT VERSION() AS v');
+    const v = rows?.[0]?.v || '';
+    const isMaria = /mariadb/i.test(v);
+    useJsonColumns = !isMaria; // у MariaDB старых версий JSON = LONGTEXT
+    console.log(`[db] engine=${v} (isMaria=${isMaria}) jsonColumns=${useJsonColumns}`);
+  } finally {
+    conn.release();
+  }
+}
+
+/** Создаёт таблицу profiles, если её ещё нет */
+export async function initDb() {
+  await detectEngine();
+
+  const conn = await pool.getConnection();
+  try {
+    const jsonOrText = useJsonColumns ? 'JSON' : 'LONGTEXT';
+
+    const createSql = `
+      CREATE TABLE IF NOT EXISTS profiles (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        device_id VARCHAR(64) NOT NULL,
+        me ${jsonOrText} NULL,
+        other ${jsonOrText} NULL,
+        chart_svg LONGTEXT NULL,
+        chart_data ${jsonOrText} NULL,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY uniq_device (device_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `;
+    await conn.query(createSql);
+  } finally {
+    conn.release();
+  }
+}
+
+function toDb(val) {
+  return JSON.stringify(val ?? null);
+}
+function fromDb(val) {
+  if (val == null) return null;
+  if (typeof val !== 'string') return val;
+  try { return JSON.parse(val); } catch { return null; }
+}
+
+export async function getProfile(deviceId) {
+  const [rows] = await pool.query(
+    `SELECT
+       device_id,
+       me,
+       other,
+       chart_svg,
+       chart_data,
+       UNIX_TIMESTAMP(updated_at)*1000 AS updatedAt
+     FROM profiles
+     WHERE device_id = ?
+     LIMIT 1`,
+    [deviceId]
+  );
+  const row = rows?.[0];
+  if (!row) return null;
+
+  return {
+    device_id: row.device_id,
+    me: typeof row.me === 'string' ? fromDb(row.me) : row.me,
+    other: typeof row.other === 'string' ? fromDb(row.other) : row.other,
+    chart_svg: row.chart_svg ?? null,
+    chart_data:
+      typeof row.chart_data === 'string' ? fromDb(row.chart_data) : row.chart_data ?? null,
+    updatedAt: Number(row.updatedAt) || Date.now(),
+  };
+}
+
+export async function upsertProfile(deviceId, me, other) {
+  if (useJsonColumns) {
+    await pool.query(
+      `
+      INSERT INTO profiles (device_id, me, other)
+      VALUES (?, CAST(? AS JSON), CAST(? AS JSON))
+      ON DUPLICATE KEY UPDATE
+        me = VALUES(me),
+        other = VALUES(other)
+      `,
+      [deviceId, toDb(me), toDb(other)]
+    );
+  } else {
+    await pool.query(
+      `
+      INSERT INTO profiles (device_id, me, other)
+      VALUES (?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        me = VALUES(me),
+        other = VALUES(other)
+      `,
+      [deviceId, toDb(me), toDb(other)]
+    );
+  }
+  return await getProfile(deviceId);
+}
+
+// ===== Сохраняем SVG и метаданные карты =====
+export async function saveChartSvg(deviceId, svg, meta = null) {
+  const chartData = meta ? JSON.stringify(meta) : null;
+
+  async function alter() {
+    // На старых MySQL/MariaDB IF NOT EXISTS может не поддерживаться — оборачиваем в try/catch
+    try {
+      await pool.query(`ALTER TABLE profiles ADD COLUMN chart_svg LONGTEXT NULL`);
+    } catch {}
+    try {
+      await pool.query(
+        `ALTER TABLE profiles ADD COLUMN chart_data ${useJsonColumns ? 'JSON' : 'LONGTEXT'} NULL`
+      );
+    } catch {}
+  }
+
+  async function update() {
+    await pool.query(
+      `UPDATE profiles SET chart_svg = ?, chart_data = ? WHERE device_id = ?`,
+      [svg, chartData, deviceId]
+    );
+  }
+
+  try {
+    await update();
+    console.log(`[db] chart_svg сохранён для ${deviceId}`);
+  } catch (e) {
+    if (e?.code === 'ER_BAD_FIELD_ERROR') {
+      console.warn('[db] нет колонок chart_svg/chart_data — добавляю...');
+      await alter();
+      await update();
+      console.log(`[db] chart_svg сохранён (после ALTER) для ${deviceId}`);
+    } else {
+      console.error('[db] ошибка при сохранении chart_svg:', e);
+      throw e;
+    }
+  }
+}
+
+
+--- FILE: server/index.js ---
+--- LINES: 548 ---
+--- SHA256: 725aa2113d005224861cb86567d38143a1c78bb69d2a54e4a218d8d274d50d6a ---
+// server/index.js
+// ── ENV (берём именно server/.env)
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '.env') });
+
+import ffmpegPath from '@ffmpeg-installer/ffmpeg';
+import cors from 'cors';
+import crypto from 'crypto';
+import express from 'express';
+import ffmpeg from 'fluent-ffmpeg';
+import multer from 'multer';
+import tzLookup from 'tz-lookup';
+
+// DB
+import { getProfile, initDb, pool, saveChartSvg, upsertProfile } from './db.js';
+
+
+
+// ── Create app FIRST (so routes can be registered even if DB init fails)
+const app = express();
+// CORS headers on every response
+app.use(cors({ origin: true }));
+
+// Preflight responder for ALL routes (no path pattern needed)
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*'); // or lock down to your domains
+  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  // Short-circuit preflight
+  if (req.method === 'OPTIONS') {
+    res.header('Access-Control-Max-Age', '86400'); // cache preflight (optional)
+    return res.sendStatus(204);
+  }
+  next();
+});
+
+// увеличиваем лимиты тела запроса, чтобы /profiles/sync не падал 413
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+app.use((req, _res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  next();
+});
+
+app.post('/echo', (req, res) => res.json({ ok: true, body: req.body || null }));
+
+
+
+// ── ffmpeg нужен только если будешь реально перекодировать аудио
+ffmpeg.setFfmpegPath(ffmpegPath.path);
+
+// ── Env (used by routes below)
+const {
+  N8N_CHAT_URL = 'https://n8n.astroapp.pp.ua/webhook/astro-app',
+  N8N_SPEECH_URL = '',
+  N8N_SECRET = [REDACTED]
+  ASTRO_API_BASE = [REDACTED]
+  ASTRO_API_KEY = [REDACTED]
+  ASTRO_LANG = 'EN',
+  ASTRO_THEME = 'classic', // можно поставить 'dark' в .env
+  ASTRO_ZODIAC = 'Tropic',
+  ASTRO_HOUSE_SYSTEM = 'P',
+  ASTRO_PERSPECTIVE = 'Apparent Geocentric',
+  GEONAMES_USERNAME = '',
+  GEONAMES_BASE = 'https://api.geonames.org',
+  GEONAMES_TIMEOUT_MS = '6000',
+  NOMINATIM_BASE = 'https://nominatim.openstreetmap.org',
+  NOMINATIM_EMAIL = [REDACTED]
+  PORT = '3000',
+} = process.env;
+
+console.log('[env] N8N_CHAT_URL =', N8N_CHAT_URL);
+
+const sign = (body, ts) => {
+  const data = typeof body === 'string' ? body : JSON.stringify(body ?? {});
+  return crypto.createHmac('sha256', N8N_SECRET).update(ts + '.' + data).digest('hex');
+};
+
+/* ============================= HEALTH (early) ============================= */
+app.get('/health', async (_req, res) => {
+  let dbOk = false;
+  try {
+    await pool.query('SELECT 1');
+    dbOk = true;
+  } catch {}
+  res.json({
+    ok: true,
+    db: dbOk,
+    n8n: Boolean(N8N_CHAT_URL || N8N_SPEECH_URL),
+    astroKey: Boolean(ASTRO_API_KEY),
+    theme: ASTRO_THEME,
+  });
+});
+
+/* ============================= DB INIT (non-fatal) ============================= */
+try {
+  await initDb();
+  console.log('✅ MySQL connected and initialized');
+} catch (e) {
+  console.error('❌ MySQL init failed:', e?.message || e);
+  // Do not exit; keep server running so /health and other mocks still work.
+}
+
+/* ===== helper: разбираем "Город, Страна" → { city, nation } ===== */
+function parsePlace(me) {
+  const raw = me?.birthPlace || me?.place || '';
+  if (!raw) return { city: null, nation: null };
+  const parts = raw.split(',').map((s) => s.trim());
+  const city = parts[0] || null;
+  const nation = parts.length > 1 ? parts[parts.length - 1] : null;
+  return { city, nation };
+}
+
+/* ===== signature: "что влияет на вид карты" ===== */
+function buildSignature({ Y, M, D, h, m, lat, lng, tz, theme, zodiac, house }) {
+  const norm = (x) => (x == null ? '' : String(x));
+  return [
+    norm(Y),
+    norm(M),
+    norm(D),
+    norm(h),
+    norm(m),
+    norm(lat),
+    norm(lng),
+    norm(tz),
+    norm(theme),
+    norm(zodiac),
+    norm(house),
+  ].join('|');
+}
+
+const normalizeNation = (val) => {
+  if (!val) return null;
+  const v = String(val).trim();
+  if (/^[A-Z]{2}$/i.test(v)) return v.toUpperCase();
+  const map = {
+    Россия: 'RU',
+    'Russian Federation': 'RU',
+    Russian: 'RU',
+    Украина: 'UA',
+    Казахстан: 'KZ',
+    Беларусь: 'BY',
+    США: 'US',
+    'Соединённые Штаты': 'US',
+    America: 'US',
+    Германия: 'DE',
+    Франция: 'FR',
+    Испания: 'ES',
+    Италия: 'IT',
+    Турция: 'TR',
+    Великобритания: 'GB',
+    Англия: 'GB',
+    Канада: 'CA',
+    Китай: 'CN',
+    Индия: 'IN',
+    Япония: 'JP',
+  };
+  return map[v] || null;
+};
+
+/* ============================= GEO SEARCH ============================= */
+// 🔎 поиск городов через Nominatim (прокси), + tzLookup
+app.get('/geo/search', async (req, res) => {
+  const q = String(req.query.q || '').trim();
+  console.log('[geo/search] q =', q);
+  if (!q || q.length < 2) return res.json({ items: [] });
+
+  const TIMEOUT = Number(GEONAMES_TIMEOUT_MS || 6000);
+  const withTimeout = (ms) => {
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), ms);
+    return { signal: ac.signal, cancel: () => clearTimeout(t) };
+  };
+
+  try {
+    const url = new URL(`${NOMINATIM_BASE}/search`);
+    url.searchParams.set('format', 'jsonv2');
+    url.searchParams.set('q', q);
+    url.searchParams.set('addressdetails', '1');
+    url.searchParams.set('limit', '10');
+
+    const { signal, cancel } = withTimeout(TIMEOUT);
+    let r, rows;
+    try {
+      r = await fetch(url.toString(), {
+        signal,
+        headers: {
+          'User-Agent': `cosmotell/1.0 (${NOMINATIM_EMAIL})`,
+          Accept: 'application/json',
+        },
+      });
+      const txt = await r.text();
+      try {
+        rows = JSON.parse(txt);
+      } catch {
+        rows = null;
+      }
+    } finally {
+      cancel();
+    }
+
+    if (!r?.ok || !Array.isArray(rows)) {
+      console.warn('[geo/search] http=', r?.status, 'rows ok?', Array.isArray(rows));
+      return res.json({ items: [] });
+    }
+
+    const items = rows.slice(0, 10).map((it) => {
+      const lat = Number(it.lat);
+      const lng = Number(it.lon);
+      let tz = null;
+      try {
+        tz = tzLookup(lat, lng);
+      } catch {}
+
+      const addr = it.address || {};
+      const city =
+        addr.city ||
+        addr.town ||
+        addr.village ||
+        addr.hamlet ||
+        it.display_name?.split(',')[0] ||
+        '';
+      const nation = (addr.country_code || '').toUpperCase();
+      const admin1 = addr.state || addr.county || null;
+      const countryName = addr.country || nation || null;
+      const displayName = [city, admin1, countryName].filter(Boolean).join(', ');
+
+      return {
+        id: String(it.place_id),
+        displayName,
+        city,
+        nation,
+        lat,
+        lng,
+        tz,
+      };
+    });
+
+    console.log('[geo/search] items =', items.length);
+    return res.json({ items });
+  } catch (e) {
+    console.error('[geo/search] error', e?.message || e);
+    return res.json({ items: [] });
+  }
+});
+
+/* ============================= MOCK CHAT/SPEECH ============================= */
+app.post('/chat', async (req, res) => {
+  const { text = '' } = req.body || {};
+  if (!text.trim()) return res.status(400).json({ error: 'text is required' });
+  return res.json({ reply: `Принято: “${text}”. (мок-ответ)` });
+});
+
+const upload = multer({ storage: multer.memoryStorage() });
+app.post('/speech', upload.single('audio'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'no file' });
+  // тут можно добавить реальное STT
+  return res.json({ text: 'распознанный текст (мок)' });
+});
+
+/* ============================= PROFILES ============================= */
+app.post('/profiles/sync', async (req, res) => {
+  try {
+    console.log('[sync] получен запрос:', req.body);
+    const { deviceId, me = null, other = null } = req.body || {};
+    if (!deviceId) return res.status(400).json({ error: 'deviceId is required' });
+
+    const row = await upsertProfile(deviceId, me, other);
+    console.log('[sync] профиль сохранён, запускаю построение карты для', deviceId);
+
+    buildNatalChartIfPossible(row)
+      .then(() => console.log('[sync] генерация карты завершена для', deviceId))
+      .catch((err) => console.error('[sync] ошибка построения карты:', err));
+
+    return res.json(row);
+  } catch (e) {
+    console.error('profiles sync error', e);
+    return res.status(500).json({ error: 'profiles sync failed' });
+  }
+});
+
+app.get('/profiles/:deviceId/chart', async (req, res) => {
+  try {
+    const row = await getProfile(req.params.deviceId);
+    if (!row) return res.status(404).json({ error: 'not found' });
+
+    let svg = row.chart_svg || null;
+    if (!svg && row.chart_data && typeof row.chart_data === 'object') {
+      svg =
+        row.chart_data.chart ||
+        row.chart_data.svg ||
+        row.chart_data.chart_svg ||
+        (row.chart_data.data && (row.chart_data.data.chart || row.chart_data.data.svg)) ||
+        null;
+    }
+    return res.json({ chart_svg: svg });
+  } catch (e) {
+    console.error('chart get error', e);
+    return res.status(500).json({ error: 'chart get failed' });
+  }
+});
+
+/* ============================= AI → n8n ============================= */
+app.post('/ai/query', async (req, res) => {
+  try {
+    const { deviceId, question } = req.body || {};
+    if (!deviceId || !question?.trim()) {
+      return res.status(400).json({ error: 'deviceId and question are required' });
+    }
+
+    const row = await getProfile(deviceId);
+    if (!row?.me) return res.status(404).json({ error: 'profile not found' });
+
+    if (!N8N_CHAT_URL) {
+      const name = row.me?.name || 'пользователь';
+      return res.json({ reply: `Мок-ИИ: ${name}, на вопрос «${question}» пока отвечу позже.` });
+    }
+
+    const payload = {
+      question,
+      deviceId,
+      profile: { me: row.me, other: row.other },
+      chart: { svg: row.chart_svg || null, data: row.chart_data || null },
+    };
+    const ts = Date.now().toString();
+    const r = await fetch(N8N_CHAT_URL, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-signature': sign(payload, ts),
+        'x-timestamp': ts,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const ct = r.headers.get('content-type') || '';
+    const data = ct.includes('application/json') ? await r.json() : { reply: await r.text() };
+    if (!r.ok) return res.status(r.status).json({ error: data });
+    return res.json({ reply: data.reply ?? data.text ?? 'Ок.' });
+  } catch (e) {
+    console.error('ai query error', e);
+    return res.status(500).json({ error: 'ai query failed' });
+  }
+});
+
+/* ============================= BUILD CHART ============================= */
+async function buildNatalChartIfPossible(row) {
+  try {
+    if (!ASTRO_API_KEY) {
+      console.log('[chart] skip: no ASTRO_API_KEY');
+      return;
+    }
+
+    const me = row?.me;
+    if (!me?.birthDateISO) {
+      console.log('[chart] skip: no birthDateISO');
+      return;
+    }
+
+    const [Y, M, D] = String(me.birthDateISO).split('-').map(Number);
+    const [h, m] =
+      me.time && /^\d{2}:\d{2}$/.test(me.time) ? me.time.split(':').map(Number) : [12, 0];
+
+    const coords = me?.coords || {};
+    const lat = typeof coords.lat === 'number' ? coords.lat : null;
+    const lng = typeof coords.lng === 'number' ? coords.lng : null;
+    const tz = me?.tz || null;
+
+    const { city, nation } = parsePlace(me);
+    const name = me?.name || 'User';
+
+    // ── 1) проверяем предыдущую "подпись"
+    const existing = await getProfile(row.device_id);
+    const prevSig =
+      existing?.chart_data && typeof existing.chart_data === 'object'
+        ? existing.chart_data._signature || null
+        : null;
+
+    const currSig = buildSignature({
+      Y,
+      M,
+      D,
+      h,
+      m,
+      lat,
+      lng,
+      tz,
+      theme: ASTRO_THEME,
+      zodiac: ASTRO_ZODIAC,
+      house: ASTRO_HOUSE_SYSTEM,
+    });
+
+    if (existing?.chart_svg && prevSig === currSig) {
+      console.log('[chart] signature unchanged, skip rebuild');
+      return;
+    }
+
+    // ── 2) собираем subject для API
+    const base = {
+      year: Y,
+      month: M,
+      day: D,
+      hour: h,
+      minute: m,
+      name,
+      zodiac_type: ASTRO_ZODIAC,
+      sidereal_mode: null,
+      perspective_type: ASTRO_PERSPECTIVE,
+      houses_system_identifier: ASTRO_HOUSE_SYSTEM,
+    };
+
+    let subject = { ...base };
+    const nationCode = normalizeNation(nation);
+
+    if (lat != null && lng != null && tz) {
+      subject = {
+        ...subject,
+        latitude: lat,
+        longitude: lng,
+        timezone: tz,
+        ...(city ? { city } : {}),
+        ...(nationCode ? { nation: nationCode } : {}),
+      };
+      console.log('[chart] используем coords+tz', { lat, lng, tz });
+    } else if (GEONAMES_USERNAME && city) {
+      subject = {
+        ...subject,
+        city,
+        ...(nationCode ? { nation: nationCode } : {}),
+        geonames_username: GEONAMES_USERNAME,
+      };
+      console.log('[chart] используем GeoNames для города', city);
+    } else {
+      console.log('[chart] skip: нет coords+tz и не указан GeoNames/город');
+      return;
+    }
+
+    const body = {
+      subject,
+      theme: ASTRO_THEME, // dark / classic / etc
+      language: ASTRO_LANG,
+      wheel_only: false,
+    };
+
+    console.log('[chart] theme in body =', ASTRO_THEME);
+    console.log('[chart] request →', `${ASTRO_API_BASE}/api/v4/birth-chart`);
+
+    const r = await fetch(`${ASTRO_API_BASE}/api/v4/birth-chart`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'X-RapidAPI-Host': 'astrologer.p.rapidapi.com',
+        'X-RapidAPI-Key': ASTRO_API_KEY,
+      },
+      body: JSON.stringify(body),
+    });
+
+    const ct = r.headers.get('content-type') || '';
+    const raw = await r.text();
+    console.log('[chart] response status=', r.status, 'ct=', ct);
+
+    if (!r.ok) {
+      console.error('[chart] API error:', raw.slice(0, 600));
+      return;
+    }
+
+    let svg = null,
+      meta = null;
+
+    if (ct.includes('application/json')) {
+      try {
+        const data = JSON.parse(raw);
+        meta = data;
+        svg =
+          data?.chart ||
+          data?.svg ||
+          data?.chart_svg ||
+          data?.data?.chart ||
+          data?.data?.svg ||
+          null;
+
+        if (!svg) {
+          const unescaped = raw
+            .replace(/\\"/g, '"')
+            .replace(/\\n/g, '\n')
+            .replace(/\\\\/g, '\\');
+          const i = unescaped.indexOf('<svg');
+          const j = unescaped.lastIndexOf('</svg>');
+          if (i !== -1 && j !== -1) svg = unescaped.slice(i, j + 6);
+        }
+      } catch (e) {
+        console.error('[chart] JSON parse error:', e?.message);
+      }
+    } else if (ct.includes('image/svg') || raw.trim().startsWith('<svg')) {
+      svg = raw;
+      meta = { type: 'svg', length: raw.length };
+    } else {
+      svg = raw.trim().startsWith('<svg') ? raw : null;
+    }
+
+    if (!svg || !svg.includes('<svg')) {
+      console.error('[chart] no svg found, saving meta for debug');
+      await saveChartSvg(row.device_id, null, meta ?? raw.slice(0, 5000));
+      return;
+    }
+
+    // ── 3) сохраняем SVG + подпись
+    let metaToSave = meta;
+    try {
+      if (!metaToSave || typeof metaToSave !== 'object') metaToSave = {};
+      metaToSave._signature = currSig;
+      metaToSave._subject = {
+        year: Y,
+        month: M,
+        day: D,
+        hour: h,
+        minute: m,
+        lat,
+        lng,
+        tz,
+        city: city || null,
+        nation: nationCode || null,
+        theme: ASTRO_THEME,
+        zodiac: ASTRO_ZODIAC,
+        house: ASTRO_HOUSE_SYSTEM,
+      };
+    } catch {
+      metaToSave = { _signature: currSig };
+    }
+
+    await saveChartSvg(row.device_id, svg, metaToSave);
+    console.log(`🌌 Chart saved for ${row.device_id}`);
+  } catch (e) {
+    console.error('Astrologer API error', e);
+  }
+}
+
+/* ============================= START ============================= */
+app.listen(Number(PORT), '0.0.0.0', () => {
+  console.log(`Backend running at http://localhost:${PORT}`);
+});
+
+
+--- FILE: tree.js ---
+--- LINES: 30 ---
+--- SHA256: ab6747d3d3eda4c1db4b90f339060e04c1d45bd666e414fe1f6a1d4428e3e35a ---
+import fs from "fs";
+import path from "path";
+
+const EXCLUDE_DIRS = ["node_modules", ".git", "build", "dist", ".vscode", "coverage", "__pycache__"];
+const MAX_DEPTH = 3; // adjust as needed (2–3 is usually enough)
+
+function printTree(dir, indent = "", depth = 0) {
+  if (depth > MAX_DEPTH) return;
+
+  const files = fs.readdirSync(dir);
+  for (const file of files) {
+    const fullPath = path.join(dir, file);
+    const stat = fs.statSync(fullPath);
+
+    // Skip excluded folders
+    if (stat.isDirectory() && EXCLUDE_DIRS.includes(file)) continue;
+
+    if (stat.isDirectory()) {
+      console.log(indent + "📁 " + file);
+      printTree(fullPath, indent + "  ", depth + 1);
+    } else {
+      console.log(indent + "📄 " + file);
+    }
+  }
+}
+
+printTree(".");
+
+// the command is node tree.js > structure.txt
+
+
+--- FILE: tsconfig.json ---
+--- LINES: 18 ---
+--- SHA256: e8e9605c3b1a521e797d6d3a5fd271121fdfbd0aab0904be0873469bc0347a77 ---
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ]
+}
+

@@ -8,9 +8,14 @@ import { fetchChartSvg, syncProfiles } from '../shared/api/profiles';
 /* ───────────────── Types ───────────────── */
 
 const makeDeviceId = async () => {
-  const session = await supabase?.auth.getSession().then(r => r.data.session).catch(() => null);
+  const session = await supabase
+    ?.auth.getSession()
+    .then((r) => r.data.session)
+    .catch(() => null);
   const uid = session?.user?.id;
-  return uid ? `uid-${uid}` : 'dev-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+  return uid
+    ? `uid-${uid}`
+    : 'dev-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
 };
 
 export type PersonProfile = {
@@ -18,8 +23,8 @@ export type PersonProfile = {
   name: string;
 
   // старые поля
-  date: string;            // YYYY-MM-DD
-  time?: string;           // HH:mm
+  date: string; // YYYY-MM-DD
+  time?: string; // HH:mm
   place?: string;
 
   // новые поля
@@ -107,44 +112,46 @@ export const useProfiles = create<ProfilesState>()(
       },
 
       async submitOnboarding(payload) {
-        const prev = get().me;
-        const merged = { ...(prev ?? {}), ...payload } as PersonProfile;
+  const prev = get().me;
+  const merged = { ...(prev ?? {}), ...payload } as PersonProfile;
 
-        set({ loading: true, error: null, me: merged });
-        try {
-          // 1) синхронизируем с бэком
-          await get().sync();
+  set({ loading: true, error: null, me: merged });
 
-          // 2) пробуем подтянуть SVG карты по deviceId
-          let chart: NatalChart | null = null;
-          try {
-            const res = await fetchChartSvg(get().deviceId);
-            chart = { chart_svg: res.chart_svg ?? null };
-          } catch (e) {
-            console.warn('[profiles] fetchChartSvg failed', e);
-            chart = { chart_svg: null };
-          }
+  try {
+    // 1) синхронизируем с бэком
+    await get().sync();
 
-          set({
-            chart,
-            onboarded: true,
-            loading: false,
-            error: null,
-          });
-          console.log('[profiles] onboarding complete');
-        } catch (e: any) {
-          set({
-            loading: false,
-            error: e?.message ?? 'Ошибка при онбординге',
-          });
-          console.warn('[profiles] onboarding failed', e);
-          throw e;
-        }
-      },
+    // 2) пробуем подтянуть SVG карты по deviceId
+    let chart: NatalChart | null = null;
+    try {
+      const res = await fetchChartSvg(get().deviceId);
+      chart = { chart_svg: res.chart_svg ?? null };
+    } catch (e) {
+      console.warn('[profiles] fetchChartSvg failed', e);
+      chart = { chart_svg: null };
+    }
 
-      // src/store/profiles.ts (фрагмент)
-async reloadChart() {
+    set({
+      chart,
+      onboarded: true,
+      loading: false,
+      error: null,
+    });
+    console.log('[profiles] onboarding complete');
+  } catch (e: any) {
+    set({
+      loading: false,
+      error: e?.message ?? 'Ошибка при онбординге',
+    });
+    console.warn('[profiles] onboarding failed', e);
+    throw e;
+  }
+},
+
+
+      async reloadChart() {
   const { deviceId, me } = get();
+
   if (!me) {
     console.warn('[profiles] reloadChart: нет профиля');
     return;
@@ -158,20 +165,22 @@ async reloadChart() {
     console.log('[profiles] chart reloaded');
   } catch (e: any) {
     const msg = String(e?.message || '');
-    // Если сервер ответил 404 not found для chart — вероятно, профиль не записался
     if (msg.includes('404')) {
-      console.warn('[profiles] chart 404 → попробую sync() и повторить');
+      console.warn(
+        '[profiles] chart 404 → попробую sync() и повторить'
+      );
       try {
         await get().sync();
-        // короткая пауза, чтобы бэк успел создать запись
-        await new Promise(r => setTimeout(r, 250));
+        await new Promise((r) => setTimeout(r, 250));
         const res2 = await fetchChartSvg(deviceId);
         const chart2: NatalChart = { chart_svg: res2.chart_svg ?? null };
         set({ chart: chart2, loading: false });
         return;
       } catch (e2) {
-        // упало снова — пробросим ниже
-        console.warn('[profiles] повторный reload после sync не удался', e2);
+        console.warn(
+          '[profiles] повторный reload после sync не удался',
+          e2
+        );
       }
     }
     set({
@@ -180,7 +189,7 @@ async reloadChart() {
     });
     console.warn('[profiles] reloadChart failed', e);
   }
-},
+}
 
     }),
     {

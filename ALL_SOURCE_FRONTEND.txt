@@ -1,0 +1,5608 @@
+--- FILE: .gitignore ---
+--- LINES: 51 ---
+--- SHA256: 925eaf88e14eea4f3c7abd49b047d4dfeb4b18b4a7d7852a565fc806caa5e535 ---
+# Dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# Debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# Local env files (все варианты)
+.env
+.env*.local
+.env.development
+.env.production
+.env.test
+
+# TypeScript
+*.tsbuildinfo
+
+# Generated native folders
+/ios
+/android
+
+# Project-specific
+app-example
+ALL_SOURCE_COMBINED_FULL.txt
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+
+--- FILE: README.md ---
+--- LINES: 51 ---
+--- SHA256: 724011847f042c61ca1ddf8bc00a3fe723672734b00f37348e4e7ddef1965091 ---
+# Welcome to your Expo app 👋
+
+This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+
+## Get started
+
+1. Install dependencies
+
+   ```bash
+   npm install
+   ```
+
+2. Start the app
+
+   ```bash
+   npx expo start
+   ```
+
+In the output, you'll find options to open the app in a
+
+- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
+- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
+- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
+- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+
+You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+
+## Get a fresh project
+
+When you're ready, run:
+
+```bash
+npm run reset-project
+```
+
+This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+
+## Learn more
+
+To learn more about developing your project with Expo, look at the following resources:
+
+- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
+- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+
+## Join the community
+
+Join our community of developers creating universal apps.
+
+- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
+- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+
+--- FILE: app.json ---
+--- LINES: 78 ---
+--- SHA256: 0d62bee0a9a2d796adf04822c28286b70d17a87b9d7523bc173f8267ded8446d ---
+{
+  "expo": {
+    "name": "astro-app",
+    "slug": "astro-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "cosmotell",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "extra": {},
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Нужен доступ к микрофону для голосового ввода.",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSExceptionDomains": {
+            "localhost": {
+              "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+              "NSIncludesSubdomains": true
+            },
+            "127.0.0.1": {
+              "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+              "NSIncludesSubdomains": true
+            },
+            "10.0.2.2": {
+              "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+              "NSIncludesSubdomains": true
+            },
+            "192.168.0.0": {
+              "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+              "NSIncludesSubdomains": true
+            }
+          }
+        }
+      }
+    },
+    "android": {
+      "permissions": ["RECORD_AUDIO"],
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "usesCleartextTraffic": true
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "backgroundColor": "#000000"
+          }
+        }
+      ],
+      "expo-font",
+      "expo-web-browser"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
+
+
+--- FILE: app/(tabs)/_layout.tsx ---
+--- LINES: 88 ---
+--- SHA256: 3a427026a2b566c8dd5cb29232eaa7a0b1f6a2148ad995fa6e569f5be1c50f31 ---
+// app/(tabs)/_layout.tsx
+import { Ionicons } from '@expo/vector-icons';
+import { Tabs } from 'expo-router';
+import React from 'react';
+import { Text } from 'react-native';
+
+const BG = '#0b0b0c';
+const TAB_BG = '#0e0f12';
+const TAB_BORDER = 'rgba(255,255,255,0.06)';
+const ACTIVE = '#ffffff';
+const INACTIVE = '#a3a6ae';
+const HEADER_BG = '#0e0f12';
+const HEADER_TEXT = '#ffffff';
+
+function Label({ text, color }: { text: string; color: string }) {
+  return (
+    <Text
+      style={{
+        color,
+        fontSize: 11.5,
+        fontWeight: '600',
+        lineHeight: 13,
+        textAlign: 'center',
+      }}
+      numberOfLines={2}
+      allowFontScaling
+    >
+      {text}
+    </Text>
+  );
+}
+
+export default function TabsLayout() {
+  return (
+    <Tabs
+      initialRouteName="astro-map"
+      screenOptions={{
+        headerShown: true,
+        headerStyle: { backgroundColor: HEADER_BG },
+        headerTitleStyle: { color: HEADER_TEXT, fontWeight: '700' },
+        headerTintColor: HEADER_TEXT,
+        sceneStyle: { backgroundColor: BG },
+        tabBarStyle: {
+          backgroundColor: TAB_BG,
+          borderTopColor: TAB_BORDER,
+          height: 72,
+          paddingBottom: 10,
+          paddingTop: 6,
+        },
+        tabBarActiveTintColor: ACTIVE,
+        tabBarInactiveTintColor: INACTIVE,
+        tabBarItemStyle: { paddingHorizontal: 2 },
+      }}
+    >
+      <Tabs.Screen
+        name="astro-map"
+        options={{
+          title: 'Моя Астро-Карта',
+          tabBarLabel: ({ color }) => <Label color={color} text={'Астро-карта'} />,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="planet-outline" size={size - 2} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="astro-chat"
+        options={{
+          title: 'Чат по карте',
+          tabBarLabel: ({ color }) => <Label color={color} text={'Чат'} />,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="chatbubble-ellipses-outline" size={size - 2} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Настройки',
+          tabBarLabel: ({ color }) => <Label color={color} text={'Настройки'} />,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="settings-outline" size={size - 2} color={color} />
+          ),
+        }}
+      />
+    </Tabs>
+  );
+}
+
+
+--- FILE: app/(tabs)/astro-chat.tsx ---
+--- LINES: 504 ---
+--- SHA256: bb27db9ce60234fb46b64a6f866fcc353b2aac7ad44fa3a136d63942e44c86b1 ---
+// app/(tabs)/astro-chat.tsx
+import { ENDPOINTS } from '@/src/shared/config/api';
+import { useProfiles } from '@/src/store/profiles';
+import { Ionicons } from '@expo/vector-icons';
+import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system/legacy';
+import { useRouter } from 'expo-router';
+import * as Speech from 'expo-speech';
+import React, { useMemo, useRef, useState } from 'react';
+import {
+    Alert,
+    FlatList,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
+} from 'react-native';
+
+/* ==================== Types ==================== */
+type Msg = { id: string; role: 'user' | 'bot'; text: string; ts: number };
+
+/* ==================== Menu (prompts) ==================== */
+type MenuNode =
+  | { id: string; title: string; type: 'menu'; nav?: { back?: boolean; home?: boolean }; children: MenuNode[] }
+  | { id: string; title: string; type: 'action'; action_id: keyof typeof PROMPTS }
+  | { id: string; title: string; type: 'nav'; goto: 'compatibility' | 'forecast_transits' };
+
+const PROMPTS = {
+  destiny_overview:
+    'Проанализируй натальную карту пользователя (знак Солнца, Асцендент, Середина Неба, планетарные аспекты с Юпитером, Сатурном и осью узлов) ...',
+  career_type: 'Определи общий тип карьерного пути по MC, управителям 10/6 домов и сильным планетам.',
+  fin_overview: 'Проанализируй 2-й/8-й дома, их управителей и аспекты к Юпитеру/Венере/Плутону.',
+  compat_partner: 'Романтическая синастрия: ключевые аспекты и динамика.',
+  forecast_week: 'Опиши темы недели по транзитам личных планет к натальной карте.',
+} as const;
+
+const MENU: MenuNode = {
+  id: 'main',
+  title: 'Быстрые вопросы',
+  type: 'menu',
+  nav: { back: false, home: false },
+  children: [
+    {
+      id: 'my_chart',
+      title: 'Моя карта',
+      type: 'menu',
+      nav: { back: true, home: true },
+      children: [
+        { id: 'destiny_overview', title: 'Моё предназначение', type: 'action', action_id: 'destiny_overview' },
+        { id: 'career_type', title: 'Карьерный тип', type: 'action', action_id: 'career_type' },
+        { id: 'fin_overview', title: 'Финансы (обзор)', type: 'action', action_id: 'fin_overview' },
+      ],
+    },
+    {
+      id: 'compatibility',
+      title: 'Совместимость',
+      type: 'menu',
+      nav: { back: true, home: true },
+      children: [
+        { id: 'compat_partner', title: 'С партнёром', type: 'action', action_id: 'compat_partner' },
+      ],
+    },
+    {
+      id: 'forecast',
+      title: 'Прогнозы',
+      type: 'menu',
+      nav: { back: true, home: true },
+      children: [
+        { id: 'forecast_week', title: 'Неделя', type: 'action', action_id: 'forecast_week' },
+        { id: 'goto_forecasts', title: 'К экрану «Прогнозы»', type: 'nav', goto: 'forecast_transits' },
+      ],
+    },
+  ],
+};
+
+/* ==================== Screen ==================== */
+export default function AstroChatScreen() {
+  const router = useRouter();
+  const deviceId = useProfiles((s) => s.deviceId);
+
+  const [messages, setMessages] = useState<Msg[]>([
+    { id: 'm1', role: 'bot', text: 'Привет! Спроси что-нибудь по своей карте 🌌', ts: Date.now() },
+  ]);
+  const [draft, setDraft] = useState('');
+  const listRef = useRef<FlatList<Msg>>(null);
+
+  const scrollToEnd = () =>
+    requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+
+  async function speak(text: string) {
+    try {
+      if (Speech.isSpeakingAsync && (await Speech.isSpeakingAsync())) Speech.stop();
+    } catch {}
+    Speech.speak(String(text), { language: 'ru-RU', pitch: 1.0, rate: 0.98 });
+  }
+
+  const [isBusy, setIsBusy] = useState(false);
+  const sendText = async (textIn: string) => {
+    const text = textIn.trim();
+    if (!text || isBusy) return;
+    const user: Msg = { id: String(Date.now()), role: 'user', text, ts: Date.now() };
+    setMessages((prev) => [
+      ...prev,
+      user,
+      { id: user.id + ':wait', role: 'bot', text: '…', ts: Date.now() + 1 },
+    ]);
+    setDraft('');
+    scrollToEnd();
+
+    try {
+      setIsBusy(true);
+      const r = await fetch(ENDPOINTS.aiQuery, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId, question: text }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text().catch(() => '')}`);
+      const ct = r.headers.get('content-type') || '';
+      const data = ct.includes('application/json') ? await r.json() : { reply: await r.text() };
+      const botText = data?.reply ?? 'Ок.';
+      setMessages((prev) =>
+        prev.map((m) => (m.id === user.id + ':wait' ? { ...m, text: String(botText) } : m))
+      );
+      scrollToEnd();
+      if (botText) await speak(String(botText));
+    } catch (e: any) {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === user.id + ':wait' ? { ...m, text: 'Ошибка связи с сервером' } : m))
+      );
+      Alert.alert('Чат', e?.message || 'Ошибка сети');
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  /* ====== Voice ====== */
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+
+  const startRecording = async () => {
+    try {
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Микрофон', 'Разрешите доступ к микрофону');
+        return;
+      }
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+      });
+      const created = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      setRecording(created.recording);
+      setIsRecording(true);
+    } catch (e) {
+      Alert.alert('Ошибка', 'Не удалось начать запись');
+    }
+  };
+
+  const stopRecording = async () => {
+    try {
+      if (!recording) return;
+      await recording.stopAndUnloadAsync();
+      setIsRecording(false);
+      const uri = recording.getURI();
+      setRecording(null);
+      if (!uri) return;
+
+      setIsBusy(true);
+      const uploadRes = await FileSystem.uploadAsync(ENDPOINTS.speech, uri, {
+        fieldName: 'audio',
+        httpMethod: 'POST',
+        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+        mimeType: 'audio/m4a',
+        parameters: {},
+      });
+
+      if (uploadRes.status !== 200) {
+        throw new Error(`STT HTTP ${uploadRes.status}: ${uploadRes.body?.slice(0, 200) || ''}`);
+      }
+
+      let stt: any = {};
+      try {
+        stt = JSON.parse(uploadRes.body);
+      } catch {}
+      const text = (stt?.text || '').trim();
+      if (!text) {
+        Alert.alert('Речь', 'Не удалось распознать голос');
+        setIsBusy(false);
+        return;
+      }
+
+      const userMsg: Msg = { id: String(Date.now()), role: 'user', text, ts: Date.now() };
+      setMessages((prev) => [
+        ...prev,
+        userMsg,
+        { id: userMsg.id + ':wait', role: 'bot', text: '…', ts: Date.now() + 1 },
+      ]);
+      scrollToEnd();
+
+      const r = await fetch(ENDPOINTS.aiQuery, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId, question: text }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text().catch(() => '')}`);
+      const ct = r.headers.get('content-type') || '';
+      const data = ct.includes('application/json') ? await r.json() : { reply: await r.text() };
+      const botText = data?.reply ?? 'Ок.';
+      setMessages((prev) =>
+        prev.map((m) => (m.id === userMsg.id + ':wait' ? { ...m, text: String(botText) } : m))
+      );
+      scrollToEnd();
+      if (botText) await speak(String(botText));
+    } catch (e: any) {
+      Alert.alert('Ошибка', e?.message || 'Проблема с отправкой голоса');
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  /* ====== Keyboard menu (Telegram style) ====== */
+  const [menuOpen, setMenuOpen] = useState<boolean>(false);
+  const [path, setPath] = useState<string[]>(['main']);
+  const curNode = useMemo<MenuNode>(() => {
+    let node: MenuNode = MENU;
+    for (let i = 1; i < path.length; i++) {
+      const id = path[i];
+      if (node.type !== 'menu') break;
+      const next = node.children.find((c) => c.id === id);
+      if (next) node = next;
+    }
+    return node;
+  }, [path]);
+
+  const goHome = () => setPath(['main']);
+  const canGoBack = path.length > 1;
+  const goBack = () => setPath((p) => (p.length > 1 ? p.slice(0, -1) : p));
+
+  const routerGoto = (goto: 'compatibility' | 'forecast_transits') => {
+    if (goto === 'compatibility') router.push('/(tabs)/compatibility' as any);
+    if (goto === 'forecast_transits') router.push('/(tabs)/forecasts' as any);
+    setMenuOpen(false);
+  };
+
+  const sendAction = (action_id: keyof typeof PROMPTS) => {
+    const prompt = PROMPTS[action_id];
+    if (prompt) sendText(prompt);
+    setMenuOpen(false);
+  };
+
+  const children = curNode.type === 'menu' ? curNode.children : [];
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <KeyboardAvoidingView
+        behavior={Platform.select({ ios: 'padding', android: undefined })}
+        style={{ flex: 1 }}
+      >
+        <FlatList
+          ref={listRef}
+          contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
+          ListHeaderComponent={<Text style={styles.title}>Чат по карте</Text>}
+          data={messages}
+          keyExtractor={(m) => m.id}
+          renderItem={({ item }) => <Bubble item={item} />}
+        />
+
+        {/* ===== Menu dock ===== */}
+        <View style={styles.menuDock}>
+          <View style={styles.menuHeader}>
+            <Pressable
+              onPress={() => setMenuOpen((v) => !v)}
+              style={[styles.menuToggle, menuOpen && { backgroundColor: '#4f46e5' }]}
+            >
+              <Ionicons name="menu" size={16} color={menuOpen ? '#fff' : '#4f46e5'} />
+              <Text style={[styles.menuToggleText, { color: menuOpen ? '#fff' : '#4f46e5' }]}>
+                {menuOpen ? 'Скрыть' : 'Меню'}
+              </Text>
+            </Pressable>
+
+            {menuOpen && curNode.type === 'menu' && (
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {curNode.nav?.home && (
+                  <Pressable onPress={goHome} style={styles.navChip}>
+                    <Text style={styles.navChipText}>Домой</Text>
+                  </Pressable>
+                )}
+                {canGoBack && curNode.nav?.back !== false && (
+                  <Pressable onPress={goBack} style={styles.navChip}>
+                    <Text style={styles.navChipText}>Назад</Text>
+                  </Pressable>
+                )}
+              </View>
+            )}
+          </View>
+
+          {menuOpen && curNode.type === 'menu' && (
+            <View style={styles.keyboardPanel}>
+              {children.map((child) => (
+                <Pressable
+                  key={child.id}
+                  onPress={() => {
+                    if (child.type === 'menu') setPath((p) => [...p, child.id]);
+                    else if (child.type === 'action') sendAction(child.action_id);
+                    else if (child.type === 'nav') routerGoto(child.goto);
+                  }}
+                  style={styles.kbButton}
+                >
+                  <Text style={styles.kbText}>{child.title}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* ===== Input bar ===== */}
+        <View style={styles.inputBar}>
+          <TextInput
+            style={styles.input}
+            placeholder="Напишите вопрос…"
+            value={draft}
+            onChangeText={setDraft}
+            multiline
+            accessibilityLabel="Поле ввода сообщения"
+          />
+          <Pressable
+            onPress={isRecording ? stopRecording : startRecording}
+            style={[
+              styles.iconBtn,
+              isRecording && { backgroundColor: '#ef4444' },
+              isBusy && { opacity: 0.6 },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={isRecording ? 'Остановить запись' : 'Начать запись'}
+            disabled={isBusy}
+          >
+            <Ionicons name={isRecording ? 'stop' : 'mic'} size={18} color="#fff" />
+          </Pressable>
+          <Pressable
+            onPress={() => sendText(draft)}
+            style={[styles.sendBtn, isBusy && { opacity: 0.6 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Отправить"
+            disabled={isBusy}
+          >
+            <Ionicons name="send" size={18} color="#fff" />
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+/* ===== UI bits ===== */
+function Bubble({ item }: { item: Msg }) {
+  const me = item.role === 'user';
+  return (
+    <View
+      style={[
+        styles.bubbleWrap,
+        me ? { alignItems: 'flex-end' } : { alignItems: 'flex-start' },
+      ]}
+    >
+      <View style={[styles.bubble, me ? styles.me : styles.bot]}>
+        {!me && (
+          <Ionicons
+            name="star-outline"
+            size={14}
+            color="#4f46e5"
+            style={{ marginRight: 6 }}
+          />
+        )}
+        <Text style={[styles.bubbleText, me && { color: '#fff' }]}>{item.text}</Text>
+      </View>
+    </View>
+  );
+}
+
+/* ===== Styles ===== */
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: '#0b0b0c' },
+  title: { color: '#fff', fontSize: 22, fontWeight: '700', marginBottom: 12 },
+
+  bubbleWrap: { paddingVertical: 4 },
+  bubble: {
+    maxWidth: '86%',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  me: { backgroundColor: '#4f46e5' },
+  bot: { backgroundColor: 'rgba(255,255,255,0.08)' },
+  bubbleText: { color: '#e5e7eb', fontSize: 15 },
+
+  inputBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: '#0b0b0c',
+  },
+  input: {
+    flex: 1,
+    minHeight: 40,
+    maxHeight: 110,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 12,
+    fontSize: 15,
+  },
+  sendBtn: {
+    height: 40,
+    width: 40,
+    borderRadius: 12,
+    backgroundColor: '#4f46e5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconBtn: {
+    height: 40,
+    width: 40,
+    borderRadius: 12,
+    backgroundColor: '#6b7280',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  menuDock: {
+    position: 'absolute',
+    left: 8,
+    right: 8,
+    bottom: 64,
+  },
+  menuHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  menuToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: '#4f46e5',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+  },
+  menuToggleText: { fontWeight: '800' },
+
+  navChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  navChipText: { color: '#e5e7eb', fontWeight: '700' },
+
+  keyboardPanel: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 10,
+    borderWidth: 1.5,
+    borderColor: '#4f46e5',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
+  },
+  kbButton: {
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#4f46e5',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginVertical: 6,
+  },
+  kbText: { color: '#1f2937', fontWeight: '800', fontSize: 15 },
+});
+
+
+--- FILE: app/(tabs)/astro-map.tsx ---
+--- LINES: 242 ---
+--- SHA256: ab87577b6f962564724d0a11e7eb39b56ff158d1de7e1c1f47fe7dc67945bbb2 ---
+// app/(tabs)/astro-map.tsx
+import { useProfiles } from '@/src/store/profiles';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useMemo } from 'react';
+import { Image, SafeAreaView, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { SvgXml } from 'react-native-svg';
+
+/* ==================== SVG sanitize ==================== */
+function sanitizeSvg(xml: string): string {
+  let s = xml;
+  const styleBlocks = [...s.matchAll(/<style[\s\S]*?<\/style>/gi)].map((m) => m[0]);
+  const themeVars: Record<string, string> = {};
+  for (const block of styleBlocks) {
+    const varRegex = /--(kerykeion-[a-z0-9-]+)\s*:\s*([^;]+);/gi;
+    let m: RegExpExecArray | null;
+    while ((m = varRegex.exec(block)) !== null) {
+      const key = m[1].trim().toLowerCase();
+      const raw = m[2].replace(/!important/gi, '').trim();
+      themeVars[key] = raw;
+    }
+  }
+  const DEFAULTS: Record<string, string> = {
+    'kerykeion-color-black': '#000000',
+    'kerykeion-color-white': '#ffffff',
+    'kerykeion-color-base-100': '#0b0b0c',
+    'kerykeion-color-base-200': '#1a1b1f',
+    'kerykeion-color-base-300': '#2a2c31',
+    'kerykeion-color-base-content': '#e5e7eb',
+    'kerykeion-color-neutral': '#a3a6ae',
+    'kerykeion-color-neutral-content': '#cfd2da',
+    'kerykeion-color-primary': '#4f46e5',
+    'kerykeion-color-secondary': '#6b7280',
+    'kerykeion-color-accent': '#22c55e',
+    'kerykeion-color-warning': '#f59e0b',
+    'kerykeion-color-success': '#22c55e',
+    'kerykeion-color-error': '#ef4444',
+    'kerykeion-chart-color-paper-0': '#000000',
+    'kerykeion-chart-color-paper-1': '#0b0b0c',
+  };
+  const cache: Record<string, string> = {};
+  function resolveVar(value: string, depth = 0): string {
+    if (!/var\(--kerykeion-[^)]+\)/i.test(value)) return value;
+    if (depth > 10) return value;
+    return value.replace(/var\(--(kerykeion-[a-z0-9-]+)\)/gi, (_m, fullKey: string) => {
+      const k = fullKey.toLowerCase();
+      if (cache[k]) return cache[k];
+      let v = themeVars[k] ?? DEFAULTS[k] ?? '#888888';
+      if (/var\(--kerykeion-[^)]+\)/i.test(v)) v = resolveVar(v, depth + 1);
+      cache[k] = v;
+      return v;
+    });
+  }
+  for (const block of styleBlocks) s = s.replace(block, '');
+  let guard = 0;
+  while (/var\(--kerykeion-[^)]+\)/i.test(s) && guard < 12) {
+    s = resolveVar(s);
+    guard++;
+  }
+  s = s.replace(/<\?xml[^>]*\?>/gi, '');
+  s = s.replace(/>\s*'\s*</g, '><');
+  s = s.replace(/'\s*<\/svg>/g, '</svg>');
+  s = s.replace(/\u00A0|\uFEFF/g, ' ');
+  return s;
+}
+
+/* ==================== Mock stats ==================== */
+function useMockStats() {
+  return useMemo(
+    () => ({
+      sun: 'Солнце: Лев 17°',
+      moon: 'Луна: Телец 25°',
+      asc: 'Асцендент: Скорпион 10°',
+      elements: { fire: 4, earth: 3, air: 2, water: 5 },
+      modalities: { cardinal: 3, fixed: 5, mutable: 6 },
+      aspects: { harmonious: 7, tense: 4, total: 11 },
+    }),
+    []
+  );
+}
+
+/* ==================== Screen ==================== */
+export default function AstroMapScreen() {
+  const { width } = useWindowDimensions();
+  const chartSize = Math.min(width - 32, 360);
+  const stats = useMockStats();
+
+  const deviceId = useProfiles((s) => s.deviceId);
+  const chart = useProfiles((s) => s.chart);
+  const reloadChart = useProfiles((s) => s.reloadChart);
+  const loading = useProfiles((s) => s.loading);
+
+  const chartSvg = useMemo(
+    () => (chart?.chart_svg ? sanitizeSvg(chart.chart_svg) : null),
+    [chart?.chart_svg]
+  );
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        await reloadChart();
+      } catch {}
+      if (cancelled) return;
+      const has = !!useProfiles.getState().chart?.chart_svg;
+      timer = setTimeout(tick, has ? 15000 : 4000);
+    };
+    tick();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [deviceId, reloadChart]);
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }}>
+        <Text style={styles.title}>Моя Астро-Карта</Text>
+
+        <View style={styles.card}>
+          <View style={[styles.chartWrap, { width: chartSize, height: chartSize }]}>
+            {chartSvg ? (
+              <SvgXml xml={chartSvg} width="100%" height="100%" />
+            ) : (
+              <Image
+                source={{
+                  uri: 'https://upload.wikimedia.org/wikipedia/commons/8/82/Astrological_chart_-_natal_chart_example.png',
+                }}
+                resizeMode="contain"
+                style={{ width: '100%', height: '100%', opacity: loading ? 0.5 : 0.35 }}
+                accessible
+                accessibilityLabel="Заглушка: карта готовится"
+              />
+            )}
+          </View>
+
+          <View style={styles.row}>
+            <Pill icon="sunny-outline" label={stats.sun} />
+            <Pill icon="moon-outline" label={stats.moon} />
+          </View>
+          <View style={styles.row}>
+            <Pill icon="compass-outline" label={stats.asc} />
+            <Pill
+              icon="star-outline"
+              label={`Аспекты: ${stats.aspects.harmonious} / ${stats.aspects.tense}`}
+            />
+          </View>
+
+          <Section title="Баланс стихий">
+            <Bar label="Огонь" value={stats.elements.fire} max={8} />
+            <Bar label="Земля" value={stats.elements.earth} max={8} />
+            <Bar label="Воздух" value={stats.elements.air} max={8} />
+            <Bar label="Вода" value={stats.elements.water} max={8} />
+          </Section>
+
+          <Section title="Модальности">
+            <Bar label="Кардинальный" value={stats.modalities.cardinal} max={8} />
+            <Bar label="Фиксированный" value={stats.modalities.fixed} max={8} />
+            <Bar label="Мутабельный" value={stats.modalities.mutable} max={8} />
+          </Section>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+/* ===== UI helpers ===== */
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View style={{ gap: 8 }}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={{ gap: 10 }}>{children}</View>
+    </View>
+  );
+}
+function Pill({
+  icon,
+  label,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  label: string;
+}) {
+  return (
+    <View style={styles.pill}>
+      <Ionicons name={icon} size={16} color="#4f46e5" />
+      <Text style={styles.pillText}>{label}</Text>
+    </View>
+  );
+}
+function Bar({ label, value, max }: { label: string; value: number; max: number }) {
+  const pct = Math.max(0, Math.min(1, value / max));
+  return (
+    <View accessible accessibilityLabel={`${label} ${Math.round(pct * 100)} процентов`}>
+      <View style={styles.barRow}>
+        <Text style={styles.barLabel}>{label}</Text>
+        <Text style={styles.barValue}>{value}</Text>
+      </View>
+      <View style={styles.barTrack}>
+        <View style={[styles.barFill, { width: `${pct * 100}%` }]} />
+      </View>
+    </View>
+  );
+}
+
+/* ===== Styles ===== */
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: '#0b0b0c' },
+  title: { color: '#fff', fontSize: 22, fontWeight: '700', marginBottom: 12 },
+  card: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+  },
+  chartWrap: {
+    alignSelf: 'center',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.09)',
+    marginBottom: 14,
+  },
+  row: { flexDirection: 'row', gap: 8, marginBottom: 10, flexWrap: 'wrap' },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: 'rgba(79,70,229,0.12)',
+  },
+  pillText: { color: '#e5e7eb', fontSize: 13 },
+  sectionTitle: { color: '#c7c9d1', fontSize: 14, fontWeight: '700', letterSpacing: 0.3 },
+  barRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  barLabel: { color: '#d1d5db', fontSize: 13 },
+  barValue: { color: '#9ca3af', fontSize: 13 },
+  barTrack: { height: 8, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
+  barFill: { height: 8, borderRadius: 8, backgroundColor: '#4f46e5' },
+});
+
+
+--- FILE: app/(tabs)/settings.tsx ---
+--- LINES: 100 ---
+--- SHA256: faacc792fdfaf5490bff315af953def18f1b6f003eb1d2b6d5f578d3c3e85ea3 ---
+// app/(tabs)/settings.tsx
+import { getSupabase } from '@/src/lib/supabase';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React from 'react';
+import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+
+const C = {
+  bg: '#0b0b0c',
+  card: 'rgba(255,255,255,0.06)',
+  border: 'rgba(255,255,255,0.12)',
+  text: '#e5e7eb',
+  dim: '#c7c9d1',
+};
+
+export default function SettingsScreen() {
+  const router = useRouter();
+
+  async function logout() {
+    try {
+      const sb = getSupabase();
+      await sb.auth.signOut();
+    } catch (e: any) {
+      console.warn('[logout]', e?.message || e);
+    } finally {
+      router.replace('/');
+    }
+  }
+
+  function openMyForm() {
+    router.push({ pathname: '/modal', params: { mode: 'me' } });
+  }
+
+  function openPartnerForm() {
+    router.push({ pathname: '/modal', params: { mode: 'other' } });
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
+      <View style={s.wrap}>
+        <Text style={s.title}>Настройки</Text>
+
+        {/* Анкеты */}
+        <View style={s.card}>
+          <Text style={s.section}>Анкеты</Text>
+
+          <Pressable onPress={openMyForm} style={[s.btn, s.btnRow]}>
+            <Ionicons name="person-circle-outline" size={18} color="#fff" />
+            <Text style={s.btnTxt}>Изменить мою анкету</Text>
+          </Pressable>
+
+          <Pressable onPress={openPartnerForm} style={[s.btn, s.btnRow]}>
+            <Ionicons name="people-outline" size={18} color="#fff" />
+            <Text style={s.btnTxt}>Анкета партнёра</Text>
+          </Pressable>
+        </View>
+
+        {/* Аккаунт */}
+        <View style={s.card}>
+          <Text style={s.section}>Аккаунт</Text>
+          <Pressable onPress={logout} accessibilityRole="button" style={[s.btn, s.danger]}>
+            <Ionicons name="log-out-outline" size={18} color="#fff" />
+            <Text style={s.btnTxt}>Выйти</Text>
+          </Pressable>
+          <Text style={s.hint}>Выход удалит текущую сессию на этом устройстве.</Text>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+
+const s = StyleSheet.create({
+  wrap: { flex: 1, padding: 16, gap: 12 },
+  title: { color: '#fff', fontSize: 22, fontWeight: '800' },
+  card: {
+    backgroundColor: C.card,
+    borderColor: C.border,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 12,
+    gap: 8,
+  },
+  section: { color: '#cfd2da', fontSize: 13, fontWeight: '700' },
+
+  btn: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  btnRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  btnTxt: { color: '#fff', fontWeight: '700' },
+
+  danger: { backgroundColor: '#ef4444', borderColor: '#ef4444' },
+  hint: { color: C.dim, fontSize: 12, marginTop: 6 },
+});
+
+
+--- FILE: app/_layout.tsx ---
+--- LINES: 41 ---
+--- SHA256: 6a70972d497f2ec78b56952202f5158d4eab6341fb17bc1f37cabdea82b9fd9e ---
+// app/_layout.tsx
+import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { useEffect } from 'react';
+
+// предотвращаем авто-скрытие splash-экрана до инициализации
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
+export default function RootLayout() {
+  useEffect(() => {
+    const prepare = async () => {
+      await new Promise((r) => setTimeout(r, 80));
+      await SplashScreen.hideAsync();
+    };
+    prepare();
+  }, []);
+
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: '#0b0b0c' },
+      }}
+    >
+      <Stack.Screen name="index" />
+      <Stack.Screen name="onboarding" />
+      <Stack.Screen name="onboarding-profile" />
+      <Stack.Screen name="auth/login" />
+      <Stack.Screen name="auth/register" />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen
+        name="modal"
+        options={{
+          presentation: 'modal',
+          headerShown: false,
+        }}
+      />
+    </Stack>
+  );
+}
+
+
+--- FILE: app/auth/login.tsx ---
+--- LINES: 157 ---
+--- SHA256: be4765772d29e0189892dcc0cad28e63b0519c2bc0cb24d4dcc2a2dd97e17a6e ---
+// app/auth/login.tsx
+import { getSupabase } from '@/src/lib/supabase';
+import { makeRedirectUri } from 'expo-auth-session';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Alert, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
+
+const C = {
+  bg: '#0b0b0c',
+  card: 'rgba(255,255,255,0.06)',
+  border: 'rgba(255,255,255,0.12)',
+  text: '#e5e7eb',
+  dim: '#c7c9d1',
+  primary: '#4f46e5',
+};
+
+export default function Login() {
+  const router = useRouter();
+
+  const redirectUri = useMemo(
+    () => makeRedirectUri({ scheme: 'cosmotell', path: 'auth' }),
+    []
+  );
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // After OAuth returns (or any auth state change), bounce to the gate.
+  useEffect(() => {
+    let unsub: (() => void) | undefined;
+    try {
+      const sb = getSupabase();
+      const { data: sub } = sb.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          router.replace('/'); // let / (index gate) decide destination
+        }
+      });
+      unsub = () => sub.subscription.unsubscribe();
+    } catch {
+      // Supabase not configured — ignore.
+    }
+    return () => unsub?.();
+  }, [router]);
+
+  async function signInEmail() {
+    try {
+      const sb = getSupabase();
+      const em = email.trim().toLowerCase();
+      if (!em || !password) return Alert.alert('Вход', 'Заполни email и пароль');
+      setLoading(true);
+      const { error } = await sb.auth.signInWithPassword({ email: em, password });
+      if (error) throw error;
+      // Do not navigate to tabs here — just return to the gate.
+      router.replace('/');
+    } catch (e: any) {
+      Alert.alert('Ошибка входа', e?.message || 'Не удалось войти');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function signInWith(provider: 'google' | 'apple') {
+    try {
+      const sb = getSupabase();
+      setLoading(true);
+      const { error } = await sb.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: redirectUri },
+      });
+      if (error) throw error;
+      // When OAuth completes, onAuthStateChange above will fire and send us to the gate.
+    } catch (e: any) {
+      Alert.alert('OAuth', e?.message || 'Не удалось войти через провайдера');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
+      <View style={s.wrap}>
+        <Text style={s.h1}>Вход</Text>
+
+        <View style={s.row}>
+          <Text style={s.label}>Email</Text>
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            placeholder="you@email.com"
+            placeholderTextColor="#8b8e97"
+            style={s.input}
+          />
+        </View>
+
+        <View style={s.row}>
+          <Text style={s.label}>Пароль</Text>
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            placeholder="••••••••"
+            placeholderTextColor="#8b8e97"
+            style={s.input}
+          />
+        </View>
+
+        <Pressable onPress={signInEmail} disabled={loading} style={[s.btn, s.primary]}>
+          <Text style={[s.btnTxt, { color: '#fff' }]}>{loading ? 'Входим…' : 'Войти'}</Text>
+        </Pressable>
+
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+          <Pressable onPress={() => signInWith('google')} disabled={loading} style={[s.btn, s.outline, { flex: 1 }]}>
+            <Text style={s.btnTxt}>Google</Text>
+          </Pressable>
+          <Pressable onPress={() => signInWith('apple')} disabled={loading} style={[s.btn, s.outline, { flex: 1 }]}>
+            <Text style={s.btnTxt}>Apple</Text>
+          </Pressable>
+        </View>
+
+        <Pressable onPress={() => router.push('/auth/register')} disabled={loading} style={[s.link]}>
+          <Text style={[s.btnTxt, { color: C.dim }]}>Нет аккаунта? Зарегистрируйся</Text>
+        </Pressable>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const s = StyleSheet.create({
+  wrap: { flex: 1, padding: 16, gap: 10 },
+  h1: { color: '#fff', fontWeight: '800', fontSize: 22, marginBottom: 6 },
+  row: { gap: 6 },
+  label: { color: C.dim, fontSize: 13 },
+  input: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    color: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  btn: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primary: { backgroundColor: C.primary },
+  btnTxt: { color: C.text, fontWeight: '700' },
+  outline: { borderWidth: 1, borderColor: C.primary, backgroundColor: 'transparent' },
+  link: { marginTop: 10, alignItems: 'center' },
+});
+
+
+--- FILE: app/auth/register.tsx ---
+--- LINES: 252 ---
+--- SHA256: 53af5bfc40788fb3c22da44efaf9088a97dd27063b55be4641c9a5e35de8d4a4 ---
+// app/auth/register.tsx
+import { getSupabase } from '@/src/lib/supabase';
+import { makeRedirectUri } from 'expo-auth-session';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Alert,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+
+const C = {
+  bg: '#0b0b0c',
+  card: 'rgba(255,255,255,0.06)',
+  border: 'rgba(255,255,255,0.12)',
+  text: '#e5e7eb',
+  dim: '#c7c9d1',
+  primary: '#4f46e5',
+  err: '#ef4444',
+};
+
+export default function Register() {
+  const router = useRouter();
+
+  // ВАЖНО: добавь этот redirectUri в Supabase → Auth → Redirect URLs
+  const redirectUri = useMemo(
+    () =>
+      makeRedirectUri({
+        scheme: 'cosmotell',
+        path: 'auth',
+      }),
+    []
+  );
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Если пользователь вернулся из OAuth и сессия уже есть — идём на онбординг
+  useEffect(() => {
+    let unsub: (() => void) | undefined;
+    try {
+      const sb = getSupabase();
+      const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
+        if (session?.user) {
+          router.replace('/onboarding');
+        }
+      });
+      unsub = () => sub.subscription.unsubscribe();
+    } catch {
+      // Supabase не сконфигурирован — пропускаем
+    }
+    return () => unsub?.();
+  }, [router]);
+
+  async function signUpEmail() {
+    try {
+      const sb = getSupabase();
+      const em = email.trim().toLowerCase();
+      if (!em || !password) {
+        return Alert.alert('Регистрация', 'Заполни email и пароль');
+      }
+      if (password.length < 6) {
+        return Alert.alert('Пароль', 'Минимум 6 символов');
+      }
+      if (password !== confirm) {
+        return Alert.alert('Пароль', 'Пароли не совпадают');
+      }
+
+      setLoading(true);
+
+      // 1) создаём аккаунт
+      const { error: e1 } = await sb.auth.signUp({ email: em, password });
+      if (e1) throw e1;
+
+      // 2) пробуем сразу войти (если email confirmation ОТКЛЮЧЕН)
+      const { error: e2 } = await sb.auth.signInWithPassword({
+        email: em,
+        password,
+      });
+      if (!e2) {
+        // вошли успешно → сразу на онбординг
+        router.replace('/onboarding');
+        return;
+      }
+
+      // если требуется подтверждение почты — просим подтвердить и возвращаемся
+      Alert.alert(
+        'Подтверди почту',
+        'Мы отправили письмо. После подтверждения войди в приложении.'
+      );
+      router.back();
+    } catch (e: any) {
+      Alert.alert(
+        'Ошибка регистрации',
+        e?.message || 'Не удалось создать аккаунт'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function signUpWith(provider: 'google' | 'apple') {
+    try {
+      const sb = getSupabase();
+      setLoading(true);
+      const { error } = await sb.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: redirectUri },
+      });
+      if (error) throw error;
+      // После возврата SDK сохранит сессию, а onAuthStateChange переведёт на онбординг
+    } catch (e: any) {
+      Alert.alert('OAuth', e?.message || 'Не удалось войти через провайдера');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
+      <View style={s.wrap}>
+        <Text style={s.h1}>Регистрация</Text>
+
+        <View style={s.row}>
+          <Text style={s.label}>Email</Text>
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            placeholder="you@email.com"
+            placeholderTextColor="#8b8e97"
+            style={s.input}
+          />
+        </View>
+
+        <View style={s.row}>
+          <Text style={s.label}>Пароль</Text>
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            spellCheck={false}
+            // iOS: корректная роль поля "новый пароль" без навязчивой плашки
+            textContentType="newPassword"
+            // Если у какого-то устройства всё ещё всплывает «Automatic Strong Password» и мешает вводу,
+            // раскомментируй следующую строку — она полностью отключает подсказку (iOS-хак):
+            // textContentType="oneTimeCode"
+            placeholder="••••••••"
+            placeholderTextColor="#8b8e97"
+            style={s.input}
+          />
+        </View>
+
+        <View style={s.row}>
+          <Text style={s.label}>Повтори пароль</Text>
+          <TextInput
+            value={confirm}
+            onChangeText={setConfirm}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            spellCheck={false}
+            textContentType="newPassword"
+            // Альтернатива для проблемных устройств (см. комментарий выше):
+            // textContentType="oneTimeCode"
+            placeholder="••••••••"
+            placeholderTextColor="#8b8e97"
+            style={s.input}
+          />
+        </View>
+
+        <Pressable
+          onPress={signUpEmail}
+          disabled={loading}
+          style={[s.btn, s.primary]}
+        >
+          <Text style={[s.btnTxt, { color: '#fff' }]}>
+            {loading ? 'Создаём…' : 'Зарегистрироваться'}
+          </Text>
+        </Pressable>
+
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+          <Pressable
+            onPress={() => signUpWith('google')}
+            disabled={loading}
+            style={[s.btn, s.outline, { flex: 1 }]}
+          >
+            <Text style={s.btnTxt}>Google</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => signUpWith('apple')}
+            disabled={loading}
+            style={[s.btn, s.outline, { flex: 1 }]}
+          >
+            <Text style={s.btnTxt}>Apple</Text>
+          </Pressable>
+        </View>
+
+        <Pressable
+          onPress={() => router.back()}
+          disabled={loading}
+          style={[s.link]}
+        >
+          <Text style={[s.btnTxt, { color: C.dim }]}>
+            Уже есть аккаунт? Войти
+          </Text>
+        </Pressable>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const s = StyleSheet.create({
+  wrap: { flex: 1, padding: 16, gap: 10 },
+  h1: { color: '#fff', fontWeight: '800', fontSize: 22, marginBottom: 6 },
+  row: { gap: 6 },
+  label: { color: C.dim, fontSize: 13 },
+  input: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    color: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  btn: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primary: { backgroundColor: C.primary },
+  btnTxt: { color: C.text, fontWeight: '700' },
+  outline: {
+    borderWidth: 1,
+    borderColor: C.primary,
+    backgroundColor: 'transparent',
+  },
+  link: { marginTop: 10, alignItems: 'center' },
+});
+
+
+--- FILE: app/index.tsx ---
+--- LINES: 57 ---
+--- SHA256: 8e21935cad6a23e5ed861a9232736e2460113abaa80441d632003523f4913485 ---
+// app/index.tsx
+import { getSupabase } from '@/src/lib/supabase';
+import { useApp } from '@/src/store/app';
+import { Redirect, useRootNavigationState } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, SafeAreaView, Text, View } from 'react-native';
+
+export default function Index() {
+  const navState = useRootNavigationState();
+  const { onboardingDone, hydrated } = useApp();
+
+  const [ready, setReady] = useState(false);
+  const [target, setTarget] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!hydrated) return;
+
+    (async () => {
+      try {
+        const sb = getSupabase();
+        const {
+          data: { session },
+        } = await sb.auth.getSession();
+
+        if (!onboardingDone) {
+          // Первый запуск или незавершённый онбординг
+          setTarget('/onboarding');
+        } else if (!session) {
+          // Онбординг уже был, но сессии нет → на экран логина
+          setTarget('/auth/login');
+        } else {
+          // Всё ок: пользователь залогинен и онбординг завершён
+          setTarget('/(tabs)/astro-map');
+        }
+      } catch (e) {
+        // Если Supabase не сконфигурирован или произошла ошибка — отправляем на логин
+        setTarget('/auth/login');
+      } finally {
+        setReady(true);
+      }
+    })();
+  }, [onboardingDone, hydrated]);
+
+  if (!navState?.key || !ready || !hydrated) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#0b0b0c' }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color="#4f46e5" />
+          <Text style={{ color: '#c7c9d1', marginTop: 10 }}>Загрузка…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return target ? <Redirect href={target as any} /> : null;
+}
+
+
+--- FILE: app/modal.tsx ---
+--- LINES: 1212 ---
+--- SHA256: 9e130c62ea61a05cff511e4e8e1103ca8c475a8f331d3ed514aa5494fcc7e1fa ---
+// app/modal.tsx
+import { searchPlaces } from '@/src/shared/api/profiles';
+import { newId, PersonProfile, useProfiles } from '@/src/store/profiles';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+
+/* ────────── Small UI helpers ────────── */
+function Row({ children, style }: { children: React.ReactNode; style?: any }) {
+  return <View style={[{ gap: 6 }, style]}>{children}</View>;
+}
+function Label({ children }: { children: React.ReactNode }) {
+  return <Text style={styles.label}>{children}</Text>;
+}
+function Input(props: React.ComponentProps<typeof TextInput>) {
+  return (
+    <TextInput
+      {...props}
+      style={[styles.input, props.style]}
+      placeholderTextColor="#8b8e97"
+    />
+  );
+}
+
+const genders = [
+  { key: 'male', label: 'Мужской' },
+  { key: 'female', label: 'Женский' },
+  { key: 'other', label: 'Другое' },
+  { key: 'na', label: 'Не указывать' },
+] as const;
+
+type ModeParam = 'me' | 'other' | 'rectification' | undefined;
+
+// Выбранная подсказка
+type PickedGeo = {
+  id: string;
+  city: string;
+  nation: string | null;
+  lat: number;
+  lng: number;
+  tz: string | null;
+  displayName: string;
+};
+
+/* ────────── Root modal router ────────── */
+export default function RootModal() {
+  const { mode } = useLocalSearchParams<{ mode?: ModeParam }>();
+  const headerTitle =
+    mode === 'rectification'
+      ? 'Ректификация'
+      : mode === 'other'
+      ? 'Анкета (другой человек)'
+      : 'Астрологическая анкета';
+
+  return (
+    <>
+      <Stack.Screen
+        options={{
+          title: headerTitle,
+          presentation: 'modal',
+          headerShown: true,
+          headerStyle: { backgroundColor: '#0e0f12' },
+          headerTitleStyle: { color: '#fff', fontWeight: '700' },
+          headerTintColor: '#fff',
+        }}
+      />
+      {/* ВАЖНО: общий тёмный фон через SafeAreaView */}
+      <SafeAreaView style={styles.safe}>
+        {mode === 'rectification' ? <RectificationBody /> : <ProfileBody mode={mode} />}
+      </SafeAreaView>
+    </>
+  );
+}
+
+/* ────────── Rectification modal (wizard) ────────── */
+type SignSlice = {
+  id: string;
+  fromISO: string;
+  toISO: string;
+  what: 'SUN_SIGN' | 'MOON_SIGN' | 'ASC_SIGN';
+  aLabel: string; // «до границы»
+  bLabel: string; // «после границы»
+  aDesc: string;
+  bDesc: string;
+};
+
+type PredispositionCode =
+  | 'early_marriage'
+  | 'late_child'
+  | 'music_success'
+  | 'law_success'
+  | 'religion_success'
+  | 'foreign_marriage'
+  | 'imprisonment'
+  | 'water_extreme';
+
+type Likert = 1 | 2 | 3 | 4 | 5; // 1=Нет!, 2=Нет, 3=?, 4=Да, 5=Да!
+
+type PredAnswer = { code: PredispositionCode; value: Likert; enabled: boolean };
+
+type LifeEventKind =
+  | 'MARRIAGE'
+  | 'DIVORCE'
+  | 'CHILD_BIRTH'
+  | 'RELATIVE_DEATH'
+  | 'HOSPITAL'
+  | 'INJURY'
+  | 'EXTREME';
+
+type LifeEvent = { id: string; kind: LifeEventKind; month: string; year: string };
+
+function RectificationBody() {
+  const router = useRouter();
+  const me = useProfiles((s) => s.me);
+  const loading = useProfiles((s) => s.loading);
+  const submitOnboarding = useProfiles((s) => s.submitOnboarding);
+
+  // ---- guard
+  if (!me) {
+    return (
+      <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding' })} style={{ flex: 1 }}>
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+          <Text style={styles.caption}>
+            Сначала заполните анкету с датой и местом рождения. Затем вернитесь сюда.
+          </Text>
+          <Pressable onPress={() => router.back()} style={[styles.primaryBtn, { backgroundColor: '#6b7280' }]}>
+            <Text style={styles.primaryText}>Понятно</Text>
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
+
+  // 🔧 2) Удобные локальные ссылки — теперь TS знает, что me: PersonProfile
+  const birthDate = me.birthDateISO ?? me.date;
+
+  if (!birthDate) {
+    return (
+      <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding' })} style={{ flex: 1 }}>
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+          <Text style={styles.caption}>
+            В профиле отсутствует дата рождения. Укажите её в анкете и попробуйте снова.
+          </Text>
+          <Pressable onPress={() => router.back()} style={[styles.primaryBtn, { backgroundColor: '#6b7280' }]}>
+            <Text style={styles.primaryText}>Понятно</Text>
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
+
+
+  /* ── Шаги мастера ───────────────────────────────── */
+  const [step, setStep] = useState<0 | 1 | 2 | 3 | 4 | 5>(0);
+
+  // Step 0 — базовый интервал
+  const initTime = (me.time ?? '12:00').split(':');
+  const [centerH, setCenterH] = useState<number>(+initTime[0] || 12);
+  const [centerM, setCenterM] = useState<number>(+initTime[1] || 0);
+  const [rangeMin, setRangeMin] = useState<number>(me.time ? 40 : 12 * 60); // рекомендация: с запасом
+  const fmt2 = (n: number) => String(Math.max(0, Math.min(59, n))).padStart(2, '0');
+
+  // Step 1 — «срезы» смен знаков (получаем с бэка; тут — mock)
+  const [slices, setSlices] = useState<SignSlice[]>([]);
+  const [slicePick, setSlicePick] = useState<Record<string, 'A' | 'B' | null>>({});
+
+  // Step 2 — выбор по Асценденту (4 аспекта)
+  const [ascPick, setAscPick] = useState<{
+    sign?: string;
+    psychology?: string;
+    appearance?: string;
+    altruism?: string;
+    values?: string;
+  }>({});
+
+  // Step 3 — предрасположенности
+  const allPreds: PredAnswer[] = [
+    { code: 'early_marriage', value: 3, enabled: true },
+    { code: 'late_child', value: 3, enabled: true },
+    { code: 'music_success', value: 3, enabled: true },
+    { code: 'law_success', value: 3, enabled: true },
+    { code: 'religion_success', value: 3, enabled: true },
+    { code: 'foreign_marriage', value: 3, enabled: true },
+    { code: 'imprisonment', value: 3, enabled: true },
+    { code: 'water_extreme', value: 3, enabled: true },
+  ];
+  const [preds, setPreds] = useState<PredAnswer[]>(allPreds);
+
+  // Step 4 — события
+  const baseEvents: LifeEvent[] = [
+    { id: 'e1', kind: 'MARRIAGE', month: '', year: '' },
+    { id: 'e2', kind: 'DIVORCE', month: '', year: '' },
+    { id: 'e3', kind: 'CHILD_BIRTH', month: '', year: '' },
+    { id: 'e4', kind: 'RELATIVE_DEATH', month: '', year: '' },
+    { id: 'e5', kind: 'HOSPITAL', month: '', year: '' },
+    { id: 'e6', kind: 'INJURY', month: '', year: '' },
+    { id: 'e7', kind: 'EXTREME', month: '', year: '' },
+  ];
+  const [events, setEvents] = useState<LifeEvent[]>(baseEvents);
+
+  // Step 5 — результаты
+  const [candidates, setCandidates] = useState<{ iso: string; score: number; reasons: string[] }[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  /* ── Псевдо-API. Подключишь свой сервер — просто замени реализации. ── */
+  async function apiRectifyInit() {
+    // Обычно сервер считает моменты смен знаков/ASC в указанном окне.
+    const date = birthDate;
+    const base = `${date}T${fmt2(centerH)}:${fmt2(centerM)}:00Z`;
+    const mock: SignSlice[] = [
+      {
+        id: 's1',
+        fromISO: base,
+        toISO: base,
+        what: 'SUN_SIGN',
+        aLabel: 'Солнце (вариант A)',
+        bLabel: 'Солнце (вариант B)',
+        aDesc: 'Экстраверсия, прямолинейность.',
+        bDesc: 'Сдержанность, структура, долг.',
+      },
+      {
+        id: 's2',
+        fromISO: base,
+        toISO: base,
+        what: 'ASC_SIGN',
+        aLabel: 'ASC вариант 1',
+        bLabel: 'ASC вариант 2',
+        aDesc: 'Психология: импульс; интересы: спорт/борьба.',
+        bDesc: 'Психология: анализ; интересы: порядок/сервис.',
+      },
+    ];
+    setSlices(mock);
+    setSlicePick(Object.fromEntries(mock.map((s) => [s.id, null])));
+  }
+
+  async function apiRectifyAscCommit() {
+    // Обычно это сужает окно на сервере; здесь — no-op.
+    return true;
+  }
+
+  async function apiScoreAll() {
+    // Обычно это тяжёлый скоринг; здесь — детерминированный mock.
+    const date = birthDate;
+    const base = (hh: number, mm: number) => `${date}T${fmt2(hh)}:${fmt2(mm)}:00`;
+    const s = (code: PredispositionCode) => preds.find((p) => p.code === code)?.value ?? 3;
+
+    const score1 =
+      10 + (slicePick['s1'] === 'A' ? 3 : 0) + (slicePick['s2'] === 'A' ? 3 : 0) + s('music_success') + s('early_marriage');
+    const score2 =
+      10 + (slicePick['s1'] === 'B' ? 3 : 0) + (slicePick['s2'] === 'B' ? 3 : 0) + s('law_success') + s('late_child');
+
+    const res = [
+      {
+        iso: base(centerH, Math.max(0, centerM - 5)),
+        score: score1,
+        reasons: ['Солнце: вариант A', 'ASC: вариант A', 'Музыка/ранний брак'],
+      },
+      {
+        iso: base(centerH, Math.min(59, centerM + 7)),
+        score: score2,
+        reasons: ['Солнце: вариант B', 'ASC: вариант B', 'Юриспруденция/поздний ребёнок'],
+      },
+    ].sort((a, b) => b.score - a.score);
+
+    setCandidates(res);
+  }
+
+  /* ── Хелперы ───────────────────────────────────── */
+  const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
+  const fmtH = (n: number) => String(clamp(n, 0, 23)).padStart(2, '0');
+
+  const next0 = async () => {
+    if (!me?.coords || !me?.tz) {
+      Alert.alert('Ректификация', 'В профиле должны быть координаты и часовой пояс.');
+      return;
+    }
+    await apiRectifyInit();
+    setStep(1);
+  };
+
+  const next1 = () => {
+    const any = Object.values(slicePick).some((v) => v != null);
+    if (!any && slices.length > 0) {
+      Alert.alert('Выбор', 'Выберите хотя бы один вариант из предложенных карточек.');
+      return;
+    }
+    setStep(2);
+  };
+
+  const next2 = async () => {
+    await apiRectifyAscCommit();
+    setStep(3);
+  };
+
+  const next3 = () => setStep(4);
+
+  const next4 = async () => {
+    await apiScoreAll();
+    setStep(5);
+  };
+
+  const saveCandidate = async (iso: string) => {
+    try {
+      setSaving(true);
+      const HH = iso.slice(11, 13),
+        MM = iso.slice(14, 16),
+        SS = '00';
+      await submitOnboarding({
+  ...me,
+  timeKnown: true,
+  time: `${HH}:${MM}`,
+  seconds: Number(SS),
+  fullDateTimeISO: `${birthDate}T${HH}:${MM}:${SS}`,
+});
+      router.back();
+    } catch (e: any) {
+      Alert.alert('Сохранение', e?.message || 'Не удалось сохранить время');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /* ── UI ────────────────────────────────────────── */
+  return (
+    <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding' })} style={{ flex: 1 }}>
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: 24 }]}>
+        <Text style={styles.caption}>Мастер ректификации: шаг {step + 1} из 6</Text>
+
+        {/* STEP 0 — Интервал */}
+        {step === 0 && (
+          <>
+            <Text style={[styles.label, { marginTop: 6 }]}>Центр времени</Text>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={{ width: 80 }}>
+                <Label>Часы</Label>
+                <Input
+                  value={fmtH(centerH)}
+                  maxLength={2}
+                  keyboardType="number-pad"
+                  onChangeText={(t) => setCenterH(clamp(parseInt((t || '0').replace(/\D/g, ''), 10) || 0, 0, 23))}
+                />
+              </View>
+              <View style={{ width: 80 }}>
+                <Label>Минуты</Label>
+                <Input
+                  value={fmt2(centerM)}
+                  maxLength={2}
+                  keyboardType="number-pad"
+                  onChangeText={(t) => setCenterM(clamp(parseInt((t || '0').replace(/\D/g, ''), 10) || 0, 0, 59))}
+                />
+              </View>
+            </View>
+
+            <View style={{ height: 8 }} />
+            <Label>Интервал поиска (± минуты)</Label>
+            <Input
+              value={String(rangeMin)}
+              keyboardType="number-pad"
+              onChangeText={(t) => setRangeMin(Math.max(1, parseInt(t.replace(/\D/g, '') || '0', 10)))}
+              placeholder="Напр.: 40 или 720"
+            />
+
+            <Pressable onPress={next0} style={[styles.primaryBtn, { backgroundColor: '#4f46e5' }]}>
+              <Text style={styles.primaryText}>Продолжить</Text>
+            </Pressable>
+
+            <Text style={styles.helper}>
+              Если время неизвестно вовсе — поставьте 12:00 и интервал ± 720 минут (12 часов).
+            </Text>
+          </>
+        )}
+
+        {/* STEP 1 — Смены знаков / ASC */}
+        {step === 1 && (
+          <>
+            <Text style={[styles.label, { marginBottom: 6 }]}>Выберите трактовки, ближе к человеку</Text>
+            {slices.length === 0 && <Text style={styles.caption}>В указанном интервале нет переходов — можно дальше.</Text>}
+            {slices.map((s) => (
+              <View
+                key={s.id}
+                style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 10, padding: 12, marginBottom: 10 }}
+              >
+                <Text style={{ color: '#cfd3dc', marginBottom: 6, fontWeight: '700' }}>
+                  {s.what === 'SUN_SIGN' ? 'Солнце меняет знак' : s.what === 'MOON_SIGN' ? 'Луна меняет знак' : 'Асцендент — переход знака'}
+                </Text>
+
+                <ToggleAB
+                  aTitle={s.aLabel}
+                  bTitle={s.bLabel}
+                  aDesc={s.aDesc}
+                  bDesc={s.bDesc}
+                  value={slicePick[s.id]}
+                  onChange={(v) => setSlicePick((p) => ({ ...p, [s.id]: v }))}
+                />
+              </View>
+            ))}
+
+            <WizardNav onBack={() => setStep(0)} onNext={next1} />
+          </>
+        )}
+
+        {/* STEP 2 — Асцендент: 4 аспекта */}
+        {step === 2 && (
+          <>
+            <Text style={[styles.label, { marginBottom: 6 }]}>Выбор по Асценденту</Text>
+            <Text style={styles.helper}>Оцени четыре блока. Можно писать кратко — по ощущениям.</Text>
+            <Row>
+              <Label>Психологические качества</Label>
+              <Input
+                value={ascPick.psychology ?? ''}
+                onChangeText={(t) => setAscPick((p) => ({ ...p, psychology: t }))}
+                placeholder="Импульсивен / аналитичен / мечтателен …"
+              />
+            </Row>
+            <Row>
+              <Label>Особенности внешности</Label>
+              <Input
+                value={ascPick.appearance ?? ''}
+                onChangeText={(t) => setAscPick((p) => ({ ...p, appearance: t }))}
+                placeholder="Высокий рост, спортивный …"
+              />
+            </Row>
+            <Row>
+              <Label>Бескорыстные интересы</Label>
+              <Input
+                value={ascPick.altruism ?? ''}
+                onChangeText={(t) => setAscPick((p) => ({ ...p, altruism: t }))}
+                placeholder="Спорт, музыка, помощь людям …"
+              />
+            </Row>
+            <Row>
+              <Label>Высшие ценности и приоритеты</Label>
+              <Input
+                value={ascPick.values ?? ''}
+                onChangeText={(t) => setAscPick((p) => ({ ...p, values: t }))}
+                placeholder="Победа / порядок / свобода …"
+              />
+            </Row>
+
+            <WizardNav onBack={() => setStep(1)} onNext={next2} />
+          </>
+        )}
+
+        {/* STEP 3 — Предрасположенности (Likert) */}
+        {step === 3 && (
+          <>
+            <Text style={[styles.label, { marginBottom: 6 }]}>Предрасположенности</Text>
+            <Text style={styles.helper}>1 — «Нет!», 2 — «Нет», 3 — «?», 4 — «Да», 5 — «Да!»</Text>
+            {preds.map((p, idx) => (
+              <View key={p.code} style={{ marginBottom: 10 }}>
+                <Text style={{ color: '#cfd3dc', marginBottom: 6 }}>
+                  {
+                    ({
+                      early_marriage: 'Ранний брак',
+                      late_child: 'Бездетность или поздний ребёнок',
+                      music_success: 'Успех в музыке/сцене',
+                      law_success: 'Успех в юриспруденции',
+                      religion_success: 'Успех в религиозной деятельности',
+                      foreign_marriage: 'Брак с иностранцем',
+                      imprisonment: 'Тюремное заключение/плен',
+                      water_extreme: 'Экстремальные ситуации на воде',
+                    } as Record<PredispositionCode, string>)
+                  [p.code]
+                  }
+                </Text>
+                <LikertRow
+                  value={p.value as Likert}
+                  onChange={(v) =>
+                    setPreds((prev) => {
+                      const copy = [...prev];
+                      copy[idx] = { ...p, value: v };
+                      return copy;
+                    })
+                  }
+                />
+              </View>
+            ))}
+
+            <WizardNav onBack={() => setStep(2)} onNext={next3} />
+          </>
+        )}
+
+        {/* STEP 4 — События */}
+        {step === 4 && (
+          <>
+            <Text style={[styles.label, { marginBottom: 6 }]}>События (месяц и год, можно приблизительно)</Text>
+            <Text style={styles.helper}>
+              Если однотипных событий было несколько — укажи первое. Для «сильных» выбери самые значимые.
+            </Text>
+            <View style={{ gap: 10 }}>
+              {events.map((ev, i) => (
+                <EventRow
+                  key={ev.id}
+                  label={
+                    ({
+                      MARRIAGE: 'Бракосочетание',
+                      DIVORCE: 'Развод',
+                      CHILD_BIRTH: 'Рождение ребёнка',
+                      RELATIVE_DEATH: 'Смерть родственника',
+                      HOSPITAL: 'Длительная госпитализация',
+                      INJURY: 'Травма/увечье',
+                      EXTREME: 'Экстремальная ситуация',
+                    } as Record<LifeEventKind, string>)
+                  [ev.kind]
+                  }
+                  month={ev.month}
+                  year={ev.year}
+                  onChange={(m, y) => {
+                    setEvents((arr) => {
+                      const copy = [...arr];
+                      copy[i] = { ...ev, month: m, year: y };
+                      return copy;
+                    });
+                  }}
+                />
+              ))}
+            </View>
+
+            <WizardNav onBack={() => setStep(3)} onNext={next4} />
+          </>
+        )}
+
+        {/* STEP 5 — Рейтинг и сохранение */}
+        {step === 5 && (
+          <>
+            <Text style={[styles.label, { marginBottom: 8 }]}>Наиболее вероятное время рождения</Text>
+            {candidates.length === 0 ? (
+              <Text style={styles.caption}>
+                Не удалось вычислить кандидатов. Попробуйте расширить интервал или уточнить ответы.
+              </Text>
+            ) : (
+              <View style={{ gap: 12 }}>
+                {candidates.map((c) => (
+                  <View
+                    key={c.iso}
+                    style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 10, padding: 12 }}
+                  >
+                    <Text style={{ color: '#fff', fontWeight: '700', marginBottom: 4 }}>
+                      {new Date(c.iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                    <Text style={{ color: '#9aa0aa', marginBottom: 6 }}>Счёт: {c.score}</Text>
+                    {c.reasons.map((r, i) => (
+                      <Text key={i} style={{ color: '#c7c9d1' }}>
+                        • {r}
+                      </Text>
+                    ))}
+                    <Pressable
+                      onPress={() => saveCandidate(c.iso)}
+                      disabled={saving || loading}
+                      style={[
+                        styles.primaryBtn,
+                        { marginTop: 10, backgroundColor: '#4f46e5', opacity: saving || loading ? 0.7 : 1 },
+                      ]}
+                    >
+                      <Text style={styles.primaryText}>{saving ? 'Сохраняю…' : 'Выбрать это время'}</Text>
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            <View style={{ height: 8 }} />
+            <Pressable onPress={() => setStep(0)} style={[styles.primaryBtn, { backgroundColor: 'rgba(255,255,255,0.08)' }]}>
+              <Text style={styles.primaryText}>Сначала</Text>
+            </Pressable>
+          </>
+        )}
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+/* ── Wizard helpers ───────────────────────────────── */
+function WizardNav({ onBack, onNext }: { onBack: () => void; onNext: () => void }) {
+  return (
+    <View style={{ flexDirection: 'row', gap: 10, marginTop: 6 }}>
+      <Pressable onPress={onBack} style={[styles.primaryBtn, { backgroundColor: 'rgba(255,255,255,0.08)' }]}>
+        <Text style={styles.primaryText}>Назад</Text>
+      </Pressable>
+      <Pressable onPress={onNext} style={[styles.primaryBtn, { backgroundColor: '#4f46e5', flex: 1 }]}>
+        <Text style={styles.primaryText}>Далее</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function ToggleAB(props: {
+  aTitle: string;
+  bTitle: string;
+  aDesc: string;
+  bDesc: string;
+  value: 'A' | 'B' | null;
+  onChange: (v: 'A' | 'B') => void;
+}) {
+  const { aTitle, bTitle, aDesc, bDesc, value, onChange } = props;
+  const Btn = ({
+    title,
+    desc,
+    active,
+    onPress,
+  }: {
+    title: string;
+    desc: string;
+    active: boolean;
+    onPress: () => void;
+  }) => (
+    <Pressable
+      onPress={onPress}
+      style={[
+        { padding: 10, borderRadius: 10, borderWidth: 1, marginBottom: 6 },
+        {
+          borderColor: active ? 'rgba(79,70,229,0.6)' : 'rgba(255,255,255,0.12)',
+          backgroundColor: active ? 'rgba(79,70,229,0.15)' : 'rgba(255,255,255,0.04)',
+        },
+      ]}
+    >
+      <Text style={{ color: '#fff', fontWeight: '700', marginBottom: 4 }}>{title}</Text>
+      <Text style={{ color: '#c7c9d1' }}>{desc}</Text>
+    </Pressable>
+  );
+  return (
+    <View style={{ gap: 8 }}>
+      <Btn title={aTitle} desc={aDesc} active={value === 'A'} onPress={() => onChange('A')} />
+      <Btn title={bTitle} desc={bDesc} active={value === 'B'} onPress={() => onChange('B')} />
+    </View>
+  );
+}
+
+function LikertRow({ value, onChange }: { value: Likert; onChange: (v: Likert) => void }) {
+  const labels = ['Нет!', 'Нет', '?', 'Да', 'Да!'];
+  return (
+    <View style={{ flexDirection: 'row', gap: 8 }}>
+      {[1, 2, 3, 4, 5].map((v) => (
+        <Pressable
+          key={v}
+          onPress={() => onChange(v as Likert)}
+          style={[
+            { paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1 },
+            {
+              borderColor: value === v ? 'rgba(79,70,229,0.6)' : 'rgba(255,255,255,0.12)',
+              backgroundColor: value === v ? 'rgba(79,70,229,0.15)' : 'rgba(255,255,255,0.04)',
+            },
+          ]}
+        >
+          <Text style={{ color: '#fff', fontWeight: '700', textAlign: 'center' }}>{labels[v - 1]}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+function EventRow({
+  label,
+  month,
+  year,
+  onChange,
+}: {
+  label: string;
+  month: string;
+  year: string;
+  onChange: (m: string, y: string) => void;
+}) {
+  return (
+    <View style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 10, padding: 10 }}>
+      <Text style={{ color: '#cfd3dc', marginBottom: 8 }}>{label}</Text>
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <View style={{ flex: 1 }}>
+          <Label>Месяц (1–12)</Label>
+          <Input
+            value={month}
+            keyboardType="number-pad"
+            placeholder="ММ"
+            maxLength={2}
+            onChangeText={(t) => onChange(t.replace(/\D/g, '').slice(0, 2), year)}
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Label>Год</Label>
+          <Input
+            value={year}
+            keyboardType="number-pad"
+            placeholder="ГГГГ"
+            maxLength={4}
+            onChangeText={(t) => onChange(month, t.replace(/\D/g, '').slice(0, 4))}
+          />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/* ────────── Profile modal (existing, kept) ────────── */
+function ProfileBody({ mode }: { mode: ModeParam }) {
+  const isMe = mode !== 'other'; // default to "me" if unspecified
+  const { me, other, setMe, setOther, sync } = useProfiles();
+  const initial = useMemo<PersonProfile | null>(() => (isMe ? me : other), [isMe, me, other]);
+
+  // --- form state
+  const [name, setName] = useState<string>(initial?.name ?? '');
+  const [birthDate, setBirthDate] = useState<string>(initial?.birthDateISO ?? initial?.date ?? ''); // YYYY-MM-DD
+  const [timeKnown, setTimeKnown] = useState<boolean>(initial?.timeKnown ?? true);
+  const [birthTime, setBirthTime] = useState<string>(initial?.time ?? ''); // HH:mm
+  const [useSeconds, setUseSeconds] = useState<boolean>(!!initial?.seconds);
+  const [seconds, setSeconds] = useState<string>(
+    initial?.seconds ? String(initial?.seconds).padStart(2, '0') : ''
+  );
+  const [livesElsewhere, setLivesElsewhere] = useState<boolean>(initial?.livesElsewhere ?? false);
+  const [currentCity, setCurrentCity] = useState<string>(initial?.currentCity ?? '');
+  const [gender, setGender] = useState<PersonProfile['gender']>(initial?.gender ?? 'na');
+  const [email, setEmail] = useState<string>(initial?.email ?? '');
+
+  // ---- место рождения с автодополнением (строгий выбор)
+  const [placeQuery, setPlaceQuery] = useState<string>(initial?.birthPlace ?? initial?.place ?? '');
+  const [pickedGeo, setPickedGeo] = useState<PickedGeo | null>(
+    initial?.coords && (initial?.tz || null)
+      ? {
+          id: 'init',
+          city: (initial?.birthPlace || initial?.place || '').split(',')[0].trim() || '',
+          nation: null,
+          lat: initial.coords.lat,
+          lng: initial.coords.lng,
+          tz: initial.tz || null,
+          displayName: initial?.birthPlace || initial?.place || '',
+        }
+      : null
+  );
+  const [suggest, setSuggest] = useState<PickedGeo[]>([]);
+  const [showSuggest, setShowSuggest] = useState<boolean>(false);
+  const [placeError, setPlaceError] = useState<string | null>(null);
+
+  const seqRef = useRef(0);
+
+  // дебаунс-поиск подсказок (fix cleanup typing)
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const q = placeQuery.trim();
+    if (q.length >= 2) {
+      t = setTimeout(async () => {
+        const mySeq = ++seqRef.current;
+        try {
+          const res = await searchPlaces(q);
+          if (mySeq !== seqRef.current) return;
+          const items: PickedGeo[] = (res.items || []).map((it: any) => ({
+            id: it.id,
+            city: it.city,
+            nation: it.nation || null,
+            lat: it.lat,
+            lng: it.lng,
+            tz: it.tz || null,
+            displayName: it.displayName,
+          }));
+          setSuggest(items);
+          setShowSuggest(true);
+        } catch {
+          if (mySeq !== seqRef.current) return;
+          setSuggest([]);
+          setShowSuggest(false);
+        }
+      }, 250);
+    } else {
+      setSuggest([]);
+      setShowSuggest(false);
+    }
+    return () => {
+      if (t) clearTimeout(t);
+    };
+  }, [placeQuery]);
+
+  // если после выбора пользователь редактирует поле — сбрасываем выбор
+  useEffect(() => {
+    if (!pickedGeo) return;
+    const normalized = `${pickedGeo.city}${pickedGeo.nation ? ', ' + pickedGeo.nation : ''}`;
+    if (placeQuery.trim() !== pickedGeo.displayName && placeQuery.trim() !== normalized) {
+      setPickedGeo(null);
+    }
+  }, [placeQuery, pickedGeo]);
+
+  const router = useRouter();
+
+  const validate = () => {
+    if (!name.trim()) {
+      Alert.alert('Проверьте поля', 'Имя обязательно.');
+      return false;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) {
+      Alert.alert('Проверьте поля', 'Дата рождения в формате ГГГГ-ММ-ДД обязательна.');
+      return false;
+    }
+    if (timeKnown) {
+      if (!/^\d{2}:\d{2}$/.test(birthTime)) {
+        Alert.alert('Проверьте поля', 'Время рождения в формате ЧЧ:ММ обязательно (или отключите «Не знаю время»).');
+        return false;
+      }
+      if (useSeconds) {
+        const sOk = /^\d{2}$/.test(seconds) && Number(seconds) >= 0 && Number(seconds) <= 59;
+        if (!sOk) {
+          Alert.alert('Проверьте поля', 'Секунды — от 00 до 59.');
+          return false;
+        }
+      }
+    }
+
+    // строгий выбор места
+    if (!pickedGeo) {
+      setPlaceError('Выберите место из списка подсказок');
+      Alert.alert('Место рождения', 'Пожалуйста, выберите место из выпадающего списка.');
+      return false;
+    }
+
+    const normalized = `${pickedGeo.city}${pickedGeo.nation ? ', ' + pickedGeo.nation : ''}`;
+    const ok = placeQuery.trim() === pickedGeo.displayName || placeQuery.trim() === normalized;
+    if (!ok) {
+      setPlaceError('Поле изменено после выбора. Выберите из списка.');
+      Alert.alert('Место рождения', 'Поле изменено после выбора — выберите вариант из списка ещё раз.');
+      return false;
+    }
+
+    if (livesElsewhere && !currentCity.trim()) {
+      Alert.alert('Проверьте поля', 'Укажите текущий город проживания или отключите «Проживаю в другом месте».');
+      return false;
+    }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      Alert.alert('Проверьте поля', 'Email указан в неверном формате.');
+      return false;
+    }
+
+    setPlaceError(null);
+    return true;
+  };
+
+  const submit = async () => {
+    if (!validate()) return;
+
+    const payload: PersonProfile = {
+      id: initial?.id ?? newId(),
+      name: name.trim(),
+      // старые поля
+      date: birthDate,
+      time: timeKnown ? birthTime : undefined,
+      place: placeQuery,
+      // новые
+      birthDateISO: birthDate,
+      timeKnown,
+      seconds: timeKnown && useSeconds ? Number(seconds) : undefined,
+      birthPlace: placeQuery,
+      livesElsewhere,
+      currentCity: livesElsewhere ? currentCity : undefined,
+      gender,
+      email: email.trim() || undefined,
+      fullDateTimeISO: timeKnown
+      ? `${birthDate}T${birthTime}:${(useSeconds ? seconds : '00').toString().padStart(2, '0')}`
+      : undefined,
+      ...(pickedGeo
+        ? { coords: { lat: pickedGeo.lat, lng: pickedGeo.lng }, tz: pickedGeo.tz || undefined }
+        : {}),
+    };
+
+    isMe ? setMe(payload) : setOther(payload);
+
+    try {
+      await sync();
+    } catch (e) {
+      console.warn('[profiles] sync failed', e);
+    }
+
+    router.back();
+  };
+
+  return (
+    <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding', android: undefined })} style={{ flex: 1 }}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        <Text style={styles.caption}>
+          Заполните данные рождения. Место выбирайте из подсказок — это гарантирует корректные координаты и часовой пояс.
+        </Text>
+
+        <Row>
+          <Label>Имя *</Label>
+          <Input value={name} onChangeText={(t) => setName(t)} placeholder="Иван / Анна" />
+        </Row>
+
+        <Row>
+          <Label>Дата рождения (ГГГГ-ММ-ДД) *</Label>
+          <Input
+            value={birthDate}
+            onChangeText={(t) => setBirthDate(t)}
+            placeholder="1995-06-15"
+            keyboardType="numbers-and-punctuation"
+            autoCapitalize="none"
+          />
+        </Row>
+
+        <View style={styles.switchLine}>
+          <Label>Не знаю время рождения</Label>
+          <Switch value={!timeKnown} onValueChange={(v) => setTimeKnown(!v)} />
+        </View>
+
+        {timeKnown && (
+          <>
+            <Row>
+              <Label>Время рождения (ЧЧ:ММ) *</Label>
+              <Input
+                value={birthTime}
+                onChangeText={(t) => setBirthTime(t)}
+                placeholder="14:05"
+                keyboardType="numbers-and-punctuation"
+                autoCapitalize="none"
+              />
+            </Row>
+
+            <View style={styles.switchLine}>
+              <Label>Указать секунды</Label>
+              <Switch value={useSeconds} onValueChange={(v) => setUseSeconds(v)} />
+            </View>
+
+            {useSeconds && (
+              <Row style={{ width: 120 }}>
+                <Label>Секунды</Label>
+                <Input
+                  value={seconds}
+                  onChangeText={(t) => setSeconds(t.replace(/\D/g, '').slice(0, 2))}
+                  placeholder="00"
+                  keyboardType="number-pad"
+                  autoCapitalize="none"
+                  maxLength={2}
+                />
+              </Row>
+            )}
+          </>
+        )}
+
+        {/* ====== МЕСТО РОЖДЕНИЯ (строгое автодополнение) ====== */}
+        <AutocompletePlace
+          placeQuery={placeQuery}
+          setPlaceQuery={setPlaceQuery}
+          pickedGeo={pickedGeo}
+          setPickedGeo={setPickedGeo}
+          suggest={suggest}
+          setSuggest={setSuggest}
+          showSuggest={showSuggest}
+          setShowSuggest={setShowSuggest}
+          placeError={placeError}
+          setPlaceError={setPlaceError}
+        />
+
+        {/* ====== Проживание ====== */}
+        <View style={styles.checkboxLine}>
+          <Text style={styles.label}>Проживаю в другом месте</Text>
+          <Switch value={livesElsewhere} onValueChange={(v) => setLivesElsewhere(v)} />
+        </View>
+
+        {livesElsewhere && (
+          <Row>
+            <Label>Город проживания *</Label>
+            <Input
+              value={currentCity}
+              onChangeText={(t) => setCurrentCity(t)}
+              placeholder="Текущий город (пример: Стамбул, Турция)"
+            />
+          </Row>
+        )}
+
+        <Row>
+          <Label>Пол *</Label>
+          <View style={styles.genderWrap}>
+            {genders.map((g) => (
+              <Pressable
+                key={g.key}
+                onPress={() => setGender(g.key)}
+                style={[styles.genderBtn, gender === g.key && styles.genderBtnActive]}
+                accessibilityRole="button"
+              >
+                <Text style={[styles.genderText, gender === g.key && styles.genderTextActive]}>{g.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </Row>
+
+        <Row>
+          <Label>Email (необязательно)</Label>
+          <Input
+            value={email}
+            onChangeText={(t) => setEmail(t)}
+            placeholder="you@email.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+        </Row>
+
+        <Pressable
+          style={[styles.primaryBtn, (!pickedGeo || placeError) && { opacity: 0.6 }]}
+          onPress={submit}
+          disabled={!pickedGeo}
+          accessibilityRole="button"
+        >
+          <Text style={styles.primaryText}>Сохранить</Text>
+        </Pressable>
+
+        <Text style={styles.helper}>
+          Подсказки подтягивают координаты и часовой пояс автоматически — это нужно, чтобы корректно построить натальную карту.
+        </Text>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+/* ────────── Place autocomplete widget ────────── */
+function AutocompletePlace(props: {
+  placeQuery: string;
+  setPlaceQuery: (t: string) => void;
+  pickedGeo: PickedGeo | null;
+  setPickedGeo: (g: PickedGeo | null) => void;
+  suggest: PickedGeo[];
+  setSuggest: (items: PickedGeo[]) => void;
+  showSuggest: boolean;
+  setShowSuggest: (v: boolean) => void;
+  placeError: string | null;
+  setPlaceError: (v: string | null) => void;
+}) {
+  const {
+    placeQuery,
+    setPlaceQuery,
+    pickedGeo,
+    setPickedGeo,
+    suggest,
+    setSuggest,
+    showSuggest,
+    setShowSuggest,
+    placeError,
+    setPlaceError,
+  } = props;
+
+  // safe debounce with typed cleanup
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const q = placeQuery.trim();
+    if (q.length >= 2) {
+      t = setTimeout(async () => {
+        try {
+          const res = await searchPlaces(q);
+          const items: PickedGeo[] = (res.items || []).map((it: any) => ({
+            id: it.id,
+            city: it.city,
+            nation: it.nation || null,
+            lat: it.lat,
+            lng: it.lng,
+            tz: it.tz || null,
+            displayName: it.displayName,
+          }));
+          setSuggest(items);
+          setShowSuggest(true);
+        } catch {
+          setSuggest([]);
+          setShowSuggest(false);
+        }
+      }, 250);
+    } else {
+      setSuggest([]);
+      setShowSuggest(false);
+    }
+    return () => {
+      if (t) clearTimeout(t);
+    };
+  }, [placeQuery, setShowSuggest, setSuggest]);
+
+  // reset picked when edited
+  useEffect(() => {
+    if (!pickedGeo) return;
+    const normalized = `${pickedGeo.city}${pickedGeo.nation ? ', ' + pickedGeo.nation : ''}`;
+    if (placeQuery.trim() !== pickedGeo.displayName && placeQuery.trim() !== normalized) {
+      setPickedGeo(null);
+    }
+  }, [placeQuery, pickedGeo, setPickedGeo]);
+
+  return (
+    <Row>
+      <Label>Место рождения *</Label>
+      <View style={{ position: 'relative' }}>
+        <Input
+          value={placeQuery}
+          onChangeText={(t) => {
+            setPlaceQuery(t);
+            setPickedGeo(null);
+          }}
+          placeholder="Начните вводить (пример: Москва, RU)"
+          onFocus={() => placeQuery.trim().length >= 2 && setShowSuggest(true)}
+          onBlur={() => setTimeout(() => setShowSuggest(false), 120)}
+        />
+        {!!placeError && <Text style={{ color: '#f87171', marginTop: 4, fontSize: 12 }}>{placeError}</Text>}
+
+        {showSuggest && suggest.length > 0 && (
+          <View style={styles.suggestBox}>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              {suggest.map((item) => (
+                <Pressable
+                  key={item.id}
+                  onPress={() => {
+                    setPlaceQuery(item.displayName);
+                    setPickedGeo(item);
+                    setShowSuggest(false);
+                    setPlaceError(null);
+                  }}
+                  style={styles.suggestItem}
+                >
+                  <Text style={{ color: '#fff' }}>{item.displayName}</Text>
+                  <Text style={{ color: '#9aa0aa', fontSize: 12 }}>
+                    {item.lat.toFixed(4)}, {item.lng.toFixed(4)} {item.tz ? `• ${item.tz}` : ''}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+      </View>
+    </Row>
+  );
+}
+
+/* ---------- styles ---------- */
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: '#0b0b0c' }, // <— общий фон
+  scroll: { flex: 1, backgroundColor: '#0b0b0c' }, // <— фон скролла (Android)
+  content: { padding: 16, gap: 14 },
+
+  caption: { color: '#c7c9d1', fontSize: 14, lineHeight: 20 },
+  label: { color: '#e5e7eb', fontSize: 13 },
+  input: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    color: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  switchLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  checkboxLine: {
+    marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  genderWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 2,
+  },
+  genderBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  genderBtnActive: {
+    backgroundColor: 'rgba(79,70,229,0.18)',
+    borderColor: 'rgba(79,70,229,0.35)',
+  },
+  genderText: { color: '#cfd3dc', fontSize: 13, fontWeight: '600' },
+  genderTextActive: { color: '#fff' },
+
+  primaryBtn: {
+    marginTop: 8,
+    backgroundColor: '#4f46e5',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  primaryText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  helper: { color: '#9aa0aa', fontSize: 12, marginTop: 8 },
+
+  suggestBox: {
+    position: 'absolute',
+    top: 48,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(20,20,22,0.98)',
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderRadius: 8,
+    maxHeight: 240,
+    overflow: 'hidden',
+    zIndex: 20,
+    elevation: 12,
+  },
+  suggestItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.12)',
+  },
+});
+
+
+--- FILE: app/onboarding-profile.tsx ---
+--- LINES: 1271 ---
+--- SHA256: 27c41fc01d32ce18139a6ac5fbf263c89a7c7c4bac71b5e18e2c946c7873b660 ---
+// app/onboarding-profile.tsx
+import { searchPlaces } from '@/src/shared/api/profiles';
+import { useApp } from '@/src/store/app';
+import { PersonProfile, useProfiles } from '@/src/store/profiles';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+
+const C = {
+  bg: '#0b0b0c',
+  card: 'rgba(255,255,255,0.06)',
+  border: 'rgba(255,255,255,0.12)',
+  text: '#e5e7eb',
+  dim: '#c7c9d1',
+  primary: '#4f46e5',
+  err: '#ef4444',
+};
+
+const TOP_OFFSET = 80;
+
+type PickedGeo = {
+  id: string;
+  city: string;
+  nation: string | null;
+  lat: number;
+  lng: number;
+  tz: string | null;
+  displayName: string;
+};
+
+type StepKey =
+  | 'name' // имя + пол
+  | 'birthDate'
+  | 'birthTime' // + ректификация
+  | 'birthPlace' // место рождения + проживание
+  | 'final';
+
+const genders: Array<{ key: PersonProfile['gender'] | 'na'; label: string }> = [
+  { key: 'male', label: 'Мужской' },
+  { key: 'female', label: 'Женский' },
+  { key: 'other', label: 'Другое' },
+  { key: 'na', label: 'Не указывать' },
+];
+
+export default function OnboardingProfileWizard() {
+  const router = useRouter();
+  const submitOnboarding = useProfiles((s) => s.submitOnboarding);
+  const loading = useProfiles((s) => s.loading);
+
+  // Global onboarding flags (TOS + completion)
+  const { tosAccepted, completeOnboarding } = useApp();
+
+  const [name, setName] = useState<string>('');
+  const [birthDate, setBirthDate] = useState<string>('');
+
+  const [timeKnown, setTimeKnown] = useState<boolean>(true);
+  const [birthTime, setBirthTime] = useState<string>('');
+  const [seconds, setSeconds] = useState<string>('00');
+
+  const [placeQuery, setPlaceQuery] = useState<string>('');
+  const [pickedGeo, setPickedGeo] = useState<PickedGeo | null>(null);
+  const [suggest, setSuggest] = useState<PickedGeo[]>([]);
+  const [showSuggest, setShowSuggest] = useState<boolean>(false);
+
+  const [livesElsewhere, setLivesElsewhere] = useState<boolean>(false);
+  const [currentCity, setCurrentCity] = useState<string>('');
+
+  const [gender, setGender] = useState<PersonProfile['gender'] | 'na'>('na');
+
+  const [step, setStep] = useState<StepKey>('name');
+
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const q = placeQuery.trim();
+    if (step !== 'birthPlace') return;
+    if (q.length >= 2) {
+      t = setTimeout(async () => {
+        try {
+          const res = await searchPlaces(q);
+          const items: PickedGeo[] = (res.items || []).map((it: any) => ({
+            id: it.id,
+            city: it.city,
+            nation: it.nation || null,
+            lat: it.lat,
+            lng: it.lng,
+            tz: it.tz || null,
+            displayName: it.displayName,
+          }));
+          setSuggest(items);
+          setShowSuggest(true);
+        } catch {
+          setSuggest([]);
+          setShowSuggest(false);
+        }
+      }, 250);
+    } else {
+      setSuggest([]);
+      setShowSuggest(false);
+    }
+    return () => {
+      if (t) clearTimeout(t);
+    };
+  }, [placeQuery, step]);
+
+  useEffect(() => {
+    if (!pickedGeo) return;
+    const normalized = `${pickedGeo.city}${pickedGeo.nation ? ', ' + pickedGeo.nation : ''}`;
+    if (placeQuery.trim() !== pickedGeo.displayName && placeQuery.trim() !== normalized) {
+      setPickedGeo(null);
+    }
+  }, [placeQuery, pickedGeo]);
+
+  const order: StepKey[] = ['name', 'birthDate', 'birthTime', 'birthPlace', 'final'];
+  const idx = order.indexOf(step);
+  const canPrev = idx > 0;
+
+  const goPrev = () => setStep(order[Math.max(0, idx - 1)]);
+  const goNext = () => setStep(order[Math.min(order.length - 1, idx + 1)]);
+
+  function validateAndNext() {
+    switch (step) {
+      case 'name':
+        if (!name.trim()) return Alert.alert('Имя', 'Укажи имя.');
+        return goNext();
+      case 'birthDate':
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate))
+          return Alert.alert('Дата', 'Формат ГГГГ-ММ-ДД.');
+        return goNext();
+      case 'birthTime':
+        if (!timeKnown) return goNext();
+        if (!/^\d{2}:\d{2}$/.test(birthTime))
+          return Alert.alert('Время', 'Формат ЧЧ:ММ.');
+        if (!/^\d{2}$/.test(seconds))
+          return Alert.alert('Секунды', '00–59.');
+        return goNext();
+      case 'birthPlace':
+        if (!pickedGeo)
+          return Alert.alert('Место рождения', 'Выбери место из подсказок.');
+        if (livesElsewhere && !currentCity.trim())
+          return Alert.alert(
+            'Проживание',
+            'Укажи текущий город или отключи «Проживаю в другом месте».'
+          );
+        return goNext();
+      default:
+        return;
+    }
+  }
+
+  async function saveProfile() {
+    try {
+      // Enforce TOS before accepting profile data (professional / legal safety)
+      if (!tosAccepted) {
+        Alert.alert(
+          'Условия использования',
+          'Перед сохранением анкеты нужно согласиться с пользовательским соглашением.'
+        );
+        router.replace('/onboarding');
+        return;
+      }
+
+      if (!name.trim()) return Alert.alert('Имя', 'Укажи имя.');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate))
+        return Alert.alert('Дата', 'Формат ГГГГ-ММ-ДД.');
+      if (timeKnown && !/^\d{2}:\d{2}$/.test(birthTime))
+        return Alert.alert('Время', 'Формат ЧЧ:ММ.');
+      if (timeKnown && !/^\d{2}$/.test(seconds))
+        return Alert.alert('Секунды', '00–59.');
+      if (!pickedGeo)
+        return Alert.alert('Место рождения', 'Выбери место из подсказок.');
+
+      const input: Partial<PersonProfile> = {
+        name: name.trim(),
+        date: birthDate,
+        time: timeKnown ? birthTime : undefined,
+        place: placeQuery,
+        birthDateISO: birthDate,
+        timeKnown,
+        seconds: timeKnown ? Number(seconds) : undefined,
+        birthPlace: placeQuery,
+        livesElsewhere,
+        currentCity: livesElsewhere ? currentCity.trim() : undefined,
+        gender: gender === 'na' ? undefined : (gender as any),
+        fullDateTimeISO: timeKnown
+          ? `${birthDate}T${birthTime}:${seconds || '00'}`
+          : undefined,
+        coords: pickedGeo ? { lat: pickedGeo.lat, lng: pickedGeo.lng } : undefined,
+        tz: pickedGeo?.tz || undefined,
+      };
+
+      await submitOnboarding(input);
+
+      // Mark global onboarding as complete once profile is successfully persisted.
+      completeOnboarding();
+
+      router.replace('/(tabs)/astro-map');
+    } catch (e: any) {
+      Alert.alert('Ошибка', e?.message || 'Не удалось сохранить анкету');
+    }
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
+      <KeyboardAvoidingView
+        behavior={Platform.select({ ios: 'padding', android: undefined })}
+        style={{ flex: 1 }}
+      >
+        <View style={{ flex: 1, padding: 16 }}>
+          <Header step={idx + 1} total={order.length} onBack={canPrev ? goPrev : undefined} />
+          <View style={{ flex: 1, marginTop: 8 }}>
+            {step === 'name' && (
+              <ScreenNameGender
+                name={name}
+                setName={setName}
+                gender={gender}
+                setGender={(g: PersonProfile['gender'] | 'na') => setGender(g)}
+              />
+            )}
+            {step === 'birthDate' && (
+              <ScreenBirthDate value={birthDate} setValue={setBirthDate} />
+            )}
+            {step === 'birthTime' && (
+              <ScreenBirthTime
+                timeKnown={timeKnown}
+                setTimeKnown={setTimeKnown}
+                birthTime={birthTime}
+                setBirthTime={setBirthTime}
+                seconds={seconds}
+                setSeconds={(t: string) =>
+                  setSeconds(t.replace(/\D/g, '').slice(0, 2))
+                }
+              />
+            )}
+            {step === 'birthPlace' && (
+              <ScreenBirthPlaceWithLive
+                placeQuery={placeQuery}
+                setPlaceQuery={(t: string) => setPlaceQuery(t)}
+                pickedGeo={pickedGeo}
+                setPickedGeo={(g: PickedGeo | null) => setPickedGeo(g)}
+                suggest={suggest}
+                showSuggest={showSuggest}
+                setShowSuggest={(v: boolean) => setShowSuggest(v)}
+                livesElsewhere={livesElsewhere}
+                setLivesElsewhere={(v: boolean) => setLivesElsewhere(v)}
+                currentCity={currentCity}
+                setCurrentCity={(t: string) => setCurrentCity(t)}
+              />
+            )}
+            {step === 'final' && (
+              <ScreenReview
+                onRect={() =>
+                  router.push({
+                    pathname: '/modal',
+                    params: { mode: 'rectification' },
+                  })
+                }
+              />
+            )}
+          </View>
+
+          <View style={s.nav}>
+            {step !== 'final' ? (
+              <Pressable
+                onPress={validateAndNext}
+                style={[s.btn, s.primary, { flex: 1 }]}
+              >
+                <Text style={[s.btnText, { color: '#fff' }]}>
+                  {loading ? 'Загружаю…' : 'Продолжить'}
+                </Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                onPress={saveProfile}
+                disabled={loading}
+                style={[
+                  s.btn,
+                  s.primary,
+                  { flex: 1, opacity: loading ? 0.7 : 1 },
+                ]}
+              >
+                <Text style={[s.btnText, { color: '#fff' }]}>
+                  {loading ? 'Сохраняю…' : 'Сохранить анкету'}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+/* ────────── ШАГИ ────────── */
+
+function Header({
+  step,
+  total,
+  onBack,
+}: {
+  step: number;
+  total: number;
+  onBack?: () => void;
+}) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+      {onBack ? (
+        <Pressable
+          onPress={onBack}
+          style={[s.btn, s.ghost, { paddingVertical: 8 }]}
+        >
+          <Text style={s.btnText}>Назад</Text>
+        </Pressable>
+      ) : (
+        <View style={{ width: 80 }} />
+      )}
+      <View style={{ flex: 1 }}>
+        <View style={s.progressWrap}>
+          {Array.from({ length: total }).map((_, i) => (
+            <View
+              key={i}
+              style={[
+                s.progressDot,
+                i < step ? { backgroundColor: C.primary } : null,
+              ]}
+            />
+          ))}
+        </View>
+        <Text
+          style={{ color: C.dim, fontSize: 12, textAlign: 'center' }}
+        >{`Шаг ${step} из ${total}`}</Text>
+      </View>
+      <View style={{ width: 80 }} />
+    </View>
+  );
+}
+
+function Card({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View style={s.card}>
+      <Text style={s.h1}>{title}</Text>
+      <View style={{ marginTop: 8, gap: 8 }}>{children}</View>
+    </View>
+  );
+}
+
+function Input(props: React.ComponentProps<typeof TextInput>) {
+  return (
+    <TextInput
+      {...props}
+      style={[s.input, props.style]}
+      placeholderTextColor="#8b8e97"
+    />
+  );
+}
+
+function Hint({ children }: { children: React.ReactNode }) {
+  return <Text style={{ color: C.dim, fontSize: 12 }}>{children}</Text>;
+}
+
+function Row({ children, style }: { children: React.ReactNode; style?: any }) {
+  return (
+    <View
+      style={[
+        {
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 10,
+        },
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
+
+/* Имя + Пол */
+function ScreenNameGender({
+  name,
+  setName,
+  gender,
+  setGender,
+}: {
+  name: string;
+  setName: (t: string) => void;
+  gender: PersonProfile['gender'] | 'na';
+  setGender: (g: PersonProfile['gender'] | 'na') => void;
+}) {
+  return (
+    <Card title="Как тебя зовут?">
+      <Input
+        value={name}
+        onChangeText={(t: string) => setName(t)}
+        placeholder="Имя"
+        autoFocus
+      />
+      <Hint>Выбери пол (необязательно)</Hint>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {genders.map((g) => {
+          const active = gender === g.key;
+          return (
+            <Pressable
+              key={g.key}
+              onPress={() => setGender(g.key)}
+              style={[s.tag, active && s.tagOn]}
+            >
+              <Text
+                style={{
+                  color: active ? '#fff' : C.text,
+                  fontWeight: '600',
+                }}
+              >
+                {g.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </Card>
+  );
+}
+
+/* Дата рождения — продвинутый выбор */
+function ScreenBirthDate({
+  value,
+  setValue,
+}: {
+  value: string;
+  setValue: (t: string) => void;
+}) {
+  const now = new Date();
+  const CY = now.getFullYear();
+  const CM = now.getMonth() + 1;
+  const CD = now.getDate();
+
+  const { width: sw, height: sh } = useWindowDimensions();
+  const MODAL_PAD = 14;
+  const modalWidth = Math.min(sw - 32, 360);
+  const innerGap = 8;
+  const contentWidth = modalWidth - MODAL_PAD * 2;
+  const colWidth = Math.floor((contentWidth - innerGap * 2) / 3);
+  const listHeight = Math.min(300, Math.max(220), Math.floor(sh * 0.45));
+
+  const [open, setOpen] = useState<boolean>(false);
+  const [y, setY] = useState<number>(() =>
+    value.match(/^(\d{4})-(\d{2})-(\d{2})$/) ? Number(value.slice(0, 4)) : CY
+  );
+  const [m, setM] = useState<number>(() =>
+    value.match(/^(\d{4})-(\d{2})-(\d{2})$/) ? Number(value.slice(5, 7)) : CM
+  );
+  const [d, setD] = useState<number>(() =>
+    value.match(/^(\d{4})-(\d{2})-(\d{2})$/) ? Number(value.slice(8, 10)) : CD
+  );
+
+  const [tmpY, setTmpY] = useState<number>(y);
+  const [tmpM, setTmpM] = useState<number>(m);
+  const [tmpD, setTmpD] = useState<number>(d);
+
+  const years = useMemo<number[]>(() => {
+    const arr: number[] = [];
+    for (let i = CY; i >= 1900; i--) arr.push(i);
+    return arr;
+  }, [CY]);
+
+  const allMonths = useMemo(
+    () => [
+      { n: 1, title: 'Январь' },
+      { n: 2, title: 'Февраль' },
+      { n: 3, title: 'Март' },
+      { n: 4, title: 'Апрель' },
+      { n: 5, title: 'Май' },
+      { n: 6, title: 'Июнь' },
+      { n: 7, title: 'Июль' },
+      { n: 8, title: 'Август' },
+      { n: 9, title: 'Сентябрь' },
+      { n: 10, title: 'Октябрь' },
+      { n: 11, title: 'Ноябрь' },
+      { n: 12, title: 'Декабрь' },
+    ],
+    []
+  );
+  const months = useMemo(() => {
+    const maxM = tmpY === CY ? CM : 12;
+    return allMonths.filter((it) => it.n <= maxM);
+  }, [allMonths, tmpY, CY, CM]);
+
+  const days = useMemo<number[]>(() => {
+    const monthDays = new Date(tmpY, tmpM, 0).getDate();
+    const limit =
+      tmpY === CY && tmpM === CM ? Math.min(monthDays, CD) : monthDays;
+    return Array.from({ length: limit }, (_, i) => i + 1);
+  }, [tmpY, tmpM, CY, CM, CD]);
+
+  useEffect(() => {
+    const maxM = tmpY === CY ? CM : 12;
+    if (tmpM > maxM) setTmpM(maxM);
+  }, [tmpY, CY, CM, tmpM]);
+
+  useEffect(() => {
+    const lastDay = days[days.length - 1] || 1;
+    if (tmpD > lastDay) setTmpD(lastDay);
+  }, [days, tmpD]);
+
+  function openPicker() {
+    setTmpY(y);
+    setTmpM(m);
+    setTmpD(d);
+    setOpen(true);
+  }
+  function confirm() {
+    const lastDay = days[days.length - 1] || 1;
+    const finalD = Math.min(tmpD, lastDay);
+    setY(tmpY);
+    setM(tmpM);
+    setD(finalD);
+    const mm = String(tmpM).padStart(2, '0');
+    const dd = String(finalD).padStart(2, '0');
+    setValue(`${tmpY}-${mm}-${dd}`);
+    setOpen(false);
+  }
+
+  const friendly =
+    value || `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+  return (
+    <Card title="Дата рождения">
+      <Pressable onPress={openPicker} style={[s.chip]}>
+        <Text style={{ color: '#fff', fontWeight: '700' }}>{friendly}</Text>
+      </Pressable>
+      <Hint>Нажми, чтобы выбрать год / месяц / день</Hint>
+
+      <Modal
+        visible={open}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOpen(false)}
+      >
+        <View style={s.modalWrap}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setOpen(false)}
+          />
+          <View style={[s.modalCard, { width: modalWidth, marginTop: TOP_OFFSET }]}>
+            <Text style={[s.h1, { marginBottom: 8 }]}>Выбери дату</Text>
+            <View style={[s.pickerRow, { gap: innerGap }]}>
+              <PickerColumnNumber
+                title="Год"
+                data={years}
+                selected={tmpY}
+                onSelect={(n) => setTmpY(n)}
+                style={{ width: colWidth }}
+                listHeight={listHeight}
+              />
+              <PickerColumnMonth
+                title="Месяц"
+                data={months}
+                selected={tmpM}
+                onSelect={(n) => setTmpM(n)}
+                style={{ width: colWidth }}
+                listHeight={listHeight}
+              />
+              <PickerColumnNumber
+                title="День"
+                data={days}
+                selected={tmpD}
+                onSelect={(n) => setTmpD(n)}
+                style={{ width: colWidth }}
+                listHeight={listHeight}
+              />
+            </View>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+              <Pressable
+                onPress={() => setOpen(false)}
+                style={[s.btn, s.ghost, { flex: 1 }]}
+              >
+                <Text style={s.btnText}>Отмена</Text>
+              </Pressable>
+              <Pressable
+                onPress={confirm}
+                style={[s.btn, s.primary, { flex: 1 }]}
+              >
+                <Text style={[s.btnText, { color: '#fff' }]}>Готово</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </Card>
+  );
+}
+
+/* Время рождения — с кнопкой Ректификация */
+function ScreenBirthTime({
+  timeKnown,
+  setTimeKnown,
+  birthTime,
+  setBirthTime,
+  seconds,
+  setSeconds,
+}: {
+  timeKnown: boolean;
+  setTimeKnown: (v: boolean) => void;
+  birthTime: string;
+  setBirthTime: (t: string) => void;
+  seconds: string;
+  setSeconds: (t: string) => void;
+}) {
+  const router = useRouter();
+  const { width: sw, height: sh } = useWindowDimensions();
+  const MODAL_PAD = 14;
+  const modalWidth = Math.min(sw - 32, 360);
+  const innerGap = 8;
+  const contentWidth = modalWidth - MODAL_PAD * 2;
+  const colWidth = Math.floor((contentWidth - innerGap * 2) / 3);
+  const listHeight = Math.min(300, Math.max(220), Math.floor(sh * 0.45));
+
+  const [open, setOpen] = useState<boolean>(false);
+
+  const curH = /^\d{2}:\d{2}$/.test(birthTime)
+    ? Number(birthTime.slice(0, 2))
+    : new Date().getHours();
+  const curM = /^\d{2}:\d{2}$/.test(birthTime)
+    ? Number(birthTime.slice(3, 5))
+    : new Date().getMinutes();
+  const curS = /^\d{2}$/.test(seconds) ? Number(seconds) : 0;
+
+  const [tmpH, setTmpH] = useState<number>(curH);
+  const [tmpM, setTmpM] = useState<number>(curM);
+  const [tmpS, setTmpS] = useState<number>(curS);
+
+  const hours = useMemo<number[]>(() => Array.from({ length: 24 }, (_, i) => i), []);
+  const mins = useMemo<number[]>(() => Array.from({ length: 60 }, (_, i) => i), []);
+  const secs = mins;
+
+  function openPicker() {
+    setTmpH(curH);
+    setTmpM(curM);
+    setTmpS(curS);
+    setOpen(true);
+  }
+  function confirm() {
+    const HH = String(tmpH).padStart(2, '0');
+    const MM = String(tmpM).padStart(2, '0');
+    const SS = String(tmpS).padStart(2, '0');
+    setBirthTime(`${HH}:${MM}`);
+    setSeconds(SS);
+    setOpen(false);
+  }
+
+  const chipTime =
+    timeKnown && /^\d{2}:\d{2}$/.test(birthTime)
+      ? `${birthTime}:${seconds?.padStart(2, '0') || '00'}`
+      : 'Выбери время';
+
+  return (
+    <Card title="Время рождения">
+      {/* Выбор времени показываем, только если время известно */}
+      {timeKnown ? (
+        <>
+          <Pressable onPress={openPicker} style={[s.chip]}>
+            <Text style={{ color: '#fff', fontWeight: '700' }}>{chipTime}</Text>
+          </Pressable>
+          <Hint>Нажми, чтобы выбрать ЧЧ / ММ / СС</Hint>
+
+          <Modal
+            visible={open}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setOpen(false)}
+          >
+            <View style={s.modalWrap}>
+              <Pressable
+                style={StyleSheet.absoluteFill}
+                onPress={() => setOpen(false)}
+              />
+              <View
+                style={[s.modalCard, { width: modalWidth, marginTop: 80 }]}
+              >
+                <Text style={[s.h1, { marginBottom: 8 }]}>Выбери время</Text>
+                <View style={[s.pickerRow, { gap: innerGap }]}>
+                  <PickerColumnNumber
+                    title="Часы"
+                    data={hours}
+                    selected={tmpH}
+                    onSelect={(n) => setTmpH(n)}
+                    style={{ width: colWidth }}
+                    listHeight={listHeight}
+                    format={(n) => String(n).padStart(2, '0')}
+                  />
+                  <PickerColumnNumber
+                    title="Минуты"
+                    data={mins}
+                    selected={tmpM}
+                    onSelect={(n) => setTmpM(n)}
+                    style={{ width: colWidth }}
+                    listHeight={listHeight}
+                    format={(n) => String(n).padStart(2, '0')}
+                  />
+                  <PickerColumnNumber
+                    title="Секунды"
+                    data={secs}
+                    selected={tmpS}
+                    onSelect={(n) => setTmpS(n)}
+                    style={{ width: colWidth }}
+                    listHeight={listHeight}
+                    format={(n) => String(n).padStart(2, '0')}
+                  />
+                </View>
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+                  <Pressable
+                    onPress={() => setOpen(false)}
+                    style={[s.btn, s.ghost, { flex: 1 }]}
+                  >
+                    <Text style={s.btnText}>Отмена</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={confirm}
+                    style={[s.btn, s.primary, { flex: 1 }]}
+                  >
+                    <Text style={[s.btnText, { color: '#fff' }]}>Готово</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          </Modal>
+        </>
+      ) : (
+        <Hint>
+          Если не знаешь точное время, просто продолжай — можно уточнить позже.
+        </Hint>
+      )}
+
+      {/* Переключатель под блоком выбора времени — компактный и кликабельный всей строкой */}
+      <Pressable
+        onPress={() => setTimeKnown(!timeKnown)}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          marginTop: 10,
+          paddingVertical: 6,
+        }}
+        hitSlop={8}
+      >
+        <Text style={[s.label, { fontSize: 15, fontWeight: '700' }]}>
+          Не знаю точное время
+        </Text>
+        <Switch
+          value={!timeKnown}
+          onValueChange={(v) => setTimeKnown(!v)}
+          ios_backgroundColor="rgba(255,255,255,0.2)"
+          trackColor={{
+            false: 'rgba(255,255,255,0.2)',
+            true: '#4f46e5',
+          }}
+          thumbColor={'#ffffff'}
+          style={{
+            marginLeft: 12,
+            transform: [{ scaleX: 0.96 }, { scaleY: 0.96 }],
+          }}
+        />
+      </Pressable>
+
+      {/* Кнопка ректификации */}
+      <View style={{ height: 10 }} />
+      <Pressable
+        onPress={() =>
+          router.push({ pathname: '/modal', params: { mode: 'rectification' } })
+        }
+        style={[s.btn, s.outline, { alignSelf: 'flex-start' }]}
+      >
+        <Text style={s.btnText}>Ректификация</Text>
+      </Pressable>
+    </Card>
+  );
+}
+
+/* Место рождения + Проживание */
+function ScreenBirthPlaceWithLive(props: {
+  placeQuery: string;
+  setPlaceQuery: (t: string) => void;
+  pickedGeo: PickedGeo | null;
+  setPickedGeo: (g: PickedGeo | null) => void;
+  suggest: PickedGeo[];
+  showSuggest: boolean;
+  setShowSuggest: (v: boolean) => void;
+  livesElsewhere: boolean;
+  setLivesElsewhere: (v: boolean) => void;
+  currentCity: string;
+  setCurrentCity: (t: string) => void;
+}) {
+  const {
+    placeQuery,
+    setPlaceQuery,
+    pickedGeo,
+    setPickedGeo,
+    suggest,
+    showSuggest,
+    setShowSuggest,
+    livesElsewhere,
+    setLivesElsewhere,
+    currentCity,
+    setCurrentCity,
+  } = props;
+
+  const listRef = useRef<FlatList<PickedGeo>>(null);
+
+  // ── Локальные стейты для автодополнения «Проживание»
+  const [liveSuggest, setLiveSuggest] = useState<PickedGeo[]>([]);
+  const [showLiveSuggest, setShowLiveSuggest] = useState<boolean>(false);
+  const liveSeqRef = useRef(0);
+
+  // Дебаунс-поиск для поля «Проживание»
+  useEffect(() => {
+    if (!livesElsewhere) {
+      setLiveSuggest([]);
+      setShowLiveSuggest(false);
+      return;
+    }
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const q = currentCity.trim();
+    if (q.length >= 2) {
+      t = setTimeout(async () => {
+        const mySeq = ++liveSeqRef.current;
+        try {
+          const res = await searchPlaces(q);
+          if (mySeq !== liveSeqRef.current) return;
+          const items: PickedGeo[] = (res.items || []).map((it: any) => ({
+            id: it.id,
+            city: it.city,
+            nation: it.nation || null,
+            lat: it.lat,
+            lng: it.lng,
+            tz: it.tz || null,
+            displayName: it.displayName,
+          }));
+          setLiveSuggest(items);
+          setShowLiveSuggest(true);
+        } catch {
+          if (mySeq !== liveSeqRef.current) return;
+          setLiveSuggest([]);
+          setShowLiveSuggest(false);
+        }
+      }, 250);
+    } else {
+      setLiveSuggest([]);
+      setShowLiveSuggest(false);
+    }
+    return () => {
+      if (t) clearTimeout(t);
+    };
+  }, [currentCity, livesElsewhere]);
+
+  return (
+    <Card title="Место рождения и проживание">
+      {/* Место рождения */}
+      <Input
+        value={placeQuery}
+        onChangeText={(t: string) => {
+          setPlaceQuery(t);
+          setPickedGeo(null);
+        }}
+        placeholder="Начни вводить (пример: Москва, RU)"
+        onFocus={() => placeQuery.trim().length >= 2 && setShowSuggest(true)}
+        onBlur={() => setTimeout(() => setShowSuggest(false), 120)}
+      />
+      {showSuggest && suggest.length > 0 && (
+        <View style={s.suggestBox}>
+          <FlatList
+            ref={listRef}
+            keyboardShouldPersistTaps="handled"
+            data={suggest}
+            keyExtractor={(it) => it.id}
+            renderItem={({ item }) => (
+              <Pressable
+                onPress={() => {
+                  setPlaceQuery(item.displayName);
+                  setPickedGeo(item);
+                  setShowSuggest(false);
+                }}
+                style={s.suggestItem}
+              >
+                <Text style={{ color: '#fff' }}>{item.displayName}</Text>
+                <Text style={{ color: '#9aa0aa', fontSize: 12 }}>
+                  {item.lat.toFixed(4)}, {item.lng.toFixed(4)}{' '}
+                  {item.tz ? `• ${item.tz}` : ''}
+                </Text>
+              </Pressable>
+            )}
+          />
+        </View>
+      )}
+      <Hint>Выбери вариант из подсказок.</Hint>
+
+      {/* Проживание */}
+      <View style={{ height: 12 }} />
+      <Text style={s.h1}>Проживание</Text>
+
+      {/* Тумблер в стиле "Не знаю точное время" */}
+      <Pressable
+        onPress={() => setLivesElsewhere(!livesElsewhere)}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          marginTop: 10,
+          paddingVertical: 6,
+        }}
+        hitSlop={8}
+      >
+        <Text style={[s.label, { fontSize: 15, fontWeight: '700' }]}>
+          Проживаю в другом месте
+        </Text>
+        <Switch
+          value={livesElsewhere}
+          onValueChange={(v) => setLivesElsewhere(v)}
+          ios_backgroundColor="rgba(255,255,255,0.2)"
+          trackColor={{
+            false: 'rgba(255,255,255,0.2)',
+            true: '#4f46e5',
+          }}
+          thumbColor={'#ffffff'}
+          style={{
+            marginLeft: 12,
+            transform: [{ scaleX: 0.96 }, { scaleY: 0.96 }],
+          }}
+        />
+      </Pressable>
+
+      {livesElsewhere && (
+        <View style={{ position: 'relative', marginTop: 6 }}>
+          <Input
+            value={currentCity}
+            onChangeText={(t: string) => setCurrentCity(t)}
+            placeholder="Текущий город (например: Стамбул, TR)"
+            onFocus={() => currentCity.trim().length >= 2 && setShowLiveSuggest(true)}
+            onBlur={() => setTimeout(() => setShowLiveSuggest(false), 120)}
+          />
+          {showLiveSuggest && liveSuggest.length > 0 && (
+            <View
+              style={{
+                position: 'absolute',
+                top: 48,
+                left: 0,
+                right: 0,
+                backgroundColor: 'rgba(20,20,22,0.98)',
+                borderColor: 'rgba(255,255,255,0.12)',
+                borderWidth: 1,
+                borderRadius: 8,
+                maxHeight: 240,
+                overflow: 'hidden',
+                zIndex: 20,
+                elevation: 12,
+              }}
+            >
+              <FlatList
+                keyboardShouldPersistTaps="handled"
+                data={liveSuggest}
+                keyExtractor={(it) => it.id}
+                renderItem={({ item }) => (
+                  <Pressable
+                    onPress={() => {
+                      setCurrentCity(item.displayName);
+                      setShowLiveSuggest(false);
+                    }}
+                    style={s.suggestItem}
+                  >
+                    <Text style={{ color: '#fff' }}>{item.displayName}</Text>
+                    <Text style={{ color: '#9aa0aa', fontSize: 12 }}>
+                      {item.lat.toFixed(4)}, {item.lng.toFixed(4)}{' '}
+                      {item.tz ? `• ${item.tz}` : ''}
+                    </Text>
+                  </Pressable>
+                )}
+              />
+            </View>
+          )}
+        </View>
+      )}
+    </Card>
+  );
+}
+
+/* Финал */
+function ScreenReview({ onRect }: { onRect: () => void }) {
+  return (
+    <Card title="Финальный шаг">
+      <Text style={s.p}>
+        Если не знаешь точное время рождения — можно уточнить.
+      </Text>
+      <Pressable
+        onPress={onRect}
+        style={[s.btn, s.ghost, { alignSelf: 'flex-start' }]}
+      >
+        <Text style={s.btnText}>Пройти ректификацию</Text>
+      </Pressable>
+      <Hint>Нажми «Сохранить анкету», чтобы завершить мастер.</Hint>
+    </Card>
+  );
+}
+
+/* ────────── Пикеры ────────── */
+
+function PickerColumnNumber({
+  title,
+  data,
+  selected,
+  onSelect,
+  flex = 1,
+  style,
+  listHeight,
+  format,
+}: {
+  title: string;
+  data: number[];
+  selected: number;
+  onSelect: (n: number) => void;
+  flex?: number;
+  style?: any;
+  listHeight?: number;
+  format?: (n: number) => string;
+}) {
+  return (
+    <View style={[s.col, style, { flex }]}>
+      <Text style={s.colTitle}>{title}</Text>
+      <FlatList
+        data={data}
+        keyExtractor={(n) => String(n)}
+        style={[s.colList, listHeight ? { height: listHeight } : null]}
+        bounces={false}
+        overScrollMode="never"
+        showsVerticalScrollIndicator={false}
+        renderToHardwareTextureAndroid
+        removeClippedSubviews
+        renderItem={({ item }) => {
+          const active = item === selected;
+          const text = format ? format(item) : String(item);
+          return (
+            <Pressable
+              onPress={() => onSelect(item)}
+              style={[s.colItem, active && s.colItemActive]}
+            >
+              <Text
+                style={[s.colItemText, active && s.colItemTextActive]}
+              >
+                {text}
+              </Text>
+            </Pressable>
+          );
+        }}
+      />
+    </View>
+  );
+}
+
+function PickerColumnMonth({
+  title,
+  data,
+  selected,
+  onSelect,
+  flex = 1,
+  style,
+  listHeight,
+}: {
+  title: string;
+  data: Array<{ n: number; title: string }>;
+  selected: number;
+  onSelect: (n: number) => void;
+  flex?: number;
+  style?: any;
+  listHeight?: number;
+}) {
+  return (
+    <View style={[s.col, style, { flex }]}>
+      <Text style={s.colTitle}>{title}</Text>
+      <FlatList
+        data={data}
+        keyExtractor={(x) => String(x.n)}
+        style={[s.colList, listHeight ? { height: listHeight } : null]}
+        bounces={false}
+        overScrollMode="never"
+        showsVerticalScrollIndicator={false}
+        renderToHardwareTextureAndroid
+        removeClippedSubviews
+        renderItem={({ item }) => {
+          const active = item.n === selected;
+          return (
+            <Pressable
+              onPress={() => onSelect(item.n)}
+              style={[s.colItem, active && s.colItemActive]}
+            >
+              <Text
+                numberOfLines={1}
+                style={[s.colItemText, active && s.colItemTextActive]}
+              >
+                {item.title}
+              </Text>
+            </Pressable>
+          );
+        }}
+      />
+    </View>
+  );
+}
+
+function Toggle({
+  value,
+  onValueChange,
+}: {
+  value: boolean;
+  onValueChange: (v: boolean) => void;
+}) {
+  return (
+    <Pressable
+      onPress={() => onValueChange(!value)}
+      style={[
+        s.tag,
+        value && s.tagOn,
+        { paddingVertical: 6, paddingHorizontal: 12, alignSelf: 'flex-start' },
+      ]}
+    >
+      <Text style={{ color: value ? '#fff' : C.text, fontWeight: '700' }}>
+        {value ? 'Да' : 'Нет'}
+      </Text>
+    </Pressable>
+  );
+}
+
+/* ────────── Стили ────────── */
+
+const s = StyleSheet.create({
+  card: {
+    backgroundColor: C.card,
+    borderColor: C.border,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+  },
+  h1: { color: '#fff', fontWeight: '800', fontSize: 20 },
+  p: { color: C.text, fontSize: 14, lineHeight: 20 },
+
+  nav: { flexDirection: 'row', gap: 10, marginTop: 16 },
+
+  input: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    color: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+
+  btn: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: C.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnText: { color: C.text, fontWeight: '700' },
+  primary: { backgroundColor: C.primary, borderColor: C.primary },
+  ghost: { backgroundColor: 'transparent' },
+  outline: { borderWidth: 1, borderColor: C.primary, backgroundColor: 'transparent' },
+
+  progressWrap: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 6,
+    justifyContent: 'center',
+  },
+  progressDot: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+
+  tag: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  tagOn: { backgroundColor: C.primary, borderColor: C.primary },
+
+  suggestBox: {
+    position: 'absolute',
+    top: 86,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(20,20,22,0.98)',
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderRadius: 8,
+    maxHeight: 240,
+    overflow: 'hidden',
+    zIndex: 20,
+  },
+  suggestItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.12)',
+  },
+
+  chip: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: C.border,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    alignSelf: 'flex-start',
+  },
+
+  modalWrap: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    padding: 16,
+  },
+  modalCard: {
+    backgroundColor: C.bg,
+    borderColor: C.border,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    alignSelf: 'center',
+  },
+
+  pickerRow: { flexDirection: 'row' },
+
+  col: {
+    borderColor: C.border,
+    borderWidth: 1,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  colTitle: {
+    color: C.dim,
+    fontSize: 12,
+    paddingVertical: 6,
+    textAlign: 'center',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  colList: { height: 280 },
+  colItem: { paddingVertical: 10, paddingHorizontal: 12 },
+  colItemActive: { backgroundColor: 'rgba(79,70,229,0.18)' },
+  colItemText: { color: C.text, fontSize: 16 },
+  colItemTextActive: { color: '#fff', fontWeight: '800' },
+
+  label: { color: C.text, fontSize: 13, fontWeight: '500' },
+});
+
+
+--- FILE: app/onboarding.tsx ---
+--- LINES: 500 ---
+--- SHA256: 8b66749ec87176b3493a2ef7b2b24c449723a9610d991b7305a6d579ee56523d ---
+// app/onboarding.tsx
+import { getSupabase } from '@/src/lib/supabase';
+import { useApp } from '@/src/store/app';
+import { makeRedirectUri } from 'expo-auth-session';
+import { useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
+import React, { useMemo, useState } from 'react';
+import {
+  Alert,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+
+const C = {
+  bg: '#0b0b0c',
+  card: 'rgba(255,255,255,0.06)',
+  border: 'rgba(255,255,255,0.12)',
+  text: '#e5e7eb',
+  dim: '#c7c9d1',
+  primary: '#4f46e5',
+  ok: '#22c55e',
+  warn: '#f59e0b',
+  err: '#ef4444',
+};
+
+export default function Onboarding() {
+  const router = useRouter();
+
+  // Global app onboarding state
+  const { tosAccepted, setTosAccepted, completeOnboarding } = useApp();
+
+  // Local wizard page index: 0..4
+  const [page, setPage] = useState(0);
+
+  // Local TOS switch mirrors global tosAccepted
+  const [tos, setTos] = useState<boolean>(tosAccepted);
+
+  const goProfile = () => router.push('/onboarding-profile');
+  const goRect = () =>
+    router.push({ pathname: '/modal', params: { mode: 'rectification' } });
+
+  const next = () => {
+    setPage((p) => Math.min(4, p + 1));
+  };
+
+  const prev = () => {
+   setPage((p) => Math.max(0, p - 1));
+  };
+
+  const handleTosChange = (value: boolean) => {
+    setTos(value);
+    setTosAccepted(value); // persist globally
+  };
+
+  const finish = () => {
+    // Safety: do not allow finishing onboarding without TOS
+    if (!tosAccepted) {
+      Alert.alert(
+        'Условия',
+        'Прежде чем начать пользоваться приложением, нужно согласиться с условиями.'
+      );
+      setPage(2);
+      return;
+    }
+
+    // Mark onboarding as completed
+    completeOnboarding();
+    router.replace('/(tabs)/astro-map');
+  };
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
+      <View style={{ flex: 1, padding: 16 }}>
+        <Progress step={page} />
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', gap: 16 }}
+        >
+          {page === 0 && <ScreenUniverse onNext={next} />}
+          {page === 1 && <ScreenAuth onNext={next} />}
+          {page === 2 && <ScreenTOS tos={tos} setTos={handleTosChange} />}
+          {page === 3 && <ScreenProfile goProfile={goProfile} goRect={goRect} />}
+          {page === 4 && <ScreenFinal onStart={finish} />}
+        </ScrollView>
+
+        <View style={s.nav}>
+          {page > 0 ? (
+            <Pressable onPress={prev} style={[s.btn, s.ghost]}>
+              <Text style={s.btnText}>Назад</Text>
+            </Pressable>
+          ) : (
+            <View />
+          )}
+
+          {page < 4 ? (
+            <Pressable
+              onPress={next}
+              style={[
+                s.btn,
+                s.primary,
+                page === 2 && !tos && { opacity: 0.5 },
+              ]}
+              disabled={page === 2 && !tos}
+            >
+              <Text style={[s.btnText, { color: '#fff' }]}>
+                {page === 2 ? 'Согласен • Далее' : 'Далее'}
+              </Text>
+            </Pressable>
+          ) : (
+            <Pressable onPress={finish} style={[s.btn, s.primary]}>
+              <Text style={[s.btnText, { color: '#fff' }]}>Начать</Text>
+            </Pressable>
+          )}
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+/* ───────────────── Screens ───────────────── */
+
+function ScreenUniverse({ onNext }: { onNext: () => void }) {
+  return (
+    <Card center>
+      <Text style={s.huge}>UNIVERSE HAS A MESSAGE FOR YOU</Text>
+      <Text style={[s.h1, { color: C.dim, marginTop: 8 }]}>Are you ready?</Text>
+      <Pressable onPress={onNext} style={[s.btn, s.primary, { marginTop: 16 }]}>
+        <Text style={[s.btnText, { color: '#fff' }]}>Continue</Text>
+      </Pressable>
+    </Card>
+  );
+}
+
+function ScreenAuth({ onNext }: { onNext: () => void }) {
+  return (
+    <Card>
+      <Text style={s.h1}>Вход или регистрация</Text>
+      <LoginForm onSuccess={onNext} />
+    </Card>
+  );
+}
+
+function ScreenTOS({
+  tos,
+  setTos,
+}: {
+  tos: boolean;
+  setTos: (v: boolean) => void;
+}) {
+  return (
+    <Card>
+      <Text style={s.h1}>Пользовательское соглашение</Text>
+      <Text style={s.p}>
+        Используя приложение, ты даёшь согласие на обработку персональных данных
+        и понимаешь, что информация носит консультативный характер.
+      </Text>
+      <Pressable
+        onPress={() => WebBrowser.openBrowserAsync('https://example.com/terms')}
+        style={[s.btn, s.outline]}
+      >
+        <Text style={s.btnText}>Открыть полную версию</Text>
+      </Pressable>
+      <View style={s.tosRow}>
+        <Text style={{ color: C.text, flex: 1 }}>Я согласен с условиями</Text>
+        <Switch value={tos} onValueChange={setTos} />
+      </View>
+    </Card>
+  );
+}
+
+function ScreenProfile({
+  goProfile,
+  goRect,
+}: {
+  goProfile: () => void;
+  goRect: () => void;
+}) {
+  return (
+    <Card>
+      <Text style={s.h1}>Заполни анкету</Text>
+      <Text style={s.p}>
+        Чтобы ответы были точнее, укажи место, дату и время рождения.
+      </Text>
+      <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+        <Pressable onPress={goProfile} style={[s.btn, s.primary]}>
+          <Text style={[s.btnText, { color: '#fff' }]}>Заполнить анкету</Text>
+        </Pressable>
+        <Pressable onPress={goRect} style={[s.btn, s.ghost]}>
+          <Text style={s.btnText}>Ректификация</Text>
+        </Pressable>
+      </View>
+      <Text style={[s.p, { color: C.dim, marginTop: 8 }]}>
+        Если не знаешь точное время — пройди ректификацию.
+      </Text>
+    </Card>
+  );
+}
+
+function ScreenFinal({ onStart }: { onStart: () => void }) {
+  return (
+    <Card center>
+      <Text style={s.h1}>Добро пожаловать в Cosmotell 🌌</Text>
+      <Text style={[s.p, { textAlign: 'center' }]}>
+        Всё готово — начинай пользоваться приложением. Чат учитывает твою карту автоматически.
+      </Text>
+      <Pressable onPress={onStart} style={[s.btn, s.primary, { marginTop: 12 }]}>
+        <Text style={[s.btnText, { color: '#fff' }]}>Начать</Text>
+      </Pressable>
+    </Card>
+  );
+}
+
+/* ───────────────── Login + Registration ───────────────── */
+
+function LoginForm({ onSuccess }: { onSuccess: () => void }) {
+  const redirectUri = useMemo(
+    () => makeRedirectUri({ scheme: 'cosmotell', path: 'auth' }),
+    []
+  );
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [creating, setCreating] = useState(false); // toggle registration
+
+  async function signInEmail() {
+    try {
+      const sb = getSupabase();
+      const em = email.trim().toLowerCase();
+      if (!em || !password) {
+        return Alert.alert('Вход', 'Заполни email и пароль');
+      }
+      setLoading(true);
+      const { error } = await sb.auth.signInWithPassword({ email: em, password });
+      if (error) throw error;
+
+      onSuccess();
+    } catch (e: any) {
+      Alert.alert('Ошибка входа', e?.message || 'Не удалось войти');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function signUpEmail() {
+    try {
+      const sb = getSupabase();
+      const em = email.trim().toLowerCase();
+      if (!em || !password) {
+        return Alert.alert('Регистрация', 'Заполни email и пароль');
+      }
+      if (password.length < 6) {
+        return Alert.alert('Пароль', 'Минимум 6 символов');
+      }
+      if (password !== confirm) {
+        return Alert.alert('Пароль', 'Пароли не совпадают');
+      }
+
+      setLoading(true);
+      const { error: e1 } = await sb.auth.signUp({ email: em, password });
+      if (e1) throw e1;
+
+      const { error: e2 } = await sb.auth.signInWithPassword({ email: em, password });
+      if (!e2) {
+        onSuccess();
+        return;
+      }
+
+      Alert.alert(
+        'Подтверди почту',
+        'После подтверждения войди в приложении.'
+      );
+    } catch (e: any) {
+      Alert.alert('Ошибка регистрации', e?.message || 'Не удалось создать аккаунт');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function signInWith(provider: 'google' | 'apple') {
+    try {
+      const sb = getSupabase();
+      setLoading(true);
+      const { error } = await sb.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: redirectUri },
+      });
+      if (error) throw error;
+
+      // После успешного старта OAuth пользователь вернётся в приложение,
+      // а Supabase восстановит сессию. Здесь мы оптимистично продолжаем шаг.
+      onSuccess();
+    } catch (e: any) {
+      Alert.alert('OAuth', e?.message || 'Не удалось войти через провайдера');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <View style={{ gap: 10 }}>
+      <View style={s.row}>
+        <Text style={s.label}>Email</Text>
+        <TextInput
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          placeholder="you@email.com"
+          placeholderTextColor="#8b8e97"
+          style={s.input}
+        />
+      </View>
+
+      <View style={s.row}>
+        <Text style={s.label}>Пароль</Text>
+        <TextInput
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          placeholder="••••••••"
+          placeholderTextColor="#8b8e97"
+          style={s.input}
+        />
+      </View>
+
+      {creating && (
+        <View style={s.row}>
+          <Text style={s.label}>Повтори пароль</Text>
+          <TextInput
+            value={confirm}
+            onChangeText={setConfirm}
+            secureTextEntry
+            placeholder="••••••••"
+            placeholderTextColor="#8b8e97"
+            style={s.input}
+          />
+        </View>
+      )}
+
+      {creating ? (
+        <Pressable
+          onPress={signUpEmail}
+          disabled={loading}
+          style={[s.btn, s.primary]}
+        >
+          <Text style={[s.btnText, { color: '#fff' }]}>
+            {loading ? 'Создаём…' : 'Зарегистрироваться'}
+          </Text>
+        </Pressable>
+      ) : (
+        <Pressable
+          onPress={signInEmail}
+          disabled={loading}
+          style={[s.btn, s.primary]}
+        >
+          <Text style={[s.btnText, { color: '#fff' }]}>
+            {loading ? 'Входим…' : 'Войти'}
+          </Text>
+        </Pressable>
+      )}
+
+      <Pressable
+        onPress={() => setCreating(!creating)}
+        disabled={loading}
+        style={[s.btn, s.ghost]}
+      >
+        <Text style={s.btnText}>
+          {creating ? 'У меня уже есть аккаунт' : 'Создать аккаунт'}
+        </Text>
+      </Pressable>
+
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <Pressable
+          onPress={() => signInWith('google')}
+          disabled={loading}
+          style={[s.btn, s.outline, { flex: 1 }]}
+        >
+          <Text style={s.btnText}>Google</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => signInWith('apple')}
+          disabled={loading}
+          style={[s.btn, s.outline, { flex: 1 }]}
+        >
+          <Text style={s.btnText}>Apple</Text>
+        </Pressable>
+      </View>
+
+      <Text style={[s.p, { color: C.dim, fontSize: 12 }]}>
+        Мы не публикуем ничего и не используем почту для рассылок.
+      </Text>
+    </View>
+  );
+}
+
+/* ───────────────── Helpers / Styles ───────────────── */
+
+function Progress({ step }: { step: number }) {
+  return (
+    <View style={s.progressWrap}>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <View
+          key={i}
+          style={[s.progressDot, step >= i && { backgroundColor: C.primary }]}
+        />
+      ))}
+    </View>
+  );
+}
+
+function Card({
+  children,
+  center,
+}: {
+  children: React.ReactNode;
+  center?: boolean;
+}) {
+  return <View style={[s.card, center && { alignItems: 'center' }]}>{children}</View>;
+}
+
+const s = StyleSheet.create({
+  progressWrap: {
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'center',
+    marginVertical: 6,
+  },
+  progressDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+
+  card: {
+    backgroundColor: C.card,
+    borderColor: C.border,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+    gap: 10,
+  },
+
+  huge: { color: '#fff', fontWeight: '900', fontSize: 26, textAlign: 'center' },
+  h1: { color: '#fff', fontWeight: '800', fontSize: 20 },
+  p: { color: C.text, fontSize: 14, lineHeight: 20 },
+
+  nav: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 14,
+  },
+
+  row: { gap: 6 },
+  label: { color: C.dim, fontSize: 13 },
+  input: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    color: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+
+  btn: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: C.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnText: { color: C.text, fontWeight: '700' },
+  primary: { backgroundColor: C.primary, borderColor: C.primary },
+  ghost: { backgroundColor: 'transparent' },
+  outline: { borderWidth: 1, borderColor: C.primary, backgroundColor: 'transparent' },
+
+  tosRow: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+});
+
+
+--- FILE: combine.js ---
+--- LINES: 221 ---
+--- SHA256: 12ffc45387be0e7c0f268297ffaa4c6892c823e7e97294c6b40ff739fd137592 ---
+// combine.js — объединяет исходники в несколько текстовых файлов безопасно
+// Запуск: node combine.js
+// Результат:
+//   ALL_SOURCE_COMBINED_FULL.txt   — весь проект
+//   ALL_SOURCE_FRONTEND.txt        — только фронтенд
+//   ALL_SOURCE_BACKEND.txt         — только бэкенд
+
+import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
+
+const OUT_ALL = 'ALL_SOURCE_COMBINED_FULL.txt';
+const OUT_FRONT = 'ALL_SOURCE_FRONTEND.txt';
+const OUT_BACK = 'ALL_SOURCE_BACKEND.txt';
+
+// Папки, которые пропускаем полностью
+const IGNORE_DIRS = new Set([
+  'node_modules',
+  '.expo',
+  'dist',
+  'build',
+  'ios',
+  'android',
+  '.git',
+  '.idea',
+  '.vscode',
+  '.turbo',
+]);
+
+// Расширения, которые включаем
+const INCLUDE_EXTS = new Set([
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+  '.json',
+  '.md',
+  '.css',
+  '.scss',
+  '.yml',
+  '.yaml',
+  '.toml',
+  '.html',
+  '.mjs',
+  '.cjs',
+  '.config',
+  '.lock', // lock-файлы мы всё равно отфильтруем ниже
+]);
+
+// Файлы, которые исключаем по имени (точно)
+const IGNORE_FILES = new Set([
+  // безопасность
+  '.env',
+  '.env.local',
+  '.env.development',
+  '.env.production',
+  '.env.test',
+  // тяжёлые/неинформативные
+  'package-lock.json',
+  'pnpm-lock.yaml',
+  'yarn.lock',
+]);
+
+// Простая замена секретов, если вдруг попадутся
+const SECRET_KEYS = [
+  'API_KEY',
+  'SUPABASE_ANON_KEY',
+  'SUPABASE_URL',
+  'DB_PASSWORD',
+  'N8N_SECRET',
+  'ASTRO_API_KEY',
+  'ASTRO_API_BASE',
+  'NOMINATIM_EMAIL',
+];
+
+// ---------- КЛАССИФИКАЦИЯ: фронт / бэк ----------
+
+// Корневые папки фронтенда (можешь отредактировать под себя)
+const FRONT_ROOTS = new Set(['app', 'assets', 'src']);
+
+// Корневые папки бэкенда
+const BACK_ROOTS = new Set(['server']);
+
+// Отдельные бэкенд-скрипты в корне
+const BACK_FILES = new Set(['db_extraction.js', 'migrate_users2_to_profiles.js']);
+
+/**
+ * Возвращает "frontend" | "backend" | "both" для относительного пути файла.
+ * "both" → файл попадёт и во фронтовый, и в бэковый дамп (например конфиги).
+ */
+function classifyFile(relPath) {
+  const parts = relPath.split(path.sep);
+  const top = parts[0];
+  const base = parts[parts.length - 1];
+
+  if (FRONT_ROOTS.has(top)) return 'frontend';
+  if (BACK_ROOTS.has(top) || BACK_FILES.has(base)) return 'backend';
+
+  // Всё остальное считаем общим: tsconfig, eslint, package.json, combine.js и т.п.
+  return 'both';
+}
+
+// ---------- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ----------
+
+function isTextLike(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  const base = path.basename(filePath);
+
+  if (IGNORE_FILES.has(base)) return false;
+
+  if (
+    ext === '.png' ||
+    ext === '.jpg' ||
+    ext === '.jpeg' ||
+    ext === '.gif' ||
+    ext === '.webp' ||
+    ext === '.svg'
+  )
+    return false;
+  if (
+    ext === '.ttf' ||
+    ext === '.otf' ||
+    ext === '.woff' ||
+    ext === '.woff2'
+  )
+    return false;
+  if (
+    ext === '.mp3' ||
+    ext === '.m4a' ||
+    ext === '.wav' ||
+    ext === '.mp4' ||
+    ext === '.mov'
+  )
+    return false;
+  if (ext === '.env') return false; // на всякий случай
+
+  return INCLUDE_EXTS.has(ext) || ext === ''; // без расширения — включим, если текст
+}
+
+function redactSecrets(content) {
+  let out = content;
+  for (const key of SECRET_KEYS) {
+    // формат KEY=VALUE
+    const re = new RegExp(`(${key}\\s*=\\s*)([^\\n\\r]+)`, 'gi');
+    out = out.replace(re, (_m, p1) => `${p1}[REDACTED]`);
+
+    // формат "KEY": "VALUE"
+    const jsonRe = new RegExp(`("${key}"\\s*:\\s*)"(.*?)"`, 'gi');
+    out = out.replace(jsonRe, (_m, p1) => `${p1}"[REDACTED]"`);
+  }
+  return out;
+}
+
+function walk(dir, acc = []) {
+  for (const name of fs.readdirSync(dir)) {
+    const full = path.join(dir, name);
+    const st = fs.statSync(full);
+    if (st.isDirectory()) {
+      if (!IGNORE_DIRS.has(name)) walk(full, acc);
+    } else {
+      if (isTextLike(full)) acc.push(full);
+    }
+  }
+  return acc;
+}
+
+function sha256(str) {
+  return crypto.createHash('sha256').update(str).digest('hex');
+}
+
+// ---------- ОСНОВНАЯ ЛОГИКА ----------
+
+const root = process.cwd();
+const files = walk(root).sort();
+
+const allParts = [];
+const frontParts = [];
+const backParts = [];
+
+for (const absPath of files) {
+  const content = fs.readFileSync(absPath, 'utf8');
+  const safe = redactSecrets(content);
+  const lines = safe.split(/\r?\n/).length;
+  const hash = sha256(safe);
+
+  const relPath = path.relative(root, absPath);
+
+  const block = [
+    `--- FILE: ${relPath} ---`,
+    `--- LINES: ${lines} ---`,
+    `--- SHA256: ${hash} ---`,
+    safe,
+    '', // пустая строка-разделитель
+  ];
+
+  // полный дамп
+  allParts.push(...block);
+
+  // классификация для фронта/бэка
+  const kind = classifyFile(relPath);
+  if (kind === 'frontend' || kind === 'both') {
+    frontParts.push(...block);
+  }
+  if (kind === 'backend' || kind === 'both') {
+    backParts.push(...block);
+  }
+}
+
+// ---------- ЗАПИСЬ ФАЙЛОВ ----------
+
+fs.writeFileSync(OUT_ALL, allParts.join('\n'), 'utf8');
+fs.writeFileSync(OUT_FRONT, frontParts.join('\n'), 'utf8');
+fs.writeFileSync(OUT_BACK, backParts.join('\n'), 'utf8');
+
+console.log(
+  `✅ Combined ${files.length} files into:\n` +
+    `  - ${OUT_ALL}\n` +
+    `  - ${OUT_FRONT}\n` +
+    `  - ${OUT_BACK}`
+);
+
+
+--- FILE: eslint.config.js ---
+--- LINES: 11 ---
+--- SHA256: 3b0c823fd936f964905db962e66e92e24773b7085c0c82750a4d4f0b1808c41c ---
+// https://docs.expo.dev/guides/using-eslint/
+const { defineConfig } = require('eslint/config');
+const expoConfig = require('eslint-config-expo/flat');
+
+module.exports = defineConfig([
+  expoConfig,
+  {
+    ignores: ['dist/*'],
+  },
+]);
+
+
+--- FILE: expo-env.d.ts ---
+--- LINES: 3 ---
+--- SHA256: 6fc02634da46d3edc5a88eec9173ba6bf709726be3cba83c73ebd8e859d5c147 ---
+/// <reference types="expo/types" />
+
+// NOTE: This file should not be edited and should be in your git ignore
+
+--- FILE: package.json ---
+--- LINES: 74 ---
+--- SHA256: bbd0ef2d39aaeb41710408a9d9bf36604fffab11bc31e7772fe9575a8d9e3b7e ---
+{
+  "name": "astro-app",
+  "main": "expo-router/entry",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "expo start",
+    "server": "node server/index.js",
+    "tunnel": "ngrok http 3000",
+    "dev:api": "npm-run-all --parallel server tunnel",
+    "reset-project": "node ./scripts/reset-project.js",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "lint": "expo lint"
+  },
+  "dependencies": {
+    "@expo/metro-runtime": "~6.1.2",
+    "@expo/vector-icons": "^15.0.3",
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-navigation/bottom-tabs": "^7.4.0",
+    "@react-navigation/elements": "^2.6.3",
+    "@react-navigation/native": "^7.1.8",
+    "@supabase/supabase-js": "^2.76.1",
+    "cors": "^2.8.5",
+    "csv-parse": "^6.1.0",
+    "date-fns": "^4.1.0",
+    "dotenv": "^17.2.3",
+    "expo": "54.0.20",
+    "expo-auth-session": "^7.0.8",
+    "expo-av": "~16.0.7",
+    "expo-constants": "~18.0.10",
+    "expo-font": "~14.0.9",
+    "expo-haptics": "~15.0.7",
+    "expo-image": "~3.0.10",
+    "expo-linking": "~8.0.8",
+    "expo-router": "~6.0.13",
+    "expo-speech": "~14.0.7",
+    "expo-splash-screen": "~31.0.10",
+    "expo-status-bar": "~3.0.8",
+    "expo-symbols": "~1.0.7",
+    "expo-system-ui": "~6.0.8",
+    "expo-web-browser": "~15.0.8",
+    "express": "^5.1.0",
+    "fluent-ffmpeg": "^2.1.3",
+    "multer": "^2.0.2",
+    "mysql2": "^3.15.1",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-gesture-handler": "~2.28.0",
+    "react-native-reanimated": "~4.1.1",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0",
+    "react-native-svg": "15.12.1",
+    "react-native-url-polyfill": "^3.0.0",
+    "react-native-web": "~0.21.0",
+    "react-native-worklets": "0.5.1",
+    "tz-lookup": "^6.1.25",
+    "uuid": "^13.0.0",
+    "victory-native": "^36.9.2",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.0",
+    "eslint": "^9.25.0",
+    "eslint-config-expo": "~10.0.0",
+    "npm-run-all": "^4.1.5",
+    "typescript": "~5.9.2"
+  },
+  "private": true
+}
+
+
+--- FILE: src/lib/supabase.ts ---
+--- LINES: 46 ---
+--- SHA256: 64051986d408ed2cc8ebd1f63f2b4ef25926700e37f2b58b3a394e0d506208eb ---
+
+/* eslint-disable import/order */ 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import 'react-native-url-polyfill/auto';
+
+
+
+
+const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+console.log("[supabase env]", { url, anon: anon ? "present" : "missing" });
+
+
+let client: SupabaseClient | null = null;
+
+if (url && anon) {
+  client = createClient(url, anon, {
+    auth: {
+      storage: AsyncStorage,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false,
+    },
+  });
+} else {
+  console.warn(
+    '[supabase] Missing env: EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY. ' +
+    'Auth disabled until you set them.'
+  );
+}
+
+// оставляем экспорт (может быть null — вдруг захочешь проверять вручную)
+export const supabase = client;
+
+/** Возвращает инициализированный клиент (не null). Бросает ошибку, если .env не задан. */
+export function getSupabase(): SupabaseClient {
+  if (!client) {
+    throw new Error(
+      'Supabase не сконфигурирован. Задай EXPO_PUBLIC_SUPABASE_URL и EXPO_PUBLIC_SUPABASE_ANON_KEY и перезапусти (expo start -c).'
+    );
+  }
+  return client;
+}
+
+
+--- FILE: src/shared/api/profiles.ts ---
+--- LINES: 132 ---
+--- SHA256: 9bdf25a9983ad4c82049baf9e771458293285312e3ac234605abe72df5266098 ---
+// src/shared/api/profiles.ts
+import type { PersonProfile } from "../../store/profiles";
+import { API_BASE } from "../config/api";
+
+/**
+ * Обновляет (или создает) профиль "me" по deviceId,
+ * записывая birth-данные (и любые другие поля профиля).
+ * Реализовано через уже существующий /profiles/sync.
+ *
+ * @param deviceId - идентификатор устройства (ключ в твоем апи)
+ * @param input - объект профиля; можно передавать только нужные поля (date/time/tz/lat/lng/name/gender и т.д.)
+ * @returns обновленный payload, который вернет твой /profiles/sync
+ */
+export async function upsertBirthData(
+  deviceId: string,
+  input: Partial<PersonProfile>
+) {
+  const payload = {
+    deviceId,
+    me: input as PersonProfile,
+    other: null as PersonProfile | null
+  };
+
+  const r = await fetch(`${API_BASE}/profiles/sync`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!r.ok) {
+    throw new Error(`upsertBirthData ${r.status} ${await r.text().catch(() => "")}`);
+  }
+
+  return r.json();
+}
+
+/**
+ * Получает натальную карту (SVG) по deviceId.
+ * Это обертка над уже существующим /profiles/:deviceId/chart.
+ *
+ * @param deviceId - идентификатор устройства
+ * @returns { chart_svg: string | null }
+ */
+export async function fetchNatalChartByProfileId(deviceId: string) {
+  const r = await fetch(`${API_BASE}/profiles/${encodeURIComponent(deviceId)}/chart`);
+  if (!r.ok) {
+    throw new Error(`chart-by-id ${r.status} ${await r.text().catch(() => "")}`);
+  }
+  return r.json() as Promise<{ chart_svg: string | null }>;
+}
+
+/**
+ * Строит натальную карту напрямую по birth-данным.
+ * На стороне бэка ожидается POST /charts с { date, time, tz, lat, lng }.
+ * Если такого роутинга нет — используй fetchNatalChartByProfileId после upsertBirthData.
+ *
+ * @param data - минимальные birth-данные
+ * @returns { chart_svg: string | null, ...optional }
+ */
+export async function fetchNatalChartByBirthData(data: {
+  date: string;  // 'YYYY-MM-DD'
+  time: string;  // 'HH:mm'
+  tz: string;    // IANA TZ, например 'Europe/Kyiv'
+  lat: number;
+  lng: number;
+}) {
+  const r = await fetch(`${API_BASE}/charts`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      date: data.date,
+      time: data.time,
+      tz: data.tz,
+      lat: data.lat,
+      lng: data.lng,
+    }),
+  });
+
+  if (!r.ok) {
+    throw new Error(`chart-by-birth ${r.status} ${await r.text().catch(() => "")}`);
+  }
+
+  // сервер может вернуть доп. поля (planets/houses/ascendant), но мы гарантируем chart_svg
+  return r.json() as Promise<{ chart_svg: string | null } & Record<string, any>>;
+}
+
+type SyncPayload = {
+  deviceId: string;
+  me: PersonProfile | null;
+  other: PersonProfile | null;
+};
+
+export async function syncProfiles(payload: SyncPayload) {
+  const r = await fetch(`${API_BASE}/profiles/sync`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!r.ok) throw new Error(`sync ${r.status} ${await r.text().catch(() => "")}`);
+  return r.json();
+}
+
+export async function fetchProfiles(deviceId: string) {
+  const r = await fetch(`${API_BASE}/profiles/${encodeURIComponent(deviceId)}`);
+  if (!r.ok) throw new Error(`get ${r.status} ${await r.text().catch(() => "")}`);
+  return r.json();
+}
+
+export async function fetchChartSvg(deviceId: string) {
+  const r = await fetch(`${API_BASE}/profiles/${encodeURIComponent(deviceId)}/chart`);
+  if (!r.ok) throw new Error(`chart ${r.status} ${await r.text().catch(() => "")}`);
+  return r.json() as Promise<{ chart_svg: string | null }>;
+}
+
+export async function searchPlaces(q: string) {
+  const r = await fetch(`${API_BASE}/geo/search?q=${encodeURIComponent(q)}`);
+  if (!r.ok) {
+    const text = await r.text().catch(() => '');
+    console.warn('[searchPlaces] geo error', r.status, text);
+    throw new Error(`geo ${r.status}`);
+  }
+  return r.json() as Promise<{ items: Array<{
+    id: string;
+    displayName: string;
+    city: string;
+    nation: string;
+    lat: number;
+    lng: number;
+    tz: string | null;
+  }> }>;
+}
+
+
+--- FILE: src/shared/config/api.ts ---
+--- LINES: 52 ---
+--- SHA256: 0601149316b2517292efb2e511204a44aa7b6161e83c5da05fbf69e067b07e1b ---
+// src/shared/config/api.ts
+import Constants from "expo-constants";
+import { Platform } from "react-native";
+
+/**
+ * Возвращает базовый URL бэкенда в дев-режиме:
+ * - явный EXPO_PUBLIC_API_BASE из .env имеет приоритет
+ * - iOS Simulator: http://127.0.0.1:3000
+ * - Android Emulator: http://10.0.2.2:3000
+ * - Реальное устройство/Expo Go: берём LAN-IP из hostUri: http://<lan-ip>:3000
+ * - Фолбэк: http://127.0.0.1:3000 (чтобы не было YOUR-LAN-IP)
+ */
+function resolveDevApiBase(): string {
+  const env = (process.env.EXPO_PUBLIC_API_BASE || "").trim();
+  if (env) return env;
+
+  const any = Constants as any;
+  const hostUri: string | undefined =
+    any?.expoConfig?.hostUri ||
+    any?.manifest2?.extra?.expoClient?.hostUri ||
+    any?.manifest?.hostUri;
+
+  // If Expo gives us a LAN host (real device / sometimes simulator) → use it
+  if (hostUri) {
+    const host = hostUri.split(':')[0];
+    // Ignore obvious local hosts, otherwise assume it's LAN IP
+    if (host && host !== '127.0.0.1' && host !== 'localhost') {
+      return `http://${host}:3000`;
+    }
+  }
+
+  // Fallbacks for local simulators/emulators
+  if (Platform.OS === 'ios') {
+    return 'http://127.0.0.1:3000';
+  }
+
+  if (Platform.OS === 'android') {
+    return 'http://10.0.2.2:3000';
+  }
+
+  return 'http://127.0.0.1:3000';
+}
+
+export const API_BASE = resolveDevApiBase();
+
+export const ENDPOINTS = {
+  chat: `${API_BASE}/chat`,
+  speech: `${API_BASE}/speech`,
+  aiQuery: `${API_BASE}/ai/query`,
+  health: `${API_BASE}/health`,
+};
+
+
+--- FILE: src/shared/config/auth.ts ---
+--- LINES: 8 ---
+--- SHA256: 7406e925a413029803a9f6412f62f47463d65e5d6d5abeb3daaedf858bdf1275 ---
+// src/shared/config/auth.ts
+import { makeRedirectUri } from 'expo-auth-session';
+
+export const OAUTH_REDIRECT_URI = makeRedirectUri({
+  scheme: 'cosmotell',
+  path: 'auth',
+});
+
+
+--- FILE: src/store/app.ts ---
+--- LINES: 58 ---
+--- SHA256: a4a2de151e888f074d80926c12fba2ff206d4d73eacf5248516f324792eed095 ---
+// src/store/app.ts
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+
+type AppState = {
+  /** true, когда zustand восстановил состояние из AsyncStorage */
+  hydrated: boolean;
+
+  /**
+   * Пользователь прошёл онбординг хотя бы один раз:
+   * - экран онбординга с intro/TOS и т.д.
+   * - анкета (onboarding-profile) или явное завершение мастера
+   */
+  onboardingDone: boolean;
+
+  /**
+   * Пользователь явно принял пользовательское соглашение (TOS)
+   * через экран onboading (ScreenTOS).
+   */
+  tosAccepted: boolean;
+
+  /** Устанавливает флаг принятия TOS (используется на экране онбординга). */
+  setTosAccepted: (v: boolean) => void;
+
+  /**
+   * Отмечает, что онбординг завершён.
+   * Вызывается из онбординга / мастера анкеты после успешного завершения.
+   */
+  completeOnboarding: () => void;
+
+  /** Внутренний флаг, что состояние восстановлено из хранилища. */
+  _setHydrated: (v: boolean) => void;
+};
+
+export const useApp = create<AppState>()(
+  persist(
+    (set) => ({
+      hydrated: false,
+      onboardingDone: false,
+      tosAccepted: false,
+
+      setTosAccepted: (v) => set({ tosAccepted: v }),
+
+      completeOnboarding: () => set({ onboardingDone: true }),
+
+      _setHydrated: (v) => set({ hydrated: v }),
+    }),
+    {
+      name: 'app-store',
+      storage: createJSONStorage(() => AsyncStorage),
+      onRehydrateStorage: () => (state) => {
+        state?._setHydrated(true);
+      },
+    }
+  )
+);
+
+
+--- FILE: src/store/profiles.ts ---
+--- LINES: 212 ---
+--- SHA256: b3eea6c259d405dc597927ebf0c3d2009e65ca0dff9d5068c4630c776d35954e ---
+// src/store/profiles.ts
+import { supabase } from '@/src/lib/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { fetchChartSvg, syncProfiles } from '../shared/api/profiles';
+
+/* ───────────────── Types ───────────────── */
+
+const makeDeviceId = async () => {
+  const session = await supabase
+    ?.auth.getSession()
+    .then((r) => r.data.session)
+    .catch(() => null);
+  const uid = session?.user?.id;
+  return uid
+    ? `uid-${uid}`
+    : 'dev-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+};
+
+export type PersonProfile = {
+  id: string;
+  name: string;
+
+  // старые поля
+  date: string; // YYYY-MM-DD
+  time?: string; // HH:mm
+  place?: string;
+
+  // новые поля
+  birthDateISO?: string;
+  timeKnown?: boolean;
+  seconds?: number;
+  birthPlace?: string;
+  livesElsewhere?: boolean;
+  currentCity?: string;
+  fullDateTimeISO?: string;
+
+  // гео/время
+  coords?: { lat: number; lng: number };
+  tz?: string;
+
+  gender?: 'male' | 'female' | 'other' | 'na';
+  email?: string;
+};
+
+export type NatalChart = {
+  chart_svg: string | null;
+  planets?: Array<{ name: string; sign: string; degree: number }>;
+  houses?: Array<{ house: number; sign: string; degree: number }>;
+};
+
+type ProfilesState = {
+  deviceId: string;
+  me: PersonProfile | null;
+  other: PersonProfile | null;
+
+  chart: NatalChart | null;
+  loading: boolean;
+  error: string | null;
+  onboarded: boolean;
+
+  setMe: (p: PersonProfile) => void;
+  setOther: (p: PersonProfile) => void;
+  clearOther: () => void;
+
+  /** синхронизация с сервером */
+  sync: () => Promise<void>;
+
+  /**
+   * submitOnboarding — атомарно применяет изменения профиля "me",
+   * синхронизирует с сервером и пытается получить SVG карты.
+   * Совместимо с вызовами из modal.tsx и onboarding-profile.tsx.
+   */
+  submitOnboarding: (payload: Partial<PersonProfile>) => Promise<void>;
+
+  /** ручное обновление карты */
+  reloadChart: () => Promise<void>;
+};
+
+/* ───────────────── Utils ───────────────── */
+
+const genDeviceId = () =>
+  'dev-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+/* ───────────────── Store ───────────────── */
+
+export const useProfiles = create<ProfilesState>()(
+  persist(
+    (set, get) => ({
+      deviceId: genDeviceId(),
+      me: null,
+      other: null,
+
+      chart: null,
+      loading: false,
+      error: null,
+      onboarded: false,
+
+      setMe: (p) => set({ me: p }),
+      setOther: (p) => set({ other: p }),
+      clearOther: () => set({ other: null }),
+
+      async sync() {
+        const { deviceId, me, other } = get();
+        try {
+          await syncProfiles({ deviceId, me, other });
+          console.log('[profiles] sync ok', deviceId);
+        } catch (e) {
+          console.warn('[profiles] sync failed', e);
+        }
+      },
+
+      async submitOnboarding(payload) {
+  const prev = get().me;
+  const merged = { ...(prev ?? {}), ...payload } as PersonProfile;
+
+  set({ loading: true, error: null, me: merged });
+
+  try {
+    // 1) синхронизируем с бэком
+    await get().sync();
+
+    // 2) пробуем подтянуть SVG карты по deviceId
+    let chart: NatalChart | null = null;
+    try {
+      const res = await fetchChartSvg(get().deviceId);
+      chart = { chart_svg: res.chart_svg ?? null };
+    } catch (e) {
+      console.warn('[profiles] fetchChartSvg failed', e);
+      chart = { chart_svg: null };
+    }
+
+    set({
+      chart,
+      onboarded: true,
+      loading: false,
+      error: null,
+    });
+    console.log('[profiles] onboarding complete');
+  } catch (e: any) {
+    set({
+      loading: false,
+      error: e?.message ?? 'Ошибка при онбординге',
+    });
+    console.warn('[profiles] onboarding failed', e);
+    throw e;
+  }
+},
+
+
+      async reloadChart() {
+  const { deviceId, me } = get();
+
+  if (!me) {
+    console.warn('[profiles] reloadChart: нет профиля');
+    return;
+  }
+
+  set({ loading: true, error: null });
+  try {
+    const res = await fetchChartSvg(deviceId);
+    const chart: NatalChart = { chart_svg: res.chart_svg ?? null };
+    set({ chart, loading: false });
+    console.log('[profiles] chart reloaded');
+  } catch (e: any) {
+    const msg = String(e?.message || '');
+    if (msg.includes('404')) {
+      console.warn(
+        '[profiles] chart 404 → попробую sync() и повторить'
+      );
+      try {
+        await get().sync();
+        await new Promise((r) => setTimeout(r, 250));
+        const res2 = await fetchChartSvg(deviceId);
+        const chart2: NatalChart = { chart_svg: res2.chart_svg ?? null };
+        set({ chart: chart2, loading: false });
+        return;
+      } catch (e2) {
+        console.warn(
+          '[profiles] повторный reload после sync не удался',
+          e2
+        );
+      }
+    }
+    set({
+      loading: false,
+      error: e?.message ?? 'Не удалось обновить карту',
+    });
+    console.warn('[profiles] reloadChart failed', e);
+  }
+}
+
+    }),
+    {
+      name: 'profiles-store',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (s) => ({
+        deviceId: s.deviceId,
+        me: s.me,
+        other: s.other,
+        chart: s.chart,
+        onboarded: s.onboarded,
+      }),
+    }
+  )
+);
+
+/* ───────────────── Helpers ───────────────── */
+
+export const newId = () => 'p-' + Math.random().toString(36).slice(2);
+
+
+--- FILE: src/types.ts ---
+--- LINES: 32 ---
+--- SHA256: cb5bd6a71c8603f0fad803ba661c17de7fd71fe091d392c723c54adf6ca4dc61 ---
+export type BirthData = {
+  name?: string | null;
+  date: string;        // 'YYYY-MM-DD'
+  time: string;        // 'HH:mm'
+  tz: string;          // 'Europe/Kyiv' и т.п.
+  lat: number;
+  lng: number;
+  gender?: string | null;
+};
+
+export type NatalChart = {
+  houses: Array<{ house: number; sign: string; degree: number }>;
+  planets: Array<{ name: string; sign: string; degree: number }>;
+  ascendant?: { sign: string; degree: number } | null;
+  raw?: any; // если API отдает больше данных
+};
+
+export type Profile = {
+  id: string;
+  email?: string | null;
+  username?: string | null;
+  avatar_url?: string | null;
+  created_at?: string;
+  // поля для рождения
+  birth_date?: string | null; // 'YYYY-MM-DD'
+  birth_time?: string | null; // 'HH:mm'
+  birth_tz?: string | null;
+  birth_lat?: number | null;
+  birth_lng?: number | null;
+  gender?: string | null;
+};
+
+
+--- FILE: tree.js ---
+--- LINES: 30 ---
+--- SHA256: ab6747d3d3eda4c1db4b90f339060e04c1d45bd666e414fe1f6a1d4428e3e35a ---
+import fs from "fs";
+import path from "path";
+
+const EXCLUDE_DIRS = ["node_modules", ".git", "build", "dist", ".vscode", "coverage", "__pycache__"];
+const MAX_DEPTH = 3; // adjust as needed (2–3 is usually enough)
+
+function printTree(dir, indent = "", depth = 0) {
+  if (depth > MAX_DEPTH) return;
+
+  const files = fs.readdirSync(dir);
+  for (const file of files) {
+    const fullPath = path.join(dir, file);
+    const stat = fs.statSync(fullPath);
+
+    // Skip excluded folders
+    if (stat.isDirectory() && EXCLUDE_DIRS.includes(file)) continue;
+
+    if (stat.isDirectory()) {
+      console.log(indent + "📁 " + file);
+      printTree(fullPath, indent + "  ", depth + 1);
+    } else {
+      console.log(indent + "📄 " + file);
+    }
+  }
+}
+
+printTree(".");
+
+// the command is node tree.js > structure.txt
+
+
+--- FILE: tsconfig.json ---
+--- LINES: 18 ---
+--- SHA256: e8e9605c3b1a521e797d6d3a5fd271121fdfbd0aab0904be0873469bc0347a77 ---
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ]
+}
+

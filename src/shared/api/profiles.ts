@@ -114,7 +114,11 @@ export async function fetchChartSvg(deviceId: string) {
 
 export async function searchPlaces(q: string) {
   const r = await fetch(`${API_BASE}/geo/search?q=${encodeURIComponent(q)}`);
-  if (!r.ok) throw new Error(`geo ${r.status}`);
+  if (!r.ok) {
+    const text = await r.text().catch(() => '');
+    console.warn('[searchPlaces] geo error', r.status, text);
+    throw new Error(`geo ${r.status}`);
+  }
   return r.json() as Promise<{ items: Array<{
     id: string;
     displayName: string;

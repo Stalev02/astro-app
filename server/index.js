@@ -17,6 +17,8 @@ import tzLookup from 'tz-lookup';
 // DB
 import { getProfile, initDb, pool, saveChartSvg, upsertProfile } from './db.js';
 
+
+
 // ── Create app FIRST (so routes can be registered even if DB init fails)
 const app = express();
 // CORS headers on every response
@@ -54,9 +56,9 @@ ffmpeg.setFfmpegPath(ffmpegPath.path);
 
 // ── Env (used by routes below)
 const {
-  N8N_CHAT_URL = '',
+  N8N_CHAT_URL = 'https://n8n.astroapp.pp.ua/webhook/astro-app',
   N8N_SPEECH_URL = '',
-  N8N_SECRET = '',
+  N8N_SECRET = '731d816144d1e1e7064aa0d6986c7a8e745be485f82b54f8e35e38e335fa7b66',
   ASTRO_API_BASE = '',
   ASTRO_API_KEY = '',
   ASTRO_LANG = 'EN',
@@ -68,9 +70,11 @@ const {
   GEONAMES_BASE = 'https://api.geonames.org',
   GEONAMES_TIMEOUT_MS = '6000',
   NOMINATIM_BASE = 'https://nominatim.openstreetmap.org',
-  NOMINATIM_EMAIL = 'noreply@example.com',
+  NOMINATIM_EMAIL = 'yurka.stalev@gmail.com',
   PORT = '3000',
 } = process.env;
+
+console.log('[env] N8N_CHAT_URL =', N8N_CHAT_URL);
 
 const sign = (body, ts) => {
   const data = typeof body === 'string' ? body : JSON.stringify(body ?? {});

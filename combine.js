@@ -1,53 +1,150 @@
-// combine.js — объединяет исходники в один текстовый файл безопасно
+// combine.js — объединяет исходники в несколько текстовых файлов безопасно
 // Запуск: node combine.js
-// Итог: ALL_SOURCE_COMBINED_FULL.txt (без node_modules, .env, бинарей и т.д.)
+// Результат:
+//   ALL_SOURCE_COMBINED_FULL.txt   — весь проект
+//   ALL_SOURCE_FRONTEND.txt        — только фронтенд
+//   ALL_SOURCE_BACKEND.txt         — только бэкенд
 
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 
-const OUT = 'ALL_SOURCE_COMBINED_FULL.txt';
+const OUT_ALL = 'ALL_SOURCE_COMBINED_FULL.txt';
+const OUT_FRONT = 'ALL_SOURCE_FRONTEND.txt';
+const OUT_BACK = 'ALL_SOURCE_BACKEND.txt';
 
-// Папки, которые пропускаем
+// Папки, которые пропускаем полностью
 const IGNORE_DIRS = new Set([
-  'node_modules', '.expo', 'dist', 'build', 'ios', 'android', '.git', '.idea', '.vscode', '.turbo'
+  'node_modules',
+  '.expo',
+  'dist',
+  'build',
+  'ios',
+  'android',
+  '.git',
+  '.idea',
+  '.vscode',
+  '.turbo',
 ]);
 
 // Расширения, которые включаем
 const INCLUDE_EXTS = new Set([
-  '.ts', '.tsx', '.js', '.jsx', '.json', '.md', '.css', '.scss', '.yml', '.yaml', '.toml',
-  '.html', '.mjs', '.cjs', '.config', '.lock' // lock-файлы мы все равно отфильтруем ниже
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+  '.json',
+  '.md',
+  '.css',
+  '.scss',
+  '.yml',
+  '.yaml',
+  '.toml',
+  '.html',
+  '.mjs',
+  '.cjs',
+  '.config',
+  '.lock', // lock-файлы мы всё равно отфильтруем ниже
 ]);
 
 // Файлы, которые исключаем по имени (точно)
 const IGNORE_FILES = new Set([
   // безопасность
-  '.env', '.env.local', '.env.development', '.env.production', '.env.test',
+  '.env',
+  '.env.local',
+  '.env.development',
+  '.env.production',
+  '.env.test',
   // тяжёлые/неинформативные
-  'package-lock.json', 'pnpm-lock.yaml', 'yarn.lock'
+  'package-lock.json',
+  'pnpm-lock.yaml',
+  'yarn.lock',
 ]);
 
 // Простая замена секретов, если вдруг попадутся
 const SECRET_KEYS = [
-  'API_KEY', 'SUPABASE_ANON_KEY', 'SUPABASE_URL', 'DB_PASSWORD', 'N8N_SECRET',
-  'ASTRO_API_KEY', 'ASTRO_API_BASE', 'NOMINATIM_EMAIL'
+  'API_KEY',
+  'SUPABASE_ANON_KEY',
+  'SUPABASE_URL',
+  'DB_PASSWORD',
+  'N8N_SECRET',
+  'ASTRO_API_KEY',
+  'ASTRO_API_BASE',
+  'NOMINATIM_EMAIL',
 ];
+
+// ---------- КЛАССИФИКАЦИЯ: фронт / бэк ----------
+
+// Корневые папки фронтенда (можешь отредактировать под себя)
+const FRONT_ROOTS = new Set(['app', 'assets', 'src']);
+
+// Корневые папки бэкенда
+const BACK_ROOTS = new Set(['server']);
+
+// Отдельные бэкенд-скрипты в корне
+const BACK_FILES = new Set(['db_extraction.js', 'migrate_users2_to_profiles.js']);
+
+/**
+ * Возвращает "frontend" | "backend" | "both" для относительного пути файла.
+ * "both" → файл попадёт и во фронтовый, и в бэковый дамп (например конфиги).
+ */
+function classifyFile(relPath) {
+  const parts = relPath.split(path.sep);
+  const top = parts[0];
+  const base = parts[parts.length - 1];
+
+  if (FRONT_ROOTS.has(top)) return 'frontend';
+  if (BACK_ROOTS.has(top) || BACK_FILES.has(base)) return 'backend';
+
+  // Всё остальное считаем общим: tsconfig, eslint, package.json, combine.js и т.п.
+  return 'both';
+}
+
+// ---------- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ----------
 
 function isTextLike(filePath) {
   const ext = path.extname(filePath).toLowerCase();
-  if (IGNORE_FILES.has(path.basename(filePath))) return false;
-  if (ext === '.png' || ext === '.jpg' || ext === '.jpeg' || ext === '.gif' || ext === '.webp' || ext === '.svg') return false;
-  if (ext === '.ttf' || ext === '.otf' || ext === '.woff' || ext === '.woff2') return false;
-  if (ext === '.mp3' || ext === '.m4a' || ext === '.wav' || ext === '.mp4' || ext === '.mov') return false;
+  const base = path.basename(filePath);
+
+  if (IGNORE_FILES.has(base)) return false;
+
+  if (
+    ext === '.png' ||
+    ext === '.jpg' ||
+    ext === '.jpeg' ||
+    ext === '.gif' ||
+    ext === '.webp' ||
+    ext === '.svg'
+  )
+    return false;
+  if (
+    ext === '.ttf' ||
+    ext === '.otf' ||
+    ext === '.woff' ||
+    ext === '.woff2'
+  )
+    return false;
+  if (
+    ext === '.mp3' ||
+    ext === '.m4a' ||
+    ext === '.wav' ||
+    ext === '.mp4' ||
+    ext === '.mov'
+  )
+    return false;
   if (ext === '.env') return false; // на всякий случай
+
   return INCLUDE_EXTS.has(ext) || ext === ''; // без расширения — включим, если текст
 }
 
 function redactSecrets(content) {
   let out = content;
   for (const key of SECRET_KEYS) {
+    // формат KEY=VALUE
     const re = new RegExp(`(${key}\\s*=\\s*)([^\\n\\r]+)`, 'gi');
     out = out.replace(re, (_m, p1) => `${p1}[REDACTED]`);
+
+    // формат "KEY": "VALUE"
     const jsonRe = new RegExp(`("${key}"\\s*:\\s*)"(.*?)"`, 'gi');
     out = out.replace(jsonRe, (_m, p1) => `${p1}"[REDACTED]"`);
   }
@@ -71,20 +168,53 @@ function sha256(str) {
   return crypto.createHash('sha256').update(str).digest('hex');
 }
 
-const files = walk(process.cwd()).sort();
-let parts = [];
+// ---------- ОСНОВНАЯ ЛОГИКА ----------
 
-for (const f of files) {
-  const content = fs.readFileSync(f, 'utf8');
+const root = process.cwd();
+const files = walk(root).sort();
+
+const allParts = [];
+const frontParts = [];
+const backParts = [];
+
+for (const absPath of files) {
+  const content = fs.readFileSync(absPath, 'utf8');
   const safe = redactSecrets(content);
   const lines = safe.split(/\r?\n/).length;
   const hash = sha256(safe);
-  parts.push(`--- FILE: ${f} ---`);
-  parts.push(`--- LINES: ${lines} ---`);
-  parts.push(`--- SHA256: ${hash} ---`);
-  parts.push(safe);
-  parts.push(''); // пустая строка-разделитель
+
+  const relPath = path.relative(root, absPath);
+
+  const block = [
+    `--- FILE: ${relPath} ---`,
+    `--- LINES: ${lines} ---`,
+    `--- SHA256: ${hash} ---`,
+    safe,
+    '', // пустая строка-разделитель
+  ];
+
+  // полный дамп
+  allParts.push(...block);
+
+  // классификация для фронта/бэка
+  const kind = classifyFile(relPath);
+  if (kind === 'frontend' || kind === 'both') {
+    frontParts.push(...block);
+  }
+  if (kind === 'backend' || kind === 'both') {
+    backParts.push(...block);
+  }
 }
 
-fs.writeFileSync(OUT, parts.join('\n'), 'utf8');
-console.log(`✅ Combined ${files.length} files into ${OUT}`);
+// ---------- ЗАПИСЬ ФАЙЛОВ ----------
+
+fs.writeFileSync(OUT_ALL, allParts.join('\n'), 'utf8');
+fs.writeFileSync(OUT_FRONT, frontParts.join('\n'), 'utf8');
+fs.writeFileSync(OUT_BACK, backParts.join('\n'), 'utf8');
+
+console.log(
+  `✅ Combined ${files.length} files into:\n` +
+    `  - ${OUT_ALL}\n` +
+    `  - ${OUT_FRONT}\n` +
+    `  - ${OUT_BACK}`
+);

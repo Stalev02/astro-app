@@ -14,34 +14,31 @@ function resolveDevApiBase(): string {
   const env = (process.env.EXPO_PUBLIC_API_BASE || "").trim();
   if (env) return env;
 
-  // Попытка вытащить LAN-IP из hostUri (работает на реальном девайсе)
   const any = Constants as any;
   const hostUri: string | undefined =
     any?.expoConfig?.hostUri ||
     any?.manifest2?.extra?.expoClient?.hostUri ||
     any?.manifest?.hostUri;
 
-  // iOS симулятор → localhost
-  if (Platform.OS === "ios") {
-    // На iOS симуляторе бэкенд, запущенный на том же Mac, доступен по 127.0.0.1
-    return "http://127.0.0.1:3000";
-  }
-
-  // Android эмулятор → 10.0.2.2 (loopback на хост-систему)
-  if (Platform.OS === "android") {
-    return "http://10.0.2.2:3000";
-  }
-
-  // Web/прочее: если удалось достать hostUri и это не localhost — используем его IP
+  // If Expo gives us a LAN host (real device / sometimes simulator) → use it
   if (hostUri) {
-    const ip = hostUri.split(":")[0];
-    if (ip && ip !== "127.0.0.1" && ip !== "localhost") {
-      return `http://${ip}:3000`;
+    const host = hostUri.split(':')[0];
+    // Ignore obvious local hosts, otherwise assume it's LAN IP
+    if (host && host !== '127.0.0.1' && host !== 'localhost') {
+      return `http://${host}:3000`;
     }
   }
 
-  // Фолбэк на localhost
-  return "http://127.0.0.1:3000";
+  // Fallbacks for local simulators/emulators
+  if (Platform.OS === 'ios') {
+    return 'http://127.0.0.1:3000';
+  }
+
+  if (Platform.OS === 'android') {
+    return 'http://10.0.2.2:3000';
+  }
+
+  return 'http://127.0.0.1:3000';
 }
 
 export const API_BASE = resolveDevApiBase();

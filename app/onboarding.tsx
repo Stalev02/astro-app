@@ -1,5 +1,6 @@
 // app/onboarding.tsx
 import { getSupabase } from '@/src/lib/supabase';
+import { useApp } from '@/src/store/app';
 import { makeRedirectUri } from 'expo-auth-session';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -30,16 +31,48 @@ const C = {
 
 export default function Onboarding() {
   const router = useRouter();
-  const [page, setPage] = useState(0);
-  const [tos, setTos] = useState(false);
 
-  const next = () => setPage((p) => Math.min(4, p + 1));
-  const prev = () => setPage((p) => Math.max(0, p - 1));
+  // Global app onboarding state
+  const { tosAccepted, setTosAccepted, completeOnboarding } = useApp();
+
+  // Local wizard page index: 0..4
+  const [page, setPage] = useState(0);
+
+  // Local TOS switch mirrors global tosAccepted
+  const [tos, setTos] = useState<boolean>(tosAccepted);
 
   const goProfile = () => router.push('/onboarding-profile');
   const goRect = () =>
-  router.push({ pathname: '/modal', params: { mode: 'rectification' } });
-  const finish = () => router.replace('/(tabs)/astro-map');
+    router.push({ pathname: '/modal', params: { mode: 'rectification' } });
+
+  const next = () => {
+    setPage((p) => Math.min(4, p + 1));
+  };
+
+  const prev = () => {
+   setPage((p) => Math.max(0, p - 1));
+  };
+
+  const handleTosChange = (value: boolean) => {
+    setTos(value);
+    setTosAccepted(value); // persist globally
+  };
+
+  const finish = () => {
+    // Safety: do not allow finishing onboarding without TOS
+    if (!tosAccepted) {
+      Alert.alert(
+        'Условия',
+        'Прежде чем начать пользоваться приложением, нужно согласиться с условиями.'
+      );
+      setPage(2);
+      return;
+    }
+
+    // Mark onboarding as completed
+    completeOnboarding();
+    router.replace('/(tabs)/astro-map');
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
@@ -50,7 +83,7 @@ export default function Onboarding() {
         >
           {page === 0 && <ScreenUniverse onNext={next} />}
           {page === 1 && <ScreenAuth onNext={next} />}
-          {page === 2 && <ScreenTOS tos={tos} setTos={setTos} />}
+          {page === 2 && <ScreenTOS tos={tos} setTos={handleTosChange} />}
           {page === 3 && <ScreenProfile goProfile={goProfile} goRect={goRect} />}
           {page === 4 && <ScreenFinal onStart={finish} />}
         </ScrollView>
@@ -67,7 +100,11 @@ export default function Onboarding() {
           {page < 4 ? (
             <Pressable
               onPress={next}
-              style={[s.btn, s.primary, page === 2 && !tos && { opacity: 0.5 }]}
+              style={[
+                s.btn,
+                s.primary,
+                page === 2 && !tos && { opacity: 0.5 },
+              ]}
               disabled={page === 2 && !tos}
             >
               <Text style={[s.btnText, { color: '#fff' }]}>
@@ -108,7 +145,13 @@ function ScreenAuth({ onNext }: { onNext: () => void }) {
   );
 }
 
-function ScreenTOS({ tos, setTos }: { tos: boolean; setTos: (v: boolean) => void }) {
+function ScreenTOS({
+  tos,
+  setTos,
+}: {
+  tos: boolean;
+  setTos: (v: boolean) => void;
+}) {
   return (
     <Card>
       <Text style={s.h1}>Пользовательское соглашение</Text>
@@ -189,10 +232,13 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
     try {
       const sb = getSupabase();
       const em = email.trim().toLowerCase();
-      if (!em || !password) return Alert.alert('Вход', 'Заполни email и пароль');
+      if (!em || !password) {
+        return Alert.alert('Вход', 'Заполни email и пароль');
+      }
       setLoading(true);
       const { error } = await sb.auth.signInWithPassword({ email: em, password });
       if (error) throw error;
+
       onSuccess();
     } catch (e: any) {
       Alert.alert('Ошибка входа', e?.message || 'Не удалось войти');
@@ -205,11 +251,15 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
     try {
       const sb = getSupabase();
       const em = email.trim().toLowerCase();
-      if (!em || !password) return Alert.alert('Регистрация', 'Заполни email и пароль');
-      if (password.length < 6)
+      if (!em || !password) {
+        return Alert.alert('Регистрация', 'Заполни email и пароль');
+      }
+      if (password.length < 6) {
         return Alert.alert('Пароль', 'Минимум 6 символов');
-      if (password !== confirm)
+      }
+      if (password !== confirm) {
         return Alert.alert('Пароль', 'Пароли не совпадают');
+      }
 
       setLoading(true);
       const { error: e1 } = await sb.auth.signUp({ email: em, password });
@@ -220,7 +270,11 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
         onSuccess();
         return;
       }
-      Alert.alert('Подтверди почту', 'После подтверждения войди в приложении.');
+
+      Alert.alert(
+        'Подтверди почту',
+        'После подтверждения войди в приложении.'
+      );
     } catch (e: any) {
       Alert.alert('Ошибка регистрации', e?.message || 'Не удалось создать аккаунт');
     } finally {
@@ -237,6 +291,9 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
         options: { redirectTo: redirectUri },
       });
       if (error) throw error;
+
+      // После успешного старта OAuth пользователь вернётся в приложение,
+      // а Supabase восстановит сессию. Здесь мы оптимистично продолжаем шаг.
       onSuccess();
     } catch (e: any) {
       Alert.alert('OAuth', e?.message || 'Не удалось войти через провайдера');
@@ -287,18 +344,32 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
       )}
 
       {creating ? (
-        <Pressable onPress={signUpEmail} disabled={loading} style={[s.btn, s.primary]}>
+        <Pressable
+          onPress={signUpEmail}
+          disabled={loading}
+          style={[s.btn, s.primary]}
+        >
           <Text style={[s.btnText, { color: '#fff' }]}>
             {loading ? 'Создаём…' : 'Зарегистрироваться'}
           </Text>
         </Pressable>
       ) : (
-        <Pressable onPress={signInEmail} disabled={loading} style={[s.btn, s.primary]}>
-          <Text style={[s.btnText, { color: '#fff' }]}>{loading ? 'Входим…' : 'Войти'}</Text>
+        <Pressable
+          onPress={signInEmail}
+          disabled={loading}
+          style={[s.btn, s.primary]}
+        >
+          <Text style={[s.btnText, { color: '#fff' }]}>
+            {loading ? 'Входим…' : 'Войти'}
+          </Text>
         </Pressable>
       )}
 
-      <Pressable onPress={() => setCreating(!creating)} disabled={loading} style={[s.btn, s.ghost]}>
+      <Pressable
+        onPress={() => setCreating(!creating)}
+        disabled={loading}
+        style={[s.btn, s.ghost]}
+      >
         <Text style={s.btnText}>
           {creating ? 'У меня уже есть аккаунт' : 'Создать аккаунт'}
         </Text>
