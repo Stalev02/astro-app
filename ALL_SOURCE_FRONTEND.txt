@@ -1141,8 +1141,8 @@ const s = StyleSheet.create({
 
 
 --- FILE: app/_layout.tsx ---
---- LINES: 41 ---
---- SHA256: 6a70972d497f2ec78b56952202f5158d4eab6341fb17bc1f37cabdea82b9fd9e ---
+--- LINES: 42 ---
+--- SHA256: 254ee720065cc0c64426ab5f579afcf787e19e10194ba5932b60dcacb4712038 ---
 // app/_layout.tsx
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -1168,6 +1168,7 @@ export default function RootLayout() {
       }}
     >
       <Stack.Screen name="index" />
+       <Stack.Screen name="intro" />
       <Stack.Screen name="onboarding" />
       <Stack.Screen name="onboarding-profile" />
       <Stack.Screen name="auth/login" />
@@ -1603,9 +1604,8 @@ const s = StyleSheet.create({
 
 
 --- FILE: app/index.tsx ---
---- LINES: 57 ---
---- SHA256: 8e21935cad6a23e5ed861a9232736e2460113abaa80441d632003523f4913485 ---
-// app/index.tsx
+--- LINES: 63 ---
+--- SHA256: 902d38dd74f5720ce6df3743d17017119e3a8c9ab8f22a07fce5f70526b0585a ---
 import { getSupabase } from '@/src/lib/supabase';
 import { useApp } from '@/src/store/app';
 import { Redirect, useRootNavigationState } from 'expo-router';
@@ -1614,7 +1614,7 @@ import { ActivityIndicator, SafeAreaView, Text, View } from 'react-native';
 
 export default function Index() {
   const navState = useRootNavigationState();
-  const { onboardingDone, hydrated } = useApp();
+  const { hydrated, introSeen } = useApp();
 
   const [ready, setReady] = useState(false);
   const [target, setTarget] = useState<string | null>(null);
@@ -1629,24 +1629,32 @@ export default function Index() {
           data: { session },
         } = await sb.auth.getSession();
 
-        if (!onboardingDone) {
-          // Первый запуск или незавершённый онбординг
-          setTarget('/onboarding');
-        } else if (!session) {
-          // Онбординг уже был, но сессии нет → на экран логина
-          setTarget('/auth/login');
+        if (!session) {
+          // не залогинен
+          if (!introSeen) {
+            setTarget('/intro');        // сначала интро (один раз на девайс)
+          } else {
+            setTarget('/auth/login');   // потом всегда логин
+          }
         } else {
-          // Всё ок: пользователь залогинен и онбординг завершён
-          setTarget('/(tabs)/astro-map');
+          // есть сессия → смотрим флаг онбординга в аккаунте
+          const accountOnboardingDone =
+            !!session.user?.user_metadata?.onboarding_done;
+
+          if (!accountOnboardingDone) {
+            setTarget('/onboarding');          // онбординг один раз на аккаунт
+          } else {
+            setTarget('/(tabs)/astro-map');    // всё пройдено → основное приложение
+          }
         }
       } catch (e) {
-        // Если Supabase не сконфигурирован или произошла ошибка — отправляем на логин
+        // если Supabase не настроен — просто логин
         setTarget('/auth/login');
       } finally {
         setReady(true);
       }
     })();
-  }, [onboardingDone, hydrated]);
+  }, [hydrated, introSeen]);
 
   if (!navState?.key || !ready || !hydrated) {
     return (
@@ -1661,6 +1669,80 @@ export default function Index() {
 
   return target ? <Redirect href={target as any} /> : null;
 }
+
+--- FILE: app/intro.tsx ---
+--- LINES: 71 ---
+--- SHA256: 83900b2fb668206d27e7a99e2a2ee210f044de72a6ff0a5fe1421edb4a4bbe87 ---
+// app/intro.tsx
+import { useApp } from '@/src/store/app';
+import { useRouter } from 'expo-router';
+import React, { useEffect } from 'react';
+import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+
+const C = {
+  bg: '#0b0b0c',
+  card: 'rgba(255,255,255,0.06)',
+  border: 'rgba(255,255,255,0.12)',
+  text: '#e5e7eb',
+  dim: '#c7c9d1',
+  primary: '#4f46e5',
+};
+
+export default function IntroScreen() {
+  const router = useRouter();
+  const { introSeen, setIntroSeen } = useApp();
+
+  // Если интро уже было, сразу уходим на логин
+  useEffect(() => {
+    if (introSeen) {
+      router.replace('/auth/login');
+    }
+  }, [introSeen, router]);
+
+  const onContinue = () => {
+    setIntroSeen(true);
+    router.replace('/auth/login');
+  };
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
+      <View style={s.card}>
+        <Text style={s.huge}>UNIVERSE HAS A MESSAGE FOR YOU</Text>
+        <Text style={[s.h1, { color: C.dim, marginTop: 8 }]}>Are you ready?</Text>
+        <Pressable onPress={onContinue} style={[s.btn, s.primary, { marginTop: 16 }]}>
+          <Text style={[s.btnText, { color: '#fff' }]}>Continue</Text>
+        </Pressable>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const s = StyleSheet.create({
+  card: {
+    flex: 1,
+    padding: 16,
+    justifyContent: 'center',
+    backgroundColor: C.card,
+    borderColor: C.border,
+    borderWidth: 1,
+    borderRadius: 16,
+    margin: 16,
+    gap: 10,
+  },
+  huge: { color: '#fff', fontWeight: '900', fontSize: 26, textAlign: 'center' },
+  h1: { color: '#fff', fontWeight: '800', fontSize: 20, textAlign: 'center' },
+  btn: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: C.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnText: { color: C.text, fontWeight: '700' },
+  primary: { backgroundColor: C.primary, borderColor: C.primary },
+});
 
 
 --- FILE: app/modal.tsx ---
@@ -5238,42 +5320,31 @@ export const OAUTH_REDIRECT_URI = makeRedirectUri({
 
 
 --- FILE: src/store/app.ts ---
---- LINES: 58 ---
---- SHA256: a4a2de151e888f074d80926c12fba2ff206d4d73eacf5248516f324792eed095 ---
+--- LINES: 54 ---
+--- SHA256: 3de55a82833eff8aa8f2210e9dc6284275d3ca09b137576a7cceb2927c3181a7 ---
 // src/store/app.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 type AppState = {
-  /** true, когда zustand восстановил состояние из AsyncStorage */
   hydrated: boolean;
 
-  /**
-   * Пользователь прошёл онбординг хотя бы один раз:
-   * - экран онбординга с intro/TOS и т.д.
-   * - анкета (onboarding-profile) или явное завершение мастера
-   */
   onboardingDone: boolean;
-
-  /**
-   * Пользователь явно принял пользовательское соглашение (TOS)
-   * через экран onboading (ScreenTOS).
-   */
   tosAccepted: boolean;
 
-  /** Устанавливает флаг принятия TOS (используется на экране онбординга). */
-  setTosAccepted: (v: boolean) => void;
+  // 👇 новый флаг — интро показано на этом устройстве
+  introSeen: boolean;
 
-  /**
-   * Отмечает, что онбординг завершён.
-   * Вызывается из онбординга / мастера анкеты после успешного завершения.
-   */
+  setTosAccepted: (v: boolean) => void;
   completeOnboarding: () => void;
 
-  /** Внутренний флаг, что состояние восстановлено из хранилища. */
+  // 👇 новый сеттер
+  setIntroSeen: (v: boolean) => void;
+
   _setHydrated: (v: boolean) => void;
 };
+
 
 export const useApp = create<AppState>()(
   persist(
@@ -5282,9 +5353,15 @@ export const useApp = create<AppState>()(
       onboardingDone: false,
       tosAccepted: false,
 
+      // 👇 новое поле
+      introSeen: false,
+
       setTosAccepted: (v) => set({ tosAccepted: v }),
 
       completeOnboarding: () => set({ onboardingDone: true }),
+
+      // 👇 новый метод
+      setIntroSeen: (v) => set({ introSeen: v }),
 
       _setHydrated: (v) => set({ hydrated: v }),
     }),
@@ -5297,6 +5374,7 @@ export const useApp = create<AppState>()(
     }
   )
 );
+
 
 
 --- FILE: src/store/profiles.ts ---

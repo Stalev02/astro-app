@@ -4,34 +4,23 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 type AppState = {
-  /** true, когда zustand восстановил состояние из AsyncStorage */
   hydrated: boolean;
 
-  /**
-   * Пользователь прошёл онбординг хотя бы один раз:
-   * - экран онбординга с intro/TOS и т.д.
-   * - анкета (onboarding-profile) или явное завершение мастера
-   */
   onboardingDone: boolean;
-
-  /**
-   * Пользователь явно принял пользовательское соглашение (TOS)
-   * через экран onboading (ScreenTOS).
-   */
   tosAccepted: boolean;
 
-  /** Устанавливает флаг принятия TOS (используется на экране онбординга). */
-  setTosAccepted: (v: boolean) => void;
+  // 👇 новый флаг — интро показано на этом устройстве
+  introSeen: boolean;
 
-  /**
-   * Отмечает, что онбординг завершён.
-   * Вызывается из онбординга / мастера анкеты после успешного завершения.
-   */
+  setTosAccepted: (v: boolean) => void;
   completeOnboarding: () => void;
 
-  /** Внутренний флаг, что состояние восстановлено из хранилища. */
+  // 👇 новый сеттер
+  setIntroSeen: (v: boolean) => void;
+
   _setHydrated: (v: boolean) => void;
 };
+
 
 export const useApp = create<AppState>()(
   persist(
@@ -40,9 +29,15 @@ export const useApp = create<AppState>()(
       onboardingDone: false,
       tosAccepted: false,
 
+      // 👇 новое поле
+      introSeen: false,
+
       setTosAccepted: (v) => set({ tosAccepted: v }),
 
       completeOnboarding: () => set({ onboardingDone: true }),
+
+      // 👇 новый метод
+      setIntroSeen: (v) => set({ introSeen: v }),
 
       _setHydrated: (v) => set({ hydrated: v }),
     }),
@@ -55,3 +50,4 @@ export const useApp = create<AppState>()(
     }
   )
 );
+

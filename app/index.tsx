@@ -1,4 +1,3 @@
-// app/index.tsx
 import { getSupabase } from '@/src/lib/supabase';
 import { useApp } from '@/src/store/app';
 import { Redirect, useRootNavigationState } from 'expo-router';
@@ -7,7 +6,7 @@ import { ActivityIndicator, SafeAreaView, Text, View } from 'react-native';
 
 export default function Index() {
   const navState = useRootNavigationState();
-  const { onboardingDone, hydrated } = useApp();
+  const { hydrated, introSeen } = useApp();
 
   const [ready, setReady] = useState(false);
   const [target, setTarget] = useState<string | null>(null);
@@ -22,24 +21,32 @@ export default function Index() {
           data: { session },
         } = await sb.auth.getSession();
 
-        if (!onboardingDone) {
-          // Первый запуск или незавершённый онбординг
-          setTarget('/onboarding');
-        } else if (!session) {
-          // Онбординг уже был, но сессии нет → на экран логина
-          setTarget('/auth/login');
+        if (!session) {
+          // не залогинен
+          if (!introSeen) {
+            setTarget('/intro');        // сначала интро (один раз на девайс)
+          } else {
+            setTarget('/auth/login');   // потом всегда логин
+          }
         } else {
-          // Всё ок: пользователь залогинен и онбординг завершён
-          setTarget('/(tabs)/astro-map');
+          // есть сессия → смотрим флаг онбординга в аккаунте
+          const accountOnboardingDone =
+            !!session.user?.user_metadata?.onboarding_done;
+
+          if (!accountOnboardingDone) {
+            setTarget('/onboarding');          // онбординг один раз на аккаунт
+          } else {
+            setTarget('/(tabs)/astro-map');    // всё пройдено → основное приложение
+          }
         }
       } catch (e) {
-        // Если Supabase не сконфигурирован или произошла ошибка — отправляем на логин
+        // если Supabase не настроен — просто логин
         setTarget('/auth/login');
       } finally {
         setReady(true);
       }
     })();
-  }, [onboardingDone, hydrated]);
+  }, [hydrated, introSeen]);
 
   if (!navState?.key || !ready || !hydrated) {
     return (

@@ -23,6 +23,7 @@ export default function RootLayout() {
       }}
     >
       <Stack.Screen name="index" />
+       <Stack.Screen name="intro" />
       <Stack.Screen name="onboarding" />
       <Stack.Screen name="onboarding-profile" />
       <Stack.Screen name="auth/login" />
