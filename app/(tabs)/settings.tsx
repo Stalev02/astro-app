@@ -2,7 +2,7 @@
 import { getSupabase } from '@/src/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
 const C = {
@@ -15,6 +15,20 @@ const C = {
 
 export default function SettingsScreen() {
   const router = useRouter();
+
+  useEffect(() => {
+  (async () => {
+    try {
+      const sb = getSupabase();
+      const { data } = await sb.auth.getSession();
+      console.log('ACCESS TOKEN:', data.session?.access_token);
+      console.log('USER ID:', data.session?.user?.id);
+    } catch (e) {
+      console.warn('token log failed', e);
+    }
+  })();
+}, []);
+
 
   async function logout() {
     try {

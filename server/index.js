@@ -1,26 +1,35 @@
 // server/index.js
 // ── ENV (берём именно server/.env)
-import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.join(__dirname, '.env') });
-
 import ffmpegPath from '@ffmpeg-installer/ffmpeg';
 import cors from 'cors';
 import crypto from 'crypto';
+import dotenv from 'dotenv';
 import express from 'express';
 import ffmpeg from 'fluent-ffmpeg';
 import multer from 'multer';
+import path from 'path';
 import tzLookup from 'tz-lookup';
+import { fileURLToPath } from 'url';
+import { optionalAuth, requireAuth } from './auth.js';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '.env') });
+
+console.log('[env check]', {
+  SUPABASE_URL: process.env.SUPABASE_URL ? 'present' : 'MISSING',
+  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'present' : 'MISSING',
+});
 
 // DB
-import { getProfile, initDb, pool, saveChartSvg, upsertProfile } from './db.js';
+import { attachSupabaseUidToDeviceProfile, getProfile, getProfileBySupabaseUid, initDb, pool, saveChartSvg, upsertProfileWithIds } from './db.js';
 
 
 
 // ── Create app FIRST (so routes can be registered even if DB init fails)
 const app = express();
+
+app.get('/auth/probe', requireAuth, (req, res) => {
+  res.json({ ok: true, user: req.user });
+});
 // CORS headers on every response
 app.use(cors({ origin: true }));
 
@@ -264,13 +273,14 @@ app.post('/speech', upload.single('audio'), async (req, res) => {
 });
 
 /* ============================= PROFILES ============================= */
-app.post('/profiles/sync', async (req, res) => {
+app.post('/profiles/sync', optionalAuth, async (req, res) => {
   try {
     console.log('[sync] получен запрос:', req.body);
     const { deviceId, me = null, other = null } = req.body || {};
     if (!deviceId) return res.status(400).json({ error: 'deviceId is required' });
 
-    const row = await upsertProfile(deviceId, me, other);
+    const supabaseUid = req.user?.id || null;
+    const row = await upsertProfileWithIds({ deviceId, supabaseUid, me, other });
     console.log('[sync] профиль сохранён, запускаю построение карты для', deviceId);
 
     buildNatalChartIfPossible(row)
@@ -306,14 +316,36 @@ app.get('/profiles/:deviceId/chart', async (req, res) => {
 });
 
 /* ============================= AI → n8n ============================= */
-app.post('/ai/query', async (req, res) => {
+app.post('/ai/query', optionalAuth, async (req, res) => {
   try {
     const { deviceId, question } = req.body || {};
-    if (!deviceId || !question?.trim()) {
-      return res.status(400).json({ error: 'deviceId and question are required' });
+    const supabaseUid = req.user?.id || null;
+
+    console.log('[ai/query] ids', { supabaseUid, deviceId });
+
+    if (!question?.trim()) {
+      return res.status(400).json({ error: 'question is required' });
     }
 
-    const row = await getProfile(deviceId);
+    let row = null;
+
+    if (supabaseUid) {
+      row = await getProfileBySupabaseUid(supabaseUid);
+
+      if (!row && deviceId) {
+        const guest = await getProfile(deviceId);
+        if (guest) {
+          await attachSupabaseUidToDeviceProfile(deviceId, supabaseUid);
+          row = await getProfileBySupabaseUid(supabaseUid);
+        }
+      }
+    }
+
+    if (!row) {
+      if (!deviceId) return res.status(400).json({ error: 'deviceId is required for guests' });
+      row = await getProfile(deviceId);
+    }
+
     if (!row?.me) return res.status(404).json({ error: 'profile not found' });
 
     if (!N8N_CHAT_URL) {
@@ -323,10 +355,12 @@ app.post('/ai/query', async (req, res) => {
 
     const payload = {
       question,
-      deviceId,
+      deviceId: deviceId || row.device_id || null,
+      supabase_uid: supabaseUid,
       profile: { me: row.me, other: row.other },
       chart: { svg: row.chart_svg || null, data: row.chart_data || null },
     };
+
     const ts = Date.now().toString();
     const r = await fetch(N8N_CHAT_URL, {
       method: 'POST',
@@ -341,12 +375,15 @@ app.post('/ai/query', async (req, res) => {
     const ct = r.headers.get('content-type') || '';
     const data = ct.includes('application/json') ? await r.json() : { reply: await r.text() };
     if (!r.ok) return res.status(r.status).json({ error: data });
+
     return res.json({ reply: data.reply ?? data.text ?? 'Ок.' });
   } catch (e) {
     console.error('ai query error', e);
     return res.status(500).json({ error: 'ai query failed' });
   }
 });
+
+
 
 /* ============================= BUILD CHART ============================= */
 async function buildNatalChartIfPossible(row) {

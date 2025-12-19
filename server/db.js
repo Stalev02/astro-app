@@ -87,6 +87,12 @@ export async function initDb() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `;
     await conn.query(createSql);
+    try {
+  await conn.query(`ALTER TABLE profiles ADD COLUMN supabase_uid CHAR(36) NULL`);
+} catch {}
+try {
+  await conn.query(`CREATE UNIQUE INDEX uq_supabase_uid ON profiles(supabase_uid)`);
+} catch {}
   } finally {
     conn.release();
   }
@@ -105,6 +111,7 @@ export async function getProfile(deviceId) {
   const [rows] = await pool.query(
     `SELECT
        device_id,
+       supabase_uid,
        me,
        other,
        chart_svg,
@@ -155,6 +162,81 @@ export async function upsertProfile(deviceId, me, other) {
   }
   return await getProfile(deviceId);
 }
+
+export async function getProfileBySupabaseUid(supabaseUid) {
+  const [rows] = await pool.query(
+    `SELECT
+       device_id,
+       supabase_uid,
+       me,
+       other,
+       chart_svg,
+       chart_data,
+       UNIX_TIMESTAMP(updated_at)*1000 AS updatedAt
+     FROM profiles
+     WHERE supabase_uid = ?
+     LIMIT 1`,
+    [supabaseUid]
+  );
+
+  const row = rows?.[0];
+  if (!row) return null;
+
+  return {
+    device_id: row.device_id,
+    supabase_uid: row.supabase_uid ?? null,
+    me: typeof row.me === 'string' ? fromDb(row.me) : row.me,
+    other: typeof row.other === 'string' ? fromDb(row.other) : row.other,
+    chart_svg: row.chart_svg ?? null,
+    chart_data: typeof row.chart_data === 'string' ? fromDb(row.chart_data) : row.chart_data ?? null,
+    updatedAt: Number(row.updatedAt) || Date.now(),
+  };
+}
+
+export async function attachSupabaseUidToDeviceProfile(deviceId, supabaseUid) {
+  // Only attach if the row is still a guest row
+  await pool.query(
+    `UPDATE profiles
+     SET supabase_uid = ?
+     WHERE device_id = ?
+       AND (supabase_uid IS NULL OR supabase_uid = '')`,
+    [supabaseUid, deviceId]
+  );
+}
+
+export async function upsertProfileWithIds({ deviceId, supabaseUid, me, other }) {
+  // This keeps old behavior but also stores supabase_uid if provided.
+  if (useJsonColumns) {
+    await pool.query(
+      `
+      INSERT INTO profiles (device_id, supabase_uid, me, other)
+      VALUES (?, ?, CAST(? AS JSON), CAST(? AS JSON))
+      ON DUPLICATE KEY UPDATE
+        supabase_uid = COALESCE(VALUES(supabase_uid), supabase_uid),
+        me = VALUES(me),
+        other = VALUES(other)
+      `,
+      [deviceId, supabaseUid ?? null, toDb(me), toDb(other)]
+    );
+  } else {
+    await pool.query(
+      `
+      INSERT INTO profiles (device_id, supabase_uid, me, other)
+      VALUES (?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        supabase_uid = COALESCE(VALUES(supabase_uid), supabase_uid),
+        me = VALUES(me),
+        other = VALUES(other)
+      `,
+      [deviceId, supabaseUid ?? null, toDb(me), toDb(other)]
+    );
+  }
+
+  // Prefer returning by supabase uid if we have it
+  if (supabaseUid) return await getProfileBySupabaseUid(supabaseUid);
+  return await getProfile(deviceId);
+}
+
 
 // ===== Сохраняем SVG и метаданные карты =====
 export async function saveChartSvg(deviceId, svg, meta = null) {
