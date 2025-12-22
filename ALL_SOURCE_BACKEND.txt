@@ -721,41 +721,72 @@ await pool.end();
 
 
 --- FILE: server/auth.js ---
---- LINES: 29 ---
---- SHA256: 85bf7bb624138576cb8e6fb4f1982a5a81fc0880ed1c30808d76401547b157e5 ---
+--- LINES: 60 ---
+--- SHA256: 5eb82768b8b02b97f7951e44de5fb22ab529991892f7e5b15980d7751a125016 ---
 // server/auth.js
 import { createClient } from '@supabase/supabase-js';
 
-const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
+let admin = null;
 
-// ВАЖНО: это админ-клиент ТОЛЬКО для сервера (service role key — секрет).
-// Никогда не добавляй этот ключ во фронтенд.
-const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+function getAdmin() {
+  if (admin) return admin;
+
+  const url = process.env.SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !serviceKey) {
+    console.warn('[auth] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY. Auth disabled.');
+    return null;
+  }
+
+  admin = createClient(url, serviceKey);
+  console.log('[auth] Supabase admin client initialized');
+  return admin;
+}
 
 export async function requireAuth(req, res, next) {
   try {
+    const sb = getAdmin();
+    if (!sb) return res.status(500).json({ error: 'Auth not configured on server' });
+
     const auth = req.headers.authorization || '';
     const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
     if (!token) return res.status(401).json({ error: 'Missing Bearer token' });
 
-    const { data, error } = await admin.auth.getUser(token);
+    const { data, error } = await sb.auth.getUser(token);
     if (error || !data?.user) return res.status(401).json({ error: 'Invalid token' });
 
-    req.user = {
-      id: data.user.id,
-      email: data.user.email || null,
-    };
-    next();
+    req.user = { id: data.user.id, email: data.user.email || null };
+    return next();
   } catch (e) {
     console.error('[auth] verify failed:', e?.message || e);
     return res.status(401).json({ error: 'Auth failed' });
   }
 }
 
+export async function optionalAuth(req, _res, next) {
+  try {
+    const sb = getAdmin();
+    if (!sb) return next();
+
+    const auth = req.headers.authorization || '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+    if (!token) return next();
+
+    const { data, error } = await sb.auth.getUser(token);
+    if (!error && data?.user) {
+      req.user = { id: data.user.id, email: data.user.email || null };
+    }
+    return next();
+  } catch {
+    return next();
+  }
+}
+
 
 --- FILE: server/db.js ---
---- LINES: 197 ---
---- SHA256: 53956ac5dc16ac1ccbeb1c4c6f9bbb348a1e4d2271f888eec680bd2b4c9d511d ---
+--- LINES: 279 ---
+--- SHA256: 192115b46a465de992db48e673c0a36e9c24db9500867536dff294fd4d23be53 ---
 // server/db.js
 import fs from 'fs';
 import mysql from 'mysql2/promise';
@@ -845,6 +876,12 @@ export async function initDb() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `;
     await conn.query(createSql);
+    try {
+  await conn.query(`ALTER TABLE profiles ADD COLUMN supabase_uid CHAR(36) NULL`);
+} catch {}
+try {
+  await conn.query(`CREATE UNIQUE INDEX uq_supabase_uid ON profiles(supabase_uid)`);
+} catch {}
   } finally {
     conn.release();
   }
@@ -863,6 +900,7 @@ export async function getProfile(deviceId) {
   const [rows] = await pool.query(
     `SELECT
        device_id,
+       supabase_uid,
        me,
        other,
        chart_svg,
@@ -914,6 +952,81 @@ export async function upsertProfile(deviceId, me, other) {
   return await getProfile(deviceId);
 }
 
+export async function getProfileBySupabaseUid(supabaseUid) {
+  const [rows] = await pool.query(
+    `SELECT
+       device_id,
+       supabase_uid,
+       me,
+       other,
+       chart_svg,
+       chart_data,
+       UNIX_TIMESTAMP(updated_at)*1000 AS updatedAt
+     FROM profiles
+     WHERE supabase_uid = ?
+     LIMIT 1`,
+    [supabaseUid]
+  );
+
+  const row = rows?.[0];
+  if (!row) return null;
+
+  return {
+    device_id: row.device_id,
+    supabase_uid: row.supabase_uid ?? null,
+    me: typeof row.me === 'string' ? fromDb(row.me) : row.me,
+    other: typeof row.other === 'string' ? fromDb(row.other) : row.other,
+    chart_svg: row.chart_svg ?? null,
+    chart_data: typeof row.chart_data === 'string' ? fromDb(row.chart_data) : row.chart_data ?? null,
+    updatedAt: Number(row.updatedAt) || Date.now(),
+  };
+}
+
+export async function attachSupabaseUidToDeviceProfile(deviceId, supabaseUid) {
+  // Only attach if the row is still a guest row
+  await pool.query(
+    `UPDATE profiles
+     SET supabase_uid = ?
+     WHERE device_id = ?
+       AND (supabase_uid IS NULL OR supabase_uid = '')`,
+    [supabaseUid, deviceId]
+  );
+}
+
+export async function upsertProfileWithIds({ deviceId, supabaseUid, me, other }) {
+  // This keeps old behavior but also stores supabase_uid if provided.
+  if (useJsonColumns) {
+    await pool.query(
+      `
+      INSERT INTO profiles (device_id, supabase_uid, me, other)
+      VALUES (?, ?, CAST(? AS JSON), CAST(? AS JSON))
+      ON DUPLICATE KEY UPDATE
+        supabase_uid = COALESCE(VALUES(supabase_uid), supabase_uid),
+        me = VALUES(me),
+        other = VALUES(other)
+      `,
+      [deviceId, supabaseUid ?? null, toDb(me), toDb(other)]
+    );
+  } else {
+    await pool.query(
+      `
+      INSERT INTO profiles (device_id, supabase_uid, me, other)
+      VALUES (?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        supabase_uid = COALESCE(VALUES(supabase_uid), supabase_uid),
+        me = VALUES(me),
+        other = VALUES(other)
+      `,
+      [deviceId, supabaseUid ?? null, toDb(me), toDb(other)]
+    );
+  }
+
+  // Prefer returning by supabase uid if we have it
+  if (supabaseUid) return await getProfileBySupabaseUid(supabaseUid);
+  return await getProfile(deviceId);
+}
+
+
 // ===== Сохраняем SVG и метаданные карты =====
 export async function saveChartSvg(deviceId, svg, meta = null) {
   const chartData = meta ? JSON.stringify(meta) : null;
@@ -955,31 +1068,40 @@ export async function saveChartSvg(deviceId, svg, meta = null) {
 
 
 --- FILE: server/index.js ---
---- LINES: 548 ---
---- SHA256: 725aa2113d005224861cb86567d38143a1c78bb69d2a54e4a218d8d274d50d6a ---
+--- LINES: 585 ---
+--- SHA256: 46363d5abb6327831b2a31425c9f66c5c88aa3725e1e541f33bb0fb18bc4527a ---
 // server/index.js
 // ── ENV (берём именно server/.env)
-import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.join(__dirname, '.env') });
-
 import ffmpegPath from '@ffmpeg-installer/ffmpeg';
 import cors from 'cors';
 import crypto from 'crypto';
+import dotenv from 'dotenv';
 import express from 'express';
 import ffmpeg from 'fluent-ffmpeg';
 import multer from 'multer';
+import path from 'path';
 import tzLookup from 'tz-lookup';
+import { fileURLToPath } from 'url';
+import { optionalAuth, requireAuth } from './auth.js';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '.env') });
+
+console.log('[env check]', {
+  SUPABASE_URL: process.env.SUPABASE_URL ? 'present' : 'MISSING',
+  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'present' : 'MISSING',
+});
 
 // DB
-import { getProfile, initDb, pool, saveChartSvg, upsertProfile } from './db.js';
+import { attachSupabaseUidToDeviceProfile, getProfile, getProfileBySupabaseUid, initDb, pool, saveChartSvg, upsertProfileWithIds } from './db.js';
 
 
 
 // ── Create app FIRST (so routes can be registered even if DB init fails)
 const app = express();
+
+app.get('/auth/probe', requireAuth, (req, res) => {
+  res.json({ ok: true, user: req.user });
+});
 // CORS headers on every response
 app.use(cors({ origin: true }));
 
@@ -1223,13 +1345,14 @@ app.post('/speech', upload.single('audio'), async (req, res) => {
 });
 
 /* ============================= PROFILES ============================= */
-app.post('/profiles/sync', async (req, res) => {
+app.post('/profiles/sync', optionalAuth, async (req, res) => {
   try {
     console.log('[sync] получен запрос:', req.body);
     const { deviceId, me = null, other = null } = req.body || {};
     if (!deviceId) return res.status(400).json({ error: 'deviceId is required' });
 
-    const row = await upsertProfile(deviceId, me, other);
+    const supabaseUid = req.user?.id || null;
+    const row = await upsertProfileWithIds({ deviceId, supabaseUid, me, other });
     console.log('[sync] профиль сохранён, запускаю построение карты для', deviceId);
 
     buildNatalChartIfPossible(row)
@@ -1265,14 +1388,36 @@ app.get('/profiles/:deviceId/chart', async (req, res) => {
 });
 
 /* ============================= AI → n8n ============================= */
-app.post('/ai/query', async (req, res) => {
+app.post('/ai/query', optionalAuth, async (req, res) => {
   try {
     const { deviceId, question } = req.body || {};
-    if (!deviceId || !question?.trim()) {
-      return res.status(400).json({ error: 'deviceId and question are required' });
+    const supabaseUid = req.user?.id || null;
+
+    console.log('[ai/query] ids', { supabaseUid, deviceId });
+
+    if (!question?.trim()) {
+      return res.status(400).json({ error: 'question is required' });
     }
 
-    const row = await getProfile(deviceId);
+    let row = null;
+
+    if (supabaseUid) {
+      row = await getProfileBySupabaseUid(supabaseUid);
+
+      if (!row && deviceId) {
+        const guest = await getProfile(deviceId);
+        if (guest) {
+          await attachSupabaseUidToDeviceProfile(deviceId, supabaseUid);
+          row = await getProfileBySupabaseUid(supabaseUid);
+        }
+      }
+    }
+
+    if (!row) {
+      if (!deviceId) return res.status(400).json({ error: 'deviceId is required for guests' });
+      row = await getProfile(deviceId);
+    }
+
     if (!row?.me) return res.status(404).json({ error: 'profile not found' });
 
     if (!N8N_CHAT_URL) {
@@ -1282,10 +1427,12 @@ app.post('/ai/query', async (req, res) => {
 
     const payload = {
       question,
-      deviceId,
+      deviceId: deviceId || row.device_id || null,
+      supabase_uid: supabaseUid,
       profile: { me: row.me, other: row.other },
       chart: { svg: row.chart_svg || null, data: row.chart_data || null },
     };
+
     const ts = Date.now().toString();
     const r = await fetch(N8N_CHAT_URL, {
       method: 'POST',
@@ -1300,12 +1447,15 @@ app.post('/ai/query', async (req, res) => {
     const ct = r.headers.get('content-type') || '';
     const data = ct.includes('application/json') ? await r.json() : { reply: await r.text() };
     if (!r.ok) return res.status(r.status).json({ error: data });
+
     return res.json({ reply: data.reply ?? data.text ?? 'Ок.' });
   } catch (e) {
     console.error('ai query error', e);
     return res.status(500).json({ error: 'ai query failed' });
   }
 });
+
+
 
 /* ============================= BUILD CHART ============================= */
 async function buildNatalChartIfPossible(row) {

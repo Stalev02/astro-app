@@ -1,4 +1,5 @@
 // app/(tabs)/astro-chat.tsx
+import { getSupabase } from '@/src/lib/supabase';
 import { ENDPOINTS } from '@/src/shared/config/api';
 import { useProfiles } from '@/src/store/profiles';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,16 +9,16 @@ import { useRouter } from 'expo-router';
 import * as Speech from 'expo-speech';
 import React, { useMemo, useRef, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 
 /* ==================== Types ==================== */
@@ -99,6 +100,7 @@ export default function AstroChatScreen() {
   }
 
   const [isBusy, setIsBusy] = useState(false);
+  
   const sendText = async (textIn: string) => {
     const text = textIn.trim();
     if (!text || isBusy) return;
@@ -113,15 +115,26 @@ export default function AstroChatScreen() {
 
     try {
       setIsBusy(true);
-      const r = await fetch(ENDPOINTS.aiQuery, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceId, question: text }),
-      });
-      if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text().catch(() => '')}`);
-      const ct = r.headers.get('content-type') || '';
-      const data = ct.includes('application/json') ? await r.json() : { reply: await r.text() };
-      const botText = data?.reply ?? 'Ок.';
+
+const sb = getSupabase();
+const { data: sessionData } = await sb.auth.getSession();
+const token = sessionData.session?.access_token;
+
+const r = await fetch(ENDPOINTS.aiQuery, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  },
+  body: JSON.stringify({ deviceId, question: text }),
+});
+
+if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text().catch(() => '')}`);
+
+const ct = r.headers.get('content-type') || '';
+const data = ct.includes('application/json') ? await r.json() : { reply: await r.text() };
+const botText = data?.reply ?? 'Ок.';
+
       setMessages((prev) =>
         prev.map((m) => (m.id === user.id + ':wait' ? { ...m, text: String(botText) } : m))
       );
@@ -204,11 +217,19 @@ export default function AstroChatScreen() {
       ]);
       scrollToEnd();
 
-      const r = await fetch(ENDPOINTS.aiQuery, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceId, question: text }),
-      });
+      const sb = getSupabase();
+const { data: sessionData } = await sb.auth.getSession();
+const token = sessionData.session?.access_token;
+
+const r = await fetch(ENDPOINTS.aiQuery, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  },
+  body: JSON.stringify({ deviceId, question: text }),
+});
+
       if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text().catch(() => '')}`);
       const ct = r.headers.get('content-type') || '';
       const data = ct.includes('application/json') ? await r.json() : { reply: await r.text() };
