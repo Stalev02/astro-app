@@ -1068,8 +1068,8 @@ export async function saveChartSvg(deviceId, svg, meta = null) {
 
 
 --- FILE: server/index.js ---
---- LINES: 585 ---
---- SHA256: 46363d5abb6327831b2a31425c9f66c5c88aa3725e1e541f33bb0fb18bc4527a ---
+--- LINES: 593 ---
+--- SHA256: 78bb7e517eb80ea4eb8e3ed7f73b9f08280e1a178f64e5fa26bad53c5082ad17 ---
 // server/index.js
 // ── ENV (берём именно server/.env)
 import ffmpegPath from '@ffmpeg-installer/ffmpeg';
@@ -1084,7 +1084,12 @@ import tzLookup from 'tz-lookup';
 import { fileURLToPath } from 'url';
 import { optionalAuth, requireAuth } from './auth.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.join(__dirname, '.env') });
+
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config({ path: path.join(__dirname, '.env') });
+} else {
+  dotenv.config(); // optional; harmless if no .env file
+}
 
 console.log('[env check]', {
   SUPABASE_URL: process.env.SUPABASE_URL ? 'present' : 'MISSING',
@@ -1651,10 +1656,13 @@ async function buildNatalChartIfPossible(row) {
 }
 
 /* ============================= START ============================= */
-app.listen(Number(PORT), '0.0.0.0', () => {
-  console.log(`Backend running at http://localhost:${PORT}`);
-});
+console.log('[startup] process.env.PORT =', process.env.PORT);
 
+const PORT_NUM = Number(process.env.PORT || PORT || 3000);
+
+app.listen(PORT_NUM, '0.0.0.0', () => {
+  console.log(`Backend running on port ${PORT_NUM}`);
+});
 
 --- FILE: tree.js ---
 --- LINES: 30 ---

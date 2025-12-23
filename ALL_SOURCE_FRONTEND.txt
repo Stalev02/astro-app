@@ -1059,7 +1059,7 @@ const styles = StyleSheet.create({
 
 --- FILE: app/(tabs)/settings.tsx ---
 --- LINES: 114 ---
---- SHA256: b412e1751e8edc6860f0e98a9de0334f57b04cfcdd805b3e8bcea8e94ed200f2 ---
+--- SHA256: 56b7d6ea5fa2356b0990ef52d2e462152fdfe17a61981909c9e62ac72be22c20 ---
 // app/(tabs)/settings.tsx
 import { getSupabase } from '@/src/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
@@ -1077,7 +1077,7 @@ const C = {
 
 export default function SettingsScreen() {
   const router = useRouter();
-
+//delete that later
   useEffect(() => {
   (async () => {
     try {

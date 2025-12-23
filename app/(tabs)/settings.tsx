@@ -15,7 +15,7 @@ const C = {
 
 export default function SettingsScreen() {
   const router = useRouter();
-
+//delete that later
   useEffect(() => {
   (async () => {
     try {
