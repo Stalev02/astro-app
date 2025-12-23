@@ -21,6 +21,8 @@ import {
   View,
 } from 'react-native';
 
+console.log("API_BASE", ENDPOINTS.health);
+
 /* ==================== Types ==================== */
 type Msg = { id: string; role: 'user' | 'bot'; text: string; ts: number };
 
