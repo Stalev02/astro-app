@@ -3,15 +3,7 @@ import { getSupabase } from '@/src/lib/supabase';
 import { makeRedirectUri } from 'expo-auth-session';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  Pressable,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 const C = {
   bg: '#0b0b0c',
@@ -28,11 +20,7 @@ export default function Register() {
 
   // ВАЖНО: добавь этот redirectUri в Supabase → Auth → Redirect URLs
   const redirectUri = useMemo(
-    () =>
-      makeRedirectUri({
-        scheme: 'cosmotell',
-        path: 'auth',
-      }),
+    () => makeRedirectUri({ scheme: 'cosmotell', path: 'auth' }),
     []
   );
 
@@ -44,62 +32,50 @@ export default function Register() {
   // Если пользователь вернулся из OAuth и сессия уже есть — идём на онбординг
   useEffect(() => {
     let unsub: (() => void) | undefined;
-    try {
-      const sb = getSupabase();
-      const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
-        if (session?.user) {
-          router.replace('/onboarding');
-        }
-      });
-      unsub = () => sub.subscription.unsubscribe();
-    } catch {
-      // Supabase не сконфигурирован — пропускаем
-    }
+
+    (async () => {
+      try {
+        const sb = await getSupabase();
+        const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
+          if (session?.user) {
+            router.replace('/onboarding');
+          }
+        });
+        unsub = () => sub.subscription.unsubscribe();
+      } catch {
+        // Supabase не сконфигурирован — пропускаем
+      }
+    })();
+
     return () => unsub?.();
   }, [router]);
 
   async function signUpEmail() {
     try {
-      const sb = getSupabase();
       const em = email.trim().toLowerCase();
-      if (!em || !password) {
-        return Alert.alert('Регистрация', 'Заполни email и пароль');
-      }
-      if (password.length < 6) {
-        return Alert.alert('Пароль', 'Минимум 6 символов');
-      }
-      if (password !== confirm) {
-        return Alert.alert('Пароль', 'Пароли не совпадают');
-      }
+      if (!em || !password) return Alert.alert('Регистрация', 'Заполни email и пароль');
+      if (password.length < 6) return Alert.alert('Пароль', 'Минимум 6 символов');
+      if (password !== confirm) return Alert.alert('Пароль', 'Пароли не совпадают');
 
       setLoading(true);
+
+      const sb = await getSupabase();
 
       // 1) создаём аккаунт
       const { error: e1 } = await sb.auth.signUp({ email: em, password });
       if (e1) throw e1;
 
       // 2) пробуем сразу войти (если email confirmation ОТКЛЮЧЕН)
-      const { error: e2 } = await sb.auth.signInWithPassword({
-        email: em,
-        password,
-      });
+      const { error: e2 } = await sb.auth.signInWithPassword({ email: em, password });
       if (!e2) {
-        // вошли успешно → сразу на онбординг
         router.replace('/onboarding');
         return;
       }
 
-      // если требуется подтверждение почты — просим подтвердить и возвращаемся
-      Alert.alert(
-        'Подтверди почту',
-        'Мы отправили письмо. После подтверждения войди в приложении.'
-      );
+      Alert.alert('Подтверди почту', 'Мы отправили письмо. После подтверждения войди в приложении.');
       router.back();
     } catch (e: any) {
-      Alert.alert(
-        'Ошибка регистрации',
-        e?.message || 'Не удалось создать аккаунт'
-      );
+      Alert.alert('Ошибка регистрации', e?.message || 'Не удалось создать аккаунт');
     } finally {
       setLoading(false);
     }
@@ -107,8 +83,8 @@ export default function Register() {
 
   async function signUpWith(provider: 'google' | 'apple') {
     try {
-      const sb = getSupabase();
       setLoading(true);
+      const sb = await getSupabase();
       const { error } = await sb.auth.signInWithOAuth({
         provider,
         options: { redirectTo: redirectUri },
@@ -149,11 +125,7 @@ export default function Register() {
             autoCapitalize="none"
             autoCorrect={false}
             spellCheck={false}
-            // iOS: корректная роль поля "новый пароль" без навязчивой плашки
             textContentType="newPassword"
-            // Если у какого-то устройства всё ещё всплывает «Automatic Strong Password» и мешает вводу,
-            // раскомментируй следующую строку — она полностью отключает подсказку (iOS-хак):
-            // textContentType="oneTimeCode"
             placeholder="••••••••"
             placeholderTextColor="#8b8e97"
             style={s.input}
@@ -170,19 +142,13 @@ export default function Register() {
             autoCorrect={false}
             spellCheck={false}
             textContentType="newPassword"
-            // Альтернатива для проблемных устройств (см. комментарий выше):
-            // textContentType="oneTimeCode"
             placeholder="••••••••"
             placeholderTextColor="#8b8e97"
             style={s.input}
           />
         </View>
 
-        <Pressable
-          onPress={signUpEmail}
-          disabled={loading}
-          style={[s.btn, s.primary]}
-        >
+        <Pressable onPress={signUpEmail} disabled={loading} style={[s.btn, s.primary]}>
           <Text style={[s.btnTxt, { color: '#fff' }]}>
             {loading ? 'Создаём…' : 'Зарегистрироваться'}
           </Text>
@@ -205,14 +171,8 @@ export default function Register() {
           </Pressable>
         </View>
 
-        <Pressable
-          onPress={() => router.back()}
-          disabled={loading}
-          style={[s.link]}
-        >
-          <Text style={[s.btnTxt, { color: C.dim }]}>
-            Уже есть аккаунт? Войти
-          </Text>
+        <Pressable onPress={() => router.back()} disabled={loading} style={[s.link]}>
+          <Text style={[s.btnTxt, { color: C.dim }]}>Уже есть аккаунт? Войти</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -242,10 +202,6 @@ const s = StyleSheet.create({
   },
   primary: { backgroundColor: C.primary },
   btnTxt: { color: C.text, fontWeight: '700' },
-  outline: {
-    borderWidth: 1,
-    borderColor: C.primary,
-    backgroundColor: 'transparent',
-  },
+  outline: { borderWidth: 1, borderColor: C.primary, backgroundColor: 'transparent' },
   link: { marginTop: 10, alignItems: 'center' },
 });

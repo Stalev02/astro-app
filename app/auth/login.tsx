@@ -29,28 +29,35 @@ export default function Login() {
   // After OAuth returns (or any auth state change), bounce to the gate.
   useEffect(() => {
     let unsub: (() => void) | undefined;
-    try {
-      const sb = getSupabase();
-      const { data: sub } = sb.auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
-          router.replace('/'); // let / (index gate) decide destination
-        }
-      });
-      unsub = () => sub.subscription.unsubscribe();
-    } catch {
-      // Supabase not configured — ignore.
-    }
+
+    (async () => {
+      try {
+        const sb = await getSupabase();
+        const { data: sub } = sb.auth.onAuthStateChange((event, session) => {
+          if (event === 'SIGNED_IN' && session?.user) {
+            router.replace('/'); // let / (index gate) decide destination
+          }
+        });
+        unsub = () => sub.subscription.unsubscribe();
+      } catch {
+        // Supabase not configured — ignore.
+      }
+    })();
+
     return () => unsub?.();
   }, [router]);
 
   async function signInEmail() {
     try {
-      const sb = getSupabase();
       const em = email.trim().toLowerCase();
       if (!em || !password) return Alert.alert('Вход', 'Заполни email и пароль');
+
       setLoading(true);
+
+      const sb = await getSupabase();
       const { error } = await sb.auth.signInWithPassword({ email: em, password });
       if (error) throw error;
+
       // Do not navigate to tabs here — just return to the gate.
       router.replace('/');
     } catch (e: any) {
@@ -62,8 +69,9 @@ export default function Login() {
 
   async function signInWith(provider: 'google' | 'apple') {
     try {
-      const sb = getSupabase();
       setLoading(true);
+
+      const sb = await getSupabase();
       const { error } = await sb.auth.signInWithOAuth({
         provider,
         options: { redirectTo: redirectUri },
@@ -112,10 +120,18 @@ export default function Login() {
         </Pressable>
 
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-          <Pressable onPress={() => signInWith('google')} disabled={loading} style={[s.btn, s.outline, { flex: 1 }]}>
+          <Pressable
+            onPress={() => signInWith('google')}
+            disabled={loading}
+            style={[s.btn, s.outline, { flex: 1 }]}
+          >
             <Text style={s.btnTxt}>Google</Text>
           </Pressable>
-          <Pressable onPress={() => signInWith('apple')} disabled={loading} style={[s.btn, s.outline, { flex: 1 }]}>
+          <Pressable
+            onPress={() => signInWith('apple')}
+            disabled={loading}
+            style={[s.btn, s.outline, { flex: 1 }]}
+          >
             <Text style={s.btnTxt}>Apple</Text>
           </Pressable>
         </View>
