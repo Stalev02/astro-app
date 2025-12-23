@@ -584,6 +584,8 @@ async function buildNatalChartIfPossible(row) {
 }
 
 /* ============================= START ============================= */
+console.log('[startup] process.env.PORT =', process.env.PORT);
+
 const PORT_NUM = Number(process.env.PORT || PORT || 3000);
 
 app.listen(PORT_NUM, '0.0.0.0', () => {
