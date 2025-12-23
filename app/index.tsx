@@ -16,10 +16,11 @@ export default function Index() {
 
     (async () => {
       try {
-        const sb = getSupabase();
-        const {
-          data: { session },
-        } = await sb.auth.getSession();
+        const sb = await getSupabase();
+const {
+  data: { session },
+} = await sb.auth.getSession();
+
 
         if (!session) {
           // не залогинен

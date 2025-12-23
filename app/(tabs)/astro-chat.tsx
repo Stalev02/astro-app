@@ -118,9 +118,16 @@ export default function AstroChatScreen() {
     try {
       setIsBusy(true);
 
-const sb = getSupabase();
-const { data: sessionData } = await sb.auth.getSession();
-const token = sessionData.session?.access_token;
+let token: string | undefined;
+
+try {
+  const sb = await getSupabase();
+  const { data: sessionData } = await sb.auth.getSession();
+  token = sessionData.session?.access_token;
+} catch {
+  token = undefined;
+}
+
 
 const r = await fetch(ENDPOINTS.aiQuery, {
   method: 'POST',
@@ -219,9 +226,15 @@ const botText = data?.reply ?? 'Ок.';
       ]);
       scrollToEnd();
 
-      const sb = getSupabase();
-const { data: sessionData } = await sb.auth.getSession();
-const token = sessionData.session?.access_token;
+      let token: string | undefined;
+
+try {
+  const sb = await getSupabase();
+  const { data: sessionData } = await sb.auth.getSession();
+  token = sessionData.session?.access_token;
+} catch {
+  token = undefined;
+}
 
 const r = await fetch(ENDPOINTS.aiQuery, {
   method: 'POST',
@@ -231,6 +244,7 @@ const r = await fetch(ENDPOINTS.aiQuery, {
   },
   body: JSON.stringify({ deviceId, question: text }),
 });
+
 
       if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text().catch(() => '')}`);
       const ct = r.headers.get('content-type') || '';
