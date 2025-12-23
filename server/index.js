@@ -12,7 +12,12 @@ import tzLookup from 'tz-lookup';
 import { fileURLToPath } from 'url';
 import { optionalAuth, requireAuth } from './auth.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.join(__dirname, '.env') });
+
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config({ path: path.join(__dirname, '.env') });
+} else {
+  dotenv.config(); // optional; harmless if no .env file
+}
 
 console.log('[env check]', {
   SUPABASE_URL: process.env.SUPABASE_URL ? 'present' : 'MISSING',
@@ -579,6 +584,8 @@ async function buildNatalChartIfPossible(row) {
 }
 
 /* ============================= START ============================= */
-app.listen(Number(PORT), '0.0.0.0', () => {
-  console.log(`Backend running at http://localhost:${PORT}`);
+const PORT_NUM = Number(process.env.PORT || PORT || 3000);
+
+app.listen(PORT_NUM, '0.0.0.0', () => {
+  console.log(`Backend running on port ${PORT_NUM}`);
 });
