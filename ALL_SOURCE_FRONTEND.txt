@@ -283,8 +283,8 @@ export default function TabsLayout() {
 
 
 --- FILE: app/(tabs)/astro-chat.tsx ---
---- LINES: 525 ---
---- SHA256: 4b60afc7ae733a5459a74d35dcb0a67d46e2e4783296940f36e5f398bf676d52 ---
+--- LINES: 541 ---
+--- SHA256: 1e5e4fec439aa11ba822e90d8dd209df3a2cf3def0078ca59cfe60a91561f808 ---
 // app/(tabs)/astro-chat.tsx
 import { getSupabase } from '@/src/lib/supabase';
 import { ENDPOINTS } from '@/src/shared/config/api';
@@ -307,6 +307,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
+
+console.log("API_BASE", ENDPOINTS.health);
 
 /* ==================== Types ==================== */
 type Msg = { id: string; role: 'user' | 'bot'; text: string; ts: number };
@@ -403,9 +405,16 @@ export default function AstroChatScreen() {
     try {
       setIsBusy(true);
 
-const sb = getSupabase();
-const { data: sessionData } = await sb.auth.getSession();
-const token = sessionData.session?.access_token;
+let token: string | undefined;
+
+try {
+  const sb = await getSupabase();
+  const { data: sessionData } = await sb.auth.getSession();
+  token = sessionData.session?.access_token;
+} catch {
+  token = undefined;
+}
+
 
 const r = await fetch(ENDPOINTS.aiQuery, {
   method: 'POST',
@@ -504,9 +513,15 @@ const botText = data?.reply ?? 'Ок.';
       ]);
       scrollToEnd();
 
-      const sb = getSupabase();
-const { data: sessionData } = await sb.auth.getSession();
-const token = sessionData.session?.access_token;
+      let token: string | undefined;
+
+try {
+  const sb = await getSupabase();
+  const { data: sessionData } = await sb.auth.getSession();
+  token = sessionData.session?.access_token;
+} catch {
+  token = undefined;
+}
 
 const r = await fetch(ENDPOINTS.aiQuery, {
   method: 'POST',
@@ -516,6 +531,7 @@ const r = await fetch(ENDPOINTS.aiQuery, {
   },
   body: JSON.stringify({ deviceId, question: text }),
 });
+
 
       if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text().catch(() => '')}`);
       const ct = r.headers.get('content-type') || '';
@@ -1058,13 +1074,13 @@ const styles = StyleSheet.create({
 
 
 --- FILE: app/(tabs)/settings.tsx ---
---- LINES: 114 ---
---- SHA256: 56b7d6ea5fa2356b0990ef52d2e462152fdfe17a61981909c9e62ac72be22c20 ---
+--- LINES: 102 ---
+--- SHA256: 02d78b256507a094214fbbd79e743ed631c71c9f570e883073ef47218963a06e ---
 // app/(tabs)/settings.tsx
 import { getSupabase } from '@/src/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
 const C = {
@@ -1078,30 +1094,18 @@ const C = {
 export default function SettingsScreen() {
   const router = useRouter();
 //delete that later
-  useEffect(() => {
-  (async () => {
-    try {
-      const sb = getSupabase();
-      const { data } = await sb.auth.getSession();
-      console.log('ACCESS TOKEN:', data.session?.access_token);
-      console.log('USER ID:', data.session?.user?.id);
-    } catch (e) {
-      console.warn('token log failed', e);
-    }
-  })();
-}, []);
 
 
   async function logout() {
-    try {
-      const sb = getSupabase();
-      await sb.auth.signOut();
-    } catch (e: any) {
-      console.warn('[logout]', e?.message || e);
-    } finally {
-      router.replace('/');
-    }
+  try {
+    const sb = await getSupabase();
+    await sb.auth.signOut();
+  } catch (e: any) {
+    console.warn('[logout]', e?.message || e);
+  } finally {
+    router.replace('/');
   }
+}
 
   function openMyForm() {
     router.push({ pathname: '/modal', params: { mode: 'me' } });
@@ -1222,8 +1226,8 @@ export default function RootLayout() {
 
 
 --- FILE: app/auth/login.tsx ---
---- LINES: 157 ---
---- SHA256: be4765772d29e0189892dcc0cad28e63b0519c2bc0cb24d4dcc2a2dd97e17a6e ---
+--- LINES: 173 ---
+--- SHA256: 2c664a65669796a08e48ed68119bfdf2be0cf39b3c4e038159fec7538935d9dc ---
 // app/auth/login.tsx
 import { getSupabase } from '@/src/lib/supabase';
 import { makeRedirectUri } from 'expo-auth-session';
@@ -1255,28 +1259,35 @@ export default function Login() {
   // After OAuth returns (or any auth state change), bounce to the gate.
   useEffect(() => {
     let unsub: (() => void) | undefined;
-    try {
-      const sb = getSupabase();
-      const { data: sub } = sb.auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
-          router.replace('/'); // let / (index gate) decide destination
-        }
-      });
-      unsub = () => sub.subscription.unsubscribe();
-    } catch {
-      // Supabase not configured — ignore.
-    }
+
+    (async () => {
+      try {
+        const sb = await getSupabase();
+        const { data: sub } = sb.auth.onAuthStateChange((event, session) => {
+          if (event === 'SIGNED_IN' && session?.user) {
+            router.replace('/'); // let / (index gate) decide destination
+          }
+        });
+        unsub = () => sub.subscription.unsubscribe();
+      } catch {
+        // Supabase not configured — ignore.
+      }
+    })();
+
     return () => unsub?.();
   }, [router]);
 
   async function signInEmail() {
     try {
-      const sb = getSupabase();
       const em = email.trim().toLowerCase();
       if (!em || !password) return Alert.alert('Вход', 'Заполни email и пароль');
+
       setLoading(true);
+
+      const sb = await getSupabase();
       const { error } = await sb.auth.signInWithPassword({ email: em, password });
       if (error) throw error;
+
       // Do not navigate to tabs here — just return to the gate.
       router.replace('/');
     } catch (e: any) {
@@ -1288,8 +1299,9 @@ export default function Login() {
 
   async function signInWith(provider: 'google' | 'apple') {
     try {
-      const sb = getSupabase();
       setLoading(true);
+
+      const sb = await getSupabase();
       const { error } = await sb.auth.signInWithOAuth({
         provider,
         options: { redirectTo: redirectUri },
@@ -1338,10 +1350,18 @@ export default function Login() {
         </Pressable>
 
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-          <Pressable onPress={() => signInWith('google')} disabled={loading} style={[s.btn, s.outline, { flex: 1 }]}>
+          <Pressable
+            onPress={() => signInWith('google')}
+            disabled={loading}
+            style={[s.btn, s.outline, { flex: 1 }]}
+          >
             <Text style={s.btnTxt}>Google</Text>
           </Pressable>
-          <Pressable onPress={() => signInWith('apple')} disabled={loading} style={[s.btn, s.outline, { flex: 1 }]}>
+          <Pressable
+            onPress={() => signInWith('apple')}
+            disabled={loading}
+            style={[s.btn, s.outline, { flex: 1 }]}
+          >
             <Text style={s.btnTxt}>Apple</Text>
           </Pressable>
         </View>
@@ -1383,22 +1403,14 @@ const s = StyleSheet.create({
 
 
 --- FILE: app/auth/register.tsx ---
---- LINES: 252 ---
---- SHA256: 53af5bfc40788fb3c22da44efaf9088a97dd27063b55be4641c9a5e35de8d4a4 ---
+--- LINES: 208 ---
+--- SHA256: aafb624c6d865818d14afa744144321937cb8c7b7e5bc8079a0d1ed07d39c831 ---
 // app/auth/register.tsx
 import { getSupabase } from '@/src/lib/supabase';
 import { makeRedirectUri } from 'expo-auth-session';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  Pressable,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 const C = {
   bg: '#0b0b0c',
@@ -1415,11 +1427,7 @@ export default function Register() {
 
   // ВАЖНО: добавь этот redirectUri в Supabase → Auth → Redirect URLs
   const redirectUri = useMemo(
-    () =>
-      makeRedirectUri({
-        scheme: 'cosmotell',
-        path: 'auth',
-      }),
+    () => makeRedirectUri({ scheme: 'cosmotell', path: 'auth' }),
     []
   );
 
@@ -1431,62 +1439,50 @@ export default function Register() {
   // Если пользователь вернулся из OAuth и сессия уже есть — идём на онбординг
   useEffect(() => {
     let unsub: (() => void) | undefined;
-    try {
-      const sb = getSupabase();
-      const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
-        if (session?.user) {
-          router.replace('/onboarding');
-        }
-      });
-      unsub = () => sub.subscription.unsubscribe();
-    } catch {
-      // Supabase не сконфигурирован — пропускаем
-    }
+
+    (async () => {
+      try {
+        const sb = await getSupabase();
+        const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
+          if (session?.user) {
+            router.replace('/onboarding');
+          }
+        });
+        unsub = () => sub.subscription.unsubscribe();
+      } catch {
+        // Supabase не сконфигурирован — пропускаем
+      }
+    })();
+
     return () => unsub?.();
   }, [router]);
 
   async function signUpEmail() {
     try {
-      const sb = getSupabase();
       const em = email.trim().toLowerCase();
-      if (!em || !password) {
-        return Alert.alert('Регистрация', 'Заполни email и пароль');
-      }
-      if (password.length < 6) {
-        return Alert.alert('Пароль', 'Минимум 6 символов');
-      }
-      if (password !== confirm) {
-        return Alert.alert('Пароль', 'Пароли не совпадают');
-      }
+      if (!em || !password) return Alert.alert('Регистрация', 'Заполни email и пароль');
+      if (password.length < 6) return Alert.alert('Пароль', 'Минимум 6 символов');
+      if (password !== confirm) return Alert.alert('Пароль', 'Пароли не совпадают');
 
       setLoading(true);
+
+      const sb = await getSupabase();
 
       // 1) создаём аккаунт
       const { error: e1 } = await sb.auth.signUp({ email: em, password });
       if (e1) throw e1;
 
       // 2) пробуем сразу войти (если email confirmation ОТКЛЮЧЕН)
-      const { error: e2 } = await sb.auth.signInWithPassword({
-        email: em,
-        password,
-      });
+      const { error: e2 } = await sb.auth.signInWithPassword({ email: em, password });
       if (!e2) {
-        // вошли успешно → сразу на онбординг
         router.replace('/onboarding');
         return;
       }
 
-      // если требуется подтверждение почты — просим подтвердить и возвращаемся
-      Alert.alert(
-        'Подтверди почту',
-        'Мы отправили письмо. После подтверждения войди в приложении.'
-      );
+      Alert.alert('Подтверди почту', 'Мы отправили письмо. После подтверждения войди в приложении.');
       router.back();
     } catch (e: any) {
-      Alert.alert(
-        'Ошибка регистрации',
-        e?.message || 'Не удалось создать аккаунт'
-      );
+      Alert.alert('Ошибка регистрации', e?.message || 'Не удалось создать аккаунт');
     } finally {
       setLoading(false);
     }
@@ -1494,8 +1490,8 @@ export default function Register() {
 
   async function signUpWith(provider: 'google' | 'apple') {
     try {
-      const sb = getSupabase();
       setLoading(true);
+      const sb = await getSupabase();
       const { error } = await sb.auth.signInWithOAuth({
         provider,
         options: { redirectTo: redirectUri },
@@ -1536,11 +1532,7 @@ export default function Register() {
             autoCapitalize="none"
             autoCorrect={false}
             spellCheck={false}
-            // iOS: корректная роль поля "новый пароль" без навязчивой плашки
             textContentType="newPassword"
-            // Если у какого-то устройства всё ещё всплывает «Automatic Strong Password» и мешает вводу,
-            // раскомментируй следующую строку — она полностью отключает подсказку (iOS-хак):
-            // textContentType="oneTimeCode"
             placeholder="••••••••"
             placeholderTextColor="#8b8e97"
             style={s.input}
@@ -1557,19 +1549,13 @@ export default function Register() {
             autoCorrect={false}
             spellCheck={false}
             textContentType="newPassword"
-            // Альтернатива для проблемных устройств (см. комментарий выше):
-            // textContentType="oneTimeCode"
             placeholder="••••••••"
             placeholderTextColor="#8b8e97"
             style={s.input}
           />
         </View>
 
-        <Pressable
-          onPress={signUpEmail}
-          disabled={loading}
-          style={[s.btn, s.primary]}
-        >
+        <Pressable onPress={signUpEmail} disabled={loading} style={[s.btn, s.primary]}>
           <Text style={[s.btnTxt, { color: '#fff' }]}>
             {loading ? 'Создаём…' : 'Зарегистрироваться'}
           </Text>
@@ -1592,14 +1578,8 @@ export default function Register() {
           </Pressable>
         </View>
 
-        <Pressable
-          onPress={() => router.back()}
-          disabled={loading}
-          style={[s.link]}
-        >
-          <Text style={[s.btnTxt, { color: C.dim }]}>
-            Уже есть аккаунт? Войти
-          </Text>
+        <Pressable onPress={() => router.back()} disabled={loading} style={[s.link]}>
+          <Text style={[s.btnTxt, { color: C.dim }]}>Уже есть аккаунт? Войти</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -1629,18 +1609,14 @@ const s = StyleSheet.create({
   },
   primary: { backgroundColor: C.primary },
   btnTxt: { color: C.text, fontWeight: '700' },
-  outline: {
-    borderWidth: 1,
-    borderColor: C.primary,
-    backgroundColor: 'transparent',
-  },
+  outline: { borderWidth: 1, borderColor: C.primary, backgroundColor: 'transparent' },
   link: { marginTop: 10, alignItems: 'center' },
 });
 
 
 --- FILE: app/index.tsx ---
---- LINES: 63 ---
---- SHA256: 902d38dd74f5720ce6df3743d17017119e3a8c9ab8f22a07fce5f70526b0585a ---
+--- LINES: 64 ---
+--- SHA256: c0e475e3f85caca7f2814e4be5a4e0fcf19a71d5c1b75f956f1279b7e2a539c9 ---
 import { getSupabase } from '@/src/lib/supabase';
 import { useApp } from '@/src/store/app';
 import { Redirect, useRootNavigationState } from 'expo-router';
@@ -1659,10 +1635,11 @@ export default function Index() {
 
     (async () => {
       try {
-        const sb = getSupabase();
-        const {
-          data: { session },
-        } = await sb.auth.getSession();
+        const sb = await getSupabase();
+const {
+  data: { session },
+} = await sb.auth.getSession();
+
 
         if (!session) {
           // не залогинен
@@ -4272,15 +4249,14 @@ const s = StyleSheet.create({
 
 
 --- FILE: app/onboarding.tsx ---
---- LINES: 500 ---
---- SHA256: 8b66749ec87176b3493a2ef7b2b24c449723a9610d991b7305a6d579ee56523d ---
+--- LINES: 267 ---
+--- SHA256: a225e6f4d77f38e9aacd6eb76dc164c233454df1c37e51e8bb015eeb8ac4a27c ---
 // app/onboarding.tsx
 import { getSupabase } from '@/src/lib/supabase';
 import { useApp } from '@/src/store/app';
-import { makeRedirectUri } from 'expo-auth-session';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -4289,7 +4265,6 @@ import {
   StyleSheet,
   Switch,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 
@@ -4300,53 +4275,59 @@ const C = {
   text: '#e5e7eb',
   dim: '#c7c9d1',
   primary: '#4f46e5',
-  ok: '#22c55e',
-  warn: '#f59e0b',
-  err: '#ef4444',
 };
 
 export default function Onboarding() {
   const router = useRouter();
 
-  // Global app onboarding state
   const { tosAccepted, setTosAccepted, completeOnboarding } = useApp();
 
-  // Local wizard page index: 0..4
+  // pages: 0..3
   const [page, setPage] = useState(0);
-
-  // Local TOS switch mirrors global tosAccepted
   const [tos, setTos] = useState<boolean>(tosAccepted);
 
+  // Guard: onboarding requires an authenticated session
+  useEffect(() => {
+    (async () => {
+      try {
+        const sb = await getSupabase();
+        const { data } = await sb.auth.getSession();
+        if (!data.session) router.replace('/auth/login');
+      } catch {
+        router.replace('/auth/login');
+      }
+    })();
+  }, [router]);
+
   const goProfile = () => router.push('/onboarding-profile');
-  const goRect = () =>
-    router.push({ pathname: '/modal', params: { mode: 'rectification' } });
+  const goRect = () => router.push({ pathname: '/modal', params: { mode: 'rectification' } });
 
-  const next = () => {
-    setPage((p) => Math.min(4, p + 1));
-  };
-
-  const prev = () => {
-   setPage((p) => Math.max(0, p - 1));
-  };
+  const next = () => setPage((p) => Math.min(3, p + 1));
+  const prev = () => setPage((p) => Math.max(0, p - 1));
 
   const handleTosChange = (value: boolean) => {
     setTos(value);
-    setTosAccepted(value); // persist globally
+    setTosAccepted(value);
   };
 
-  const finish = () => {
-    // Safety: do not allow finishing onboarding without TOS
+  const finish = async () => {
     if (!tosAccepted) {
-      Alert.alert(
-        'Условия',
-        'Прежде чем начать пользоваться приложением, нужно согласиться с условиями.'
-      );
-      setPage(2);
+      Alert.alert('Условия', 'Прежде чем начать пользоваться приложением, нужно согласиться с условиями.');
+      setPage(1);
       return;
     }
 
-    // Mark onboarding as completed
+    // local flag
     completeOnboarding();
+
+    // account flag (used by app/index.tsx gate)
+    try {
+      const sb = await getSupabase();
+      await sb.auth.updateUser({ data: { onboarding_done: true } });
+    } catch (e: any) {
+      console.warn('[onboarding] updateUser failed', e?.message || e);
+    }
+
     router.replace('/(tabs)/astro-map');
   };
 
@@ -4354,14 +4335,12 @@ export default function Onboarding() {
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
       <View style={{ flex: 1, padding: 16 }}>
         <Progress step={page} />
-        <ScrollView
-          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', gap: 16 }}
-        >
+
+        <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', gap: 16 }}>
           {page === 0 && <ScreenUniverse onNext={next} />}
-          {page === 1 && <ScreenAuth onNext={next} />}
-          {page === 2 && <ScreenTOS tos={tos} setTos={handleTosChange} />}
-          {page === 3 && <ScreenProfile goProfile={goProfile} goRect={goRect} />}
-          {page === 4 && <ScreenFinal onStart={finish} />}
+          {page === 1 && <ScreenTOS tos={tos} setTos={handleTosChange} />}
+          {page === 2 && <ScreenProfile goProfile={goProfile} goRect={goRect} />}
+          {page === 3 && <ScreenFinal onStart={finish} />}
         </ScrollView>
 
         <View style={s.nav}>
@@ -4373,18 +4352,14 @@ export default function Onboarding() {
             <View />
           )}
 
-          {page < 4 ? (
+          {page < 3 ? (
             <Pressable
               onPress={next}
-              style={[
-                s.btn,
-                s.primary,
-                page === 2 && !tos && { opacity: 0.5 },
-              ]}
-              disabled={page === 2 && !tos}
+              style={[s.btn, s.primary, page === 1 && !tos && { opacity: 0.5 }]}
+              disabled={page === 1 && !tos}
             >
               <Text style={[s.btnText, { color: '#fff' }]}>
-                {page === 2 ? 'Согласен • Далее' : 'Далее'}
+                {page === 1 ? 'Согласен • Далее' : 'Далее'}
               </Text>
             </Pressable>
           ) : (
@@ -4412,33 +4387,15 @@ function ScreenUniverse({ onNext }: { onNext: () => void }) {
   );
 }
 
-function ScreenAuth({ onNext }: { onNext: () => void }) {
-  return (
-    <Card>
-      <Text style={s.h1}>Вход или регистрация</Text>
-      <LoginForm onSuccess={onNext} />
-    </Card>
-  );
-}
-
-function ScreenTOS({
-  tos,
-  setTos,
-}: {
-  tos: boolean;
-  setTos: (v: boolean) => void;
-}) {
+function ScreenTOS({ tos, setTos }: { tos: boolean; setTos: (v: boolean) => void }) {
   return (
     <Card>
       <Text style={s.h1}>Пользовательское соглашение</Text>
       <Text style={s.p}>
-        Используя приложение, ты даёшь согласие на обработку персональных данных
-        и понимаешь, что информация носит консультативный характер.
+        Используя приложение, ты даёшь согласие на обработку персональных данных и понимаешь, что информация носит
+        консультативный характер.
       </Text>
-      <Pressable
-        onPress={() => WebBrowser.openBrowserAsync('https://example.com/terms')}
-        style={[s.btn, s.outline]}
-      >
+      <Pressable onPress={() => WebBrowser.openBrowserAsync('https://example.com/terms')} style={[s.btn, s.outline]}>
         <Text style={s.btnText}>Открыть полную версию</Text>
       </Pressable>
       <View style={s.tosRow}>
@@ -4449,19 +4406,12 @@ function ScreenTOS({
   );
 }
 
-function ScreenProfile({
-  goProfile,
-  goRect,
-}: {
-  goProfile: () => void;
-  goRect: () => void;
-}) {
+function ScreenProfile({ goProfile, goRect }: { goProfile: () => void; goRect: () => void }) {
   return (
     <Card>
       <Text style={s.h1}>Заполни анкету</Text>
-      <Text style={s.p}>
-        Чтобы ответы были точнее, укажи место, дату и время рождения.
-      </Text>
+      <Text style={s.p}>Чтобы ответы были точнее, укажи место, дату и время рождения.</Text>
+
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
         <Pressable onPress={goProfile} style={[s.btn, s.primary]}>
           <Text style={[s.btnText, { color: '#fff' }]}>Заполнить анкету</Text>
@@ -4470,9 +4420,8 @@ function ScreenProfile({
           <Text style={s.btnText}>Ректификация</Text>
         </Pressable>
       </View>
-      <Text style={[s.p, { color: C.dim, marginTop: 8 }]}>
-        Если не знаешь точное время — пройди ректификацию.
-      </Text>
+
+      <Text style={[s.p, { color: C.dim, marginTop: 8 }]}>Если не знаешь точное время, пройди ректификацию.</Text>
     </Card>
   );
 }
@@ -4482,7 +4431,7 @@ function ScreenFinal({ onStart }: { onStart: () => void }) {
     <Card center>
       <Text style={s.h1}>Добро пожаловать в Cosmotell 🌌</Text>
       <Text style={[s.p, { textAlign: 'center' }]}>
-        Всё готово — начинай пользоваться приложением. Чат учитывает твою карту автоматически.
+        Всё готово. Начинай пользоваться приложением. Чат учитывает твою карту автоматически.
       </Text>
       <Pressable onPress={onStart} style={[s.btn, s.primary, { marginTop: 12 }]}>
         <Text style={[s.btnText, { color: '#fff' }]}>Начать</Text>
@@ -4491,212 +4440,19 @@ function ScreenFinal({ onStart }: { onStart: () => void }) {
   );
 }
 
-/* ───────────────── Login + Registration ───────────────── */
-
-function LoginForm({ onSuccess }: { onSuccess: () => void }) {
-  const redirectUri = useMemo(
-    () => makeRedirectUri({ scheme: 'cosmotell', path: 'auth' }),
-    []
-  );
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [creating, setCreating] = useState(false); // toggle registration
-
-  async function signInEmail() {
-    try {
-      const sb = getSupabase();
-      const em = email.trim().toLowerCase();
-      if (!em || !password) {
-        return Alert.alert('Вход', 'Заполни email и пароль');
-      }
-      setLoading(true);
-      const { error } = await sb.auth.signInWithPassword({ email: em, password });
-      if (error) throw error;
-
-      onSuccess();
-    } catch (e: any) {
-      Alert.alert('Ошибка входа', e?.message || 'Не удалось войти');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function signUpEmail() {
-    try {
-      const sb = getSupabase();
-      const em = email.trim().toLowerCase();
-      if (!em || !password) {
-        return Alert.alert('Регистрация', 'Заполни email и пароль');
-      }
-      if (password.length < 6) {
-        return Alert.alert('Пароль', 'Минимум 6 символов');
-      }
-      if (password !== confirm) {
-        return Alert.alert('Пароль', 'Пароли не совпадают');
-      }
-
-      setLoading(true);
-      const { error: e1 } = await sb.auth.signUp({ email: em, password });
-      if (e1) throw e1;
-
-      const { error: e2 } = await sb.auth.signInWithPassword({ email: em, password });
-      if (!e2) {
-        onSuccess();
-        return;
-      }
-
-      Alert.alert(
-        'Подтверди почту',
-        'После подтверждения войди в приложении.'
-      );
-    } catch (e: any) {
-      Alert.alert('Ошибка регистрации', e?.message || 'Не удалось создать аккаунт');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function signInWith(provider: 'google' | 'apple') {
-    try {
-      const sb = getSupabase();
-      setLoading(true);
-      const { error } = await sb.auth.signInWithOAuth({
-        provider,
-        options: { redirectTo: redirectUri },
-      });
-      if (error) throw error;
-
-      // После успешного старта OAuth пользователь вернётся в приложение,
-      // а Supabase восстановит сессию. Здесь мы оптимистично продолжаем шаг.
-      onSuccess();
-    } catch (e: any) {
-      Alert.alert('OAuth', e?.message || 'Не удалось войти через провайдера');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <View style={{ gap: 10 }}>
-      <View style={s.row}>
-        <Text style={s.label}>Email</Text>
-        <TextInput
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          placeholder="you@email.com"
-          placeholderTextColor="#8b8e97"
-          style={s.input}
-        />
-      </View>
-
-      <View style={s.row}>
-        <Text style={s.label}>Пароль</Text>
-        <TextInput
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          placeholder="••••••••"
-          placeholderTextColor="#8b8e97"
-          style={s.input}
-        />
-      </View>
-
-      {creating && (
-        <View style={s.row}>
-          <Text style={s.label}>Повтори пароль</Text>
-          <TextInput
-            value={confirm}
-            onChangeText={setConfirm}
-            secureTextEntry
-            placeholder="••••••••"
-            placeholderTextColor="#8b8e97"
-            style={s.input}
-          />
-        </View>
-      )}
-
-      {creating ? (
-        <Pressable
-          onPress={signUpEmail}
-          disabled={loading}
-          style={[s.btn, s.primary]}
-        >
-          <Text style={[s.btnText, { color: '#fff' }]}>
-            {loading ? 'Создаём…' : 'Зарегистрироваться'}
-          </Text>
-        </Pressable>
-      ) : (
-        <Pressable
-          onPress={signInEmail}
-          disabled={loading}
-          style={[s.btn, s.primary]}
-        >
-          <Text style={[s.btnText, { color: '#fff' }]}>
-            {loading ? 'Входим…' : 'Войти'}
-          </Text>
-        </Pressable>
-      )}
-
-      <Pressable
-        onPress={() => setCreating(!creating)}
-        disabled={loading}
-        style={[s.btn, s.ghost]}
-      >
-        <Text style={s.btnText}>
-          {creating ? 'У меня уже есть аккаунт' : 'Создать аккаунт'}
-        </Text>
-      </Pressable>
-
-      <View style={{ flexDirection: 'row', gap: 10 }}>
-        <Pressable
-          onPress={() => signInWith('google')}
-          disabled={loading}
-          style={[s.btn, s.outline, { flex: 1 }]}
-        >
-          <Text style={s.btnText}>Google</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => signInWith('apple')}
-          disabled={loading}
-          style={[s.btn, s.outline, { flex: 1 }]}
-        >
-          <Text style={s.btnText}>Apple</Text>
-        </Pressable>
-      </View>
-
-      <Text style={[s.p, { color: C.dim, fontSize: 12 }]}>
-        Мы не публикуем ничего и не используем почту для рассылок.
-      </Text>
-    </View>
-  );
-}
-
 /* ───────────────── Helpers / Styles ───────────────── */
 
 function Progress({ step }: { step: number }) {
   return (
     <View style={s.progressWrap}>
-      {[0, 1, 2, 3, 4].map((i) => (
-        <View
-          key={i}
-          style={[s.progressDot, step >= i && { backgroundColor: C.primary }]}
-        />
+      {[0, 1, 2, 3].map((i) => (
+        <View key={i} style={[s.progressDot, step >= i && { backgroundColor: C.primary }]} />
       ))}
     </View>
   );
 }
 
-function Card({
-  children,
-  center,
-}: {
-  children: React.ReactNode;
-  center?: boolean;
-}) {
+function Card({ children, center }: { children: React.ReactNode; center?: boolean }) {
   return <View style={[s.card, center && { alignItems: 'center' }]}>{children}</View>;
 }
 
@@ -4732,18 +4488,6 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 14,
-  },
-
-  row: { gap: 6 },
-  label: { color: C.dim, fontSize: 13 },
-  input: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    color: '#fff',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: C.border,
   },
 
   btn: {
@@ -5101,24 +4845,22 @@ module.exports = defineConfig([
 
 
 --- FILE: src/lib/supabase.ts ---
---- LINES: 46 ---
---- SHA256: 64051986d408ed2cc8ebd1f63f2b4ef25926700e37f2b58b3a394e0d506208eb ---
-
-/* eslint-disable import/order */ 
+--- LINES: 66 ---
+--- SHA256: 0f4c15f53d823134669f933a7f3b035a02697bfacbe6914d81e628531ecba135 ---
+/* eslint-disable import/order */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import 'react-native-url-polyfill/auto';
 
+const url = (process.env.EXPO_PUBLIC_SUPABASE_URL || '').trim();
+const anon = (process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '').trim();
 
-
-
-const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-
-console.log("[supabase env]", { url, anon: anon ? "present" : "missing" });
-
+console.log('[supabase env]', { url: url || 'missing', anon: anon ? 'present' : 'missing' });
 
 let client: SupabaseClient | null = null;
+
+// One-time reset guard (per app launch)
+let didResetBadSession = false;
 
 if (url && anon) {
   client = createClient(url, anon, {
@@ -5131,21 +4873,43 @@ if (url && anon) {
   });
 } else {
   console.warn(
-    '[supabase] Missing env: EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY. ' +
-    'Auth disabled until you set them.'
+    '[supabase] Missing env: EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY. Auth disabled until you set them.'
   );
 }
 
-// оставляем экспорт (может быть null — вдруг захочешь проверять вручную)
 export const supabase = client;
 
-/** Возвращает инициализированный клиент (не null). Бросает ошибку, если .env не задан. */
-export function getSupabase(): SupabaseClient {
+/**
+ * Returns initialized Supabase client.
+ * If the stored refresh token is corrupted (common on device when keys/project changed),
+ * we clear auth storage once so network calls do not crash.
+ */
+export async function getSupabase(): Promise<SupabaseClient> {
   if (!client) {
     throw new Error(
       'Supabase не сконфигурирован. Задай EXPO_PUBLIC_SUPABASE_URL и EXPO_PUBLIC_SUPABASE_ANON_KEY и перезапусти (expo start -c).'
     );
   }
+
+  if (!didResetBadSession) {
+    didResetBadSession = true;
+    try {
+      // Try to read session once; if it throws or returns weird state, clear it.
+      await client.auth.getSession();
+    } catch (e: any) {
+      const msg = String(e?.message || e || '');
+      if (/refresh token/i.test(msg) || /Invalid Refresh Token/i.test(msg)) {
+        try {
+          // Clear auth state (this removes the broken token from storage)
+          await client.auth.signOut();
+          console.log('[supabase] Cleared invalid refresh token from storage');
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }
+
   return client;
 }
 
@@ -5287,58 +5051,62 @@ export async function searchPlaces(q: string) {
 
 
 --- FILE: src/shared/config/api.ts ---
---- LINES: 52 ---
---- SHA256: 0601149316b2517292efb2e511204a44aa7b6161e83c5da05fbf69e067b07e1b ---
+--- LINES: 56 ---
+--- SHA256: 87bb6f2cc0dc34bf1c871d35762b6b0b8e4da07eab1b78a41dc2e04b8ad0165c ---
 // src/shared/config/api.ts
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 
-/**
- * Возвращает базовый URL бэкенда в дев-режиме:
- * - явный EXPO_PUBLIC_API_BASE из .env имеет приоритет
- * - iOS Simulator: http://127.0.0.1:3000
- * - Android Emulator: http://10.0.2.2:3000
- * - Реальное устройство/Expo Go: берём LAN-IP из hostUri: http://<lan-ip>:3000
- * - Фолбэк: http://127.0.0.1:3000 (чтобы не было YOUR-LAN-IP)
- */
-function resolveDevApiBase(): string {
-  const env = (process.env.EXPO_PUBLIC_API_BASE || "").trim();
-  if (env) return env;
-
-  const any = Constants as any;
-  const hostUri: string | undefined =
-    any?.expoConfig?.hostUri ||
-    any?.manifest2?.extra?.expoClient?.hostUri ||
-    any?.manifest?.hostUri;
-
-  // If Expo gives us a LAN host (real device / sometimes simulator) → use it
-  if (hostUri) {
-    const host = hostUri.split(':')[0];
-    // Ignore obvious local hosts, otherwise assume it's LAN IP
-    if (host && host !== '127.0.0.1' && host !== 'localhost') {
-      return `http://${host}:3000`;
-    }
-  }
-
-  // Fallbacks for local simulators/emulators
-  if (Platform.OS === 'ios') {
-    return 'http://127.0.0.1:3000';
-  }
-
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:3000';
-  }
-
-  return 'http://127.0.0.1:3000';
+function cleanBase(base: string) {
+  return base.replace(/\/+$/, "");
 }
 
-export const API_BASE = resolveDevApiBase();
+function resolveApiBase(): string {
+  const env = (process.env.EXPO_PUBLIC_API_BASE || "").trim();
+  if (env) return cleanBase(env);
+
+  // If no env var is provided, default to production URL.
+  // This prevents accidental localhost or LAN usage in TestFlight.
+  const PROD = "https://api.cosmo-tell.com";
+
+  // Optional: allow dev-only fallbacks when running in Expo dev mode.
+  // You can remove this entire block if you want to force env var always.
+  if (__DEV__) {
+    const any = Constants as any;
+    const hostUri: string | undefined =
+      any?.expoConfig?.hostUri ||
+      any?.manifest2?.extra?.expoClient?.hostUri ||
+      any?.manifest?.hostUri;
+
+    if (hostUri) {
+      const host = hostUri.split(":")[0];
+      if (host && host !== "127.0.0.1" && host !== "localhost") {
+        return `http://${host}:3000`;
+      }
+    }
+
+    if (Platform.OS === "ios") return "http://127.0.0.1:3000";
+    if (Platform.OS === "android") return "http://10.0.2.2:3000";
+    return "http://127.0.0.1:3000";
+  }
+
+  return PROD;
+}
+
+export const API_BASE = resolveApiBase();
+
+export function apiUrl(path: string) {
+  const p = path.startsWith("/") ? path : `/${path}`;
+  return `${API_BASE}${p}`;
+}
 
 export const ENDPOINTS = {
-  chat: `${API_BASE}/chat`,
-  speech: `${API_BASE}/speech`,
-  aiQuery: `${API_BASE}/ai/query`,
-  health: `${API_BASE}/health`,
+  chat: apiUrl("/chat"),
+  speech: apiUrl("/speech"),
+  aiQuery: apiUrl("/ai/query"),
+  health: apiUrl("/health"),
+  geoSearch: apiUrl("/geo/search"),
+  profilesSync: apiUrl("/profiles/sync"),
 };
 
 

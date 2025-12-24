@@ -1,22 +1,10 @@
 // src/store/profiles.ts
-import { supabase } from '@/src/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { fetchChartSvg, syncProfiles } from '../shared/api/profiles';
 
 /* ───────────────── Types ───────────────── */
-
-const makeDeviceId = async () => {
-  const session = await supabase
-    ?.auth.getSession()
-    .then((r) => r.data.session)
-    .catch(() => null);
-  const uid = session?.user?.id;
-  return uid
-    ? `uid-${uid}`
-    : 'dev-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
-};
 
 export type PersonProfile = {
   id: string;

@@ -1,10 +1,9 @@
 // app/onboarding.tsx
 import { getSupabase } from '@/src/lib/supabase';
 import { useApp } from '@/src/store/app';
-import { makeRedirectUri } from 'expo-auth-session';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -13,7 +12,6 @@ import {
   StyleSheet,
   Switch,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 
@@ -24,53 +22,59 @@ const C = {
   text: '#e5e7eb',
   dim: '#c7c9d1',
   primary: '#4f46e5',
-  ok: '#22c55e',
-  warn: '#f59e0b',
-  err: '#ef4444',
 };
 
 export default function Onboarding() {
   const router = useRouter();
 
-  // Global app onboarding state
   const { tosAccepted, setTosAccepted, completeOnboarding } = useApp();
 
-  // Local wizard page index: 0..4
+  // pages: 0..3
   const [page, setPage] = useState(0);
-
-  // Local TOS switch mirrors global tosAccepted
   const [tos, setTos] = useState<boolean>(tosAccepted);
 
+  // Guard: onboarding requires an authenticated session
+  useEffect(() => {
+    (async () => {
+      try {
+        const sb = await getSupabase();
+        const { data } = await sb.auth.getSession();
+        if (!data.session) router.replace('/auth/login');
+      } catch {
+        router.replace('/auth/login');
+      }
+    })();
+  }, [router]);
+
   const goProfile = () => router.push('/onboarding-profile');
-  const goRect = () =>
-    router.push({ pathname: '/modal', params: { mode: 'rectification' } });
+  const goRect = () => router.push({ pathname: '/modal', params: { mode: 'rectification' } });
 
-  const next = () => {
-    setPage((p) => Math.min(4, p + 1));
-  };
-
-  const prev = () => {
-   setPage((p) => Math.max(0, p - 1));
-  };
+  const next = () => setPage((p) => Math.min(3, p + 1));
+  const prev = () => setPage((p) => Math.max(0, p - 1));
 
   const handleTosChange = (value: boolean) => {
     setTos(value);
-    setTosAccepted(value); // persist globally
+    setTosAccepted(value);
   };
 
-  const finish = () => {
-    // Safety: do not allow finishing onboarding without TOS
+  const finish = async () => {
     if (!tosAccepted) {
-      Alert.alert(
-        'Условия',
-        'Прежде чем начать пользоваться приложением, нужно согласиться с условиями.'
-      );
-      setPage(2);
+      Alert.alert('Условия', 'Прежде чем начать пользоваться приложением, нужно согласиться с условиями.');
+      setPage(1);
       return;
     }
 
-    // Mark onboarding as completed
+    // local flag
     completeOnboarding();
+
+    // account flag (used by app/index.tsx gate)
+    try {
+      const sb = await getSupabase();
+      await sb.auth.updateUser({ data: { onboarding_done: true } });
+    } catch (e: any) {
+      console.warn('[onboarding] updateUser failed', e?.message || e);
+    }
+
     router.replace('/(tabs)/astro-map');
   };
 
@@ -78,14 +82,12 @@ export default function Onboarding() {
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
       <View style={{ flex: 1, padding: 16 }}>
         <Progress step={page} />
-        <ScrollView
-          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', gap: 16 }}
-        >
+
+        <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', gap: 16 }}>
           {page === 0 && <ScreenUniverse onNext={next} />}
-          {page === 1 && <ScreenAuth onNext={next} />}
-          {page === 2 && <ScreenTOS tos={tos} setTos={handleTosChange} />}
-          {page === 3 && <ScreenProfile goProfile={goProfile} goRect={goRect} />}
-          {page === 4 && <ScreenFinal onStart={finish} />}
+          {page === 1 && <ScreenTOS tos={tos} setTos={handleTosChange} />}
+          {page === 2 && <ScreenProfile goProfile={goProfile} goRect={goRect} />}
+          {page === 3 && <ScreenFinal onStart={finish} />}
         </ScrollView>
 
         <View style={s.nav}>
@@ -97,18 +99,14 @@ export default function Onboarding() {
             <View />
           )}
 
-          {page < 4 ? (
+          {page < 3 ? (
             <Pressable
               onPress={next}
-              style={[
-                s.btn,
-                s.primary,
-                page === 2 && !tos && { opacity: 0.5 },
-              ]}
-              disabled={page === 2 && !tos}
+              style={[s.btn, s.primary, page === 1 && !tos && { opacity: 0.5 }]}
+              disabled={page === 1 && !tos}
             >
               <Text style={[s.btnText, { color: '#fff' }]}>
-                {page === 2 ? 'Согласен • Далее' : 'Далее'}
+                {page === 1 ? 'Согласен • Далее' : 'Далее'}
               </Text>
             </Pressable>
           ) : (
@@ -136,33 +134,15 @@ function ScreenUniverse({ onNext }: { onNext: () => void }) {
   );
 }
 
-function ScreenAuth({ onNext }: { onNext: () => void }) {
-  return (
-    <Card>
-      <Text style={s.h1}>Вход или регистрация</Text>
-      <LoginForm onSuccess={onNext} />
-    </Card>
-  );
-}
-
-function ScreenTOS({
-  tos,
-  setTos,
-}: {
-  tos: boolean;
-  setTos: (v: boolean) => void;
-}) {
+function ScreenTOS({ tos, setTos }: { tos: boolean; setTos: (v: boolean) => void }) {
   return (
     <Card>
       <Text style={s.h1}>Пользовательское соглашение</Text>
       <Text style={s.p}>
-        Используя приложение, ты даёшь согласие на обработку персональных данных
-        и понимаешь, что информация носит консультативный характер.
+        Используя приложение, ты даёшь согласие на обработку персональных данных и понимаешь, что информация носит
+        консультативный характер.
       </Text>
-      <Pressable
-        onPress={() => WebBrowser.openBrowserAsync('https://example.com/terms')}
-        style={[s.btn, s.outline]}
-      >
+      <Pressable onPress={() => WebBrowser.openBrowserAsync('https://example.com/terms')} style={[s.btn, s.outline]}>
         <Text style={s.btnText}>Открыть полную версию</Text>
       </Pressable>
       <View style={s.tosRow}>
@@ -173,19 +153,12 @@ function ScreenTOS({
   );
 }
 
-function ScreenProfile({
-  goProfile,
-  goRect,
-}: {
-  goProfile: () => void;
-  goRect: () => void;
-}) {
+function ScreenProfile({ goProfile, goRect }: { goProfile: () => void; goRect: () => void }) {
   return (
     <Card>
       <Text style={s.h1}>Заполни анкету</Text>
-      <Text style={s.p}>
-        Чтобы ответы были точнее, укажи место, дату и время рождения.
-      </Text>
+      <Text style={s.p}>Чтобы ответы были точнее, укажи место, дату и время рождения.</Text>
+
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
         <Pressable onPress={goProfile} style={[s.btn, s.primary]}>
           <Text style={[s.btnText, { color: '#fff' }]}>Заполнить анкету</Text>
@@ -194,9 +167,8 @@ function ScreenProfile({
           <Text style={s.btnText}>Ректификация</Text>
         </Pressable>
       </View>
-      <Text style={[s.p, { color: C.dim, marginTop: 8 }]}>
-        Если не знаешь точное время — пройди ректификацию.
-      </Text>
+
+      <Text style={[s.p, { color: C.dim, marginTop: 8 }]}>Если не знаешь точное время, пройди ректификацию.</Text>
     </Card>
   );
 }
@@ -206,7 +178,7 @@ function ScreenFinal({ onStart }: { onStart: () => void }) {
     <Card center>
       <Text style={s.h1}>Добро пожаловать в Cosmotell 🌌</Text>
       <Text style={[s.p, { textAlign: 'center' }]}>
-        Всё готово — начинай пользоваться приложением. Чат учитывает твою карту автоматически.
+        Всё готово. Начинай пользоваться приложением. Чат учитывает твою карту автоматически.
       </Text>
       <Pressable onPress={onStart} style={[s.btn, s.primary, { marginTop: 12 }]}>
         <Text style={[s.btnText, { color: '#fff' }]}>Начать</Text>
@@ -215,212 +187,19 @@ function ScreenFinal({ onStart }: { onStart: () => void }) {
   );
 }
 
-/* ───────────────── Login + Registration ───────────────── */
-
-function LoginForm({ onSuccess }: { onSuccess: () => void }) {
-  const redirectUri = useMemo(
-    () => makeRedirectUri({ scheme: 'cosmotell', path: 'auth' }),
-    []
-  );
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [creating, setCreating] = useState(false); // toggle registration
-
-  async function signInEmail() {
-    try {
-      const sb = getSupabase();
-      const em = email.trim().toLowerCase();
-      if (!em || !password) {
-        return Alert.alert('Вход', 'Заполни email и пароль');
-      }
-      setLoading(true);
-      const { error } = await sb.auth.signInWithPassword({ email: em, password });
-      if (error) throw error;
-
-      onSuccess();
-    } catch (e: any) {
-      Alert.alert('Ошибка входа', e?.message || 'Не удалось войти');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function signUpEmail() {
-    try {
-      const sb = getSupabase();
-      const em = email.trim().toLowerCase();
-      if (!em || !password) {
-        return Alert.alert('Регистрация', 'Заполни email и пароль');
-      }
-      if (password.length < 6) {
-        return Alert.alert('Пароль', 'Минимум 6 символов');
-      }
-      if (password !== confirm) {
-        return Alert.alert('Пароль', 'Пароли не совпадают');
-      }
-
-      setLoading(true);
-      const { error: e1 } = await sb.auth.signUp({ email: em, password });
-      if (e1) throw e1;
-
-      const { error: e2 } = await sb.auth.signInWithPassword({ email: em, password });
-      if (!e2) {
-        onSuccess();
-        return;
-      }
-
-      Alert.alert(
-        'Подтверди почту',
-        'После подтверждения войди в приложении.'
-      );
-    } catch (e: any) {
-      Alert.alert('Ошибка регистрации', e?.message || 'Не удалось создать аккаунт');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function signInWith(provider: 'google' | 'apple') {
-    try {
-      const sb = getSupabase();
-      setLoading(true);
-      const { error } = await sb.auth.signInWithOAuth({
-        provider,
-        options: { redirectTo: redirectUri },
-      });
-      if (error) throw error;
-
-      // После успешного старта OAuth пользователь вернётся в приложение,
-      // а Supabase восстановит сессию. Здесь мы оптимистично продолжаем шаг.
-      onSuccess();
-    } catch (e: any) {
-      Alert.alert('OAuth', e?.message || 'Не удалось войти через провайдера');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <View style={{ gap: 10 }}>
-      <View style={s.row}>
-        <Text style={s.label}>Email</Text>
-        <TextInput
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          placeholder="you@email.com"
-          placeholderTextColor="#8b8e97"
-          style={s.input}
-        />
-      </View>
-
-      <View style={s.row}>
-        <Text style={s.label}>Пароль</Text>
-        <TextInput
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          placeholder="••••••••"
-          placeholderTextColor="#8b8e97"
-          style={s.input}
-        />
-      </View>
-
-      {creating && (
-        <View style={s.row}>
-          <Text style={s.label}>Повтори пароль</Text>
-          <TextInput
-            value={confirm}
-            onChangeText={setConfirm}
-            secureTextEntry
-            placeholder="••••••••"
-            placeholderTextColor="#8b8e97"
-            style={s.input}
-          />
-        </View>
-      )}
-
-      {creating ? (
-        <Pressable
-          onPress={signUpEmail}
-          disabled={loading}
-          style={[s.btn, s.primary]}
-        >
-          <Text style={[s.btnText, { color: '#fff' }]}>
-            {loading ? 'Создаём…' : 'Зарегистрироваться'}
-          </Text>
-        </Pressable>
-      ) : (
-        <Pressable
-          onPress={signInEmail}
-          disabled={loading}
-          style={[s.btn, s.primary]}
-        >
-          <Text style={[s.btnText, { color: '#fff' }]}>
-            {loading ? 'Входим…' : 'Войти'}
-          </Text>
-        </Pressable>
-      )}
-
-      <Pressable
-        onPress={() => setCreating(!creating)}
-        disabled={loading}
-        style={[s.btn, s.ghost]}
-      >
-        <Text style={s.btnText}>
-          {creating ? 'У меня уже есть аккаунт' : 'Создать аккаунт'}
-        </Text>
-      </Pressable>
-
-      <View style={{ flexDirection: 'row', gap: 10 }}>
-        <Pressable
-          onPress={() => signInWith('google')}
-          disabled={loading}
-          style={[s.btn, s.outline, { flex: 1 }]}
-        >
-          <Text style={s.btnText}>Google</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => signInWith('apple')}
-          disabled={loading}
-          style={[s.btn, s.outline, { flex: 1 }]}
-        >
-          <Text style={s.btnText}>Apple</Text>
-        </Pressable>
-      </View>
-
-      <Text style={[s.p, { color: C.dim, fontSize: 12 }]}>
-        Мы не публикуем ничего и не используем почту для рассылок.
-      </Text>
-    </View>
-  );
-}
-
 /* ───────────────── Helpers / Styles ───────────────── */
 
 function Progress({ step }: { step: number }) {
   return (
     <View style={s.progressWrap}>
-      {[0, 1, 2, 3, 4].map((i) => (
-        <View
-          key={i}
-          style={[s.progressDot, step >= i && { backgroundColor: C.primary }]}
-        />
+      {[0, 1, 2, 3].map((i) => (
+        <View key={i} style={[s.progressDot, step >= i && { backgroundColor: C.primary }]} />
       ))}
     </View>
   );
 }
 
-function Card({
-  children,
-  center,
-}: {
-  children: React.ReactNode;
-  center?: boolean;
-}) {
+function Card({ children, center }: { children: React.ReactNode; center?: boolean }) {
   return <View style={[s.card, center && { alignItems: 'center' }]}>{children}</View>;
 }
 
@@ -456,18 +235,6 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 14,
-  },
-
-  row: { gap: 6 },
-  label: { color: C.dim, fontSize: 13 },
-  input: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    color: '#fff',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: C.border,
   },
 
   btn: {

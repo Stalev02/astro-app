@@ -20,15 +20,22 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-console.log("API_BASE", ENDPOINTS.health);
+console.log('API_BASE', ENDPOINTS.health);
 
 /* ==================== Types ==================== */
 type Msg = { id: string; role: 'user' | 'bot'; text: string; ts: number };
 
 /* ==================== Menu (prompts) ==================== */
 type MenuNode =
-  | { id: string; title: string; type: 'menu'; nav?: { back?: boolean; home?: boolean }; children: MenuNode[] }
+  | {
+      id: string;
+      title: string;
+      type: 'menu';
+      nav?: { back?: boolean; home?: boolean };
+      children: MenuNode[];
+    }
   | { id: string; title: string; type: 'action'; action_id: keyof typeof PROMPTS }
   | { id: string; title: string; type: 'nav'; goto: 'compatibility' | 'forecast_transits' };
 
@@ -63,9 +70,7 @@ const MENU: MenuNode = {
       title: 'Совместимость',
       type: 'menu',
       nav: { back: true, home: true },
-      children: [
-        { id: 'compat_partner', title: 'С партнёром', type: 'action', action_id: 'compat_partner' },
-      ],
+      children: [{ id: 'compat_partner', title: 'С партнёром', type: 'action', action_id: 'compat_partner' }],
     },
     {
       id: 'forecast',
@@ -82,6 +87,7 @@ const MENU: MenuNode = {
 
 /* ==================== Screen ==================== */
 export default function AstroChatScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const deviceId = useProfiles((s) => s.deviceId);
 
@@ -91,8 +97,7 @@ export default function AstroChatScreen() {
   const [draft, setDraft] = useState('');
   const listRef = useRef<FlatList<Msg>>(null);
 
-  const scrollToEnd = () =>
-    requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+  const scrollToEnd = () => requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
 
   async function speak(text: string) {
     try {
@@ -102,51 +107,44 @@ export default function AstroChatScreen() {
   }
 
   const [isBusy, setIsBusy] = useState(false);
-  
+
   const sendText = async (textIn: string) => {
     const text = textIn.trim();
     if (!text || isBusy) return;
+
     const user: Msg = { id: String(Date.now()), role: 'user', text, ts: Date.now() };
-    setMessages((prev) => [
-      ...prev,
-      user,
-      { id: user.id + ':wait', role: 'bot', text: '…', ts: Date.now() + 1 },
-    ]);
+    setMessages((prev) => [...prev, user, { id: user.id + ':wait', role: 'bot', text: '…', ts: Date.now() + 1 }]);
     setDraft('');
     scrollToEnd();
 
     try {
       setIsBusy(true);
 
-let token: string | undefined;
+      let token: string | undefined;
+      try {
+        const sb = await getSupabase();
+        const { data: sessionData } = await sb.auth.getSession();
+        token = sessionData.session?.access_token;
+      } catch {
+        token = undefined;
+      }
 
-try {
-  const sb = await getSupabase();
-  const { data: sessionData } = await sb.auth.getSession();
-  token = sessionData.session?.access_token;
-} catch {
-  token = undefined;
-}
+      const r = await fetch(ENDPOINTS.aiQuery, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ deviceId, question: text }),
+      });
 
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text().catch(() => '')}`);
 
-const r = await fetch(ENDPOINTS.aiQuery, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  },
-  body: JSON.stringify({ deviceId, question: text }),
-});
+      const ct = r.headers.get('content-type') || '';
+      const data = ct.includes('application/json') ? await r.json() : { reply: await r.text() };
+      const botText = data?.reply ?? 'Ок.';
 
-if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text().catch(() => '')}`);
-
-const ct = r.headers.get('content-type') || '';
-const data = ct.includes('application/json') ? await r.json() : { reply: await r.text() };
-const botText = data?.reply ?? 'Ок.';
-
-      setMessages((prev) =>
-        prev.map((m) => (m.id === user.id + ':wait' ? { ...m, text: String(botText) } : m))
-      );
+      setMessages((prev) => prev.map((m) => (m.id === user.id + ':wait' ? { ...m, text: String(botText) } : m)));
       scrollToEnd();
       if (botText) await speak(String(botText));
     } catch (e: any) {
@@ -175,12 +173,10 @@ const botText = data?.reply ?? 'Ок.';
         playsInSilentModeIOS: true,
         shouldDuckAndroid: true,
       });
-      const created = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
+      const created = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
       setRecording(created.recording);
       setIsRecording(true);
-    } catch (e) {
+    } catch {
       Alert.alert('Ошибка', 'Не удалось начать запись');
     }
   };
@@ -195,6 +191,7 @@ const botText = data?.reply ?? 'Ок.';
       if (!uri) return;
 
       setIsBusy(true);
+
       const uploadRes = await FileSystem.uploadAsync(ENDPOINTS.speech, uri, {
         fieldName: 'audio',
         httpMethod: 'POST',
@@ -214,45 +211,38 @@ const botText = data?.reply ?? 'Ок.';
       const text = (stt?.text || '').trim();
       if (!text) {
         Alert.alert('Речь', 'Не удалось распознать голос');
-        setIsBusy(false);
         return;
       }
 
       const userMsg: Msg = { id: String(Date.now()), role: 'user', text, ts: Date.now() };
-      setMessages((prev) => [
-        ...prev,
-        userMsg,
-        { id: userMsg.id + ':wait', role: 'bot', text: '…', ts: Date.now() + 1 },
-      ]);
+      setMessages((prev) => [...prev, userMsg, { id: userMsg.id + ':wait', role: 'bot', text: '…', ts: Date.now() + 1 }]);
       scrollToEnd();
 
       let token: string | undefined;
+      try {
+        const sb = await getSupabase();
+        const { data: sessionData } = await sb.auth.getSession();
+        token = sessionData.session?.access_token;
+      } catch {
+        token = undefined;
+      }
 
-try {
-  const sb = await getSupabase();
-  const { data: sessionData } = await sb.auth.getSession();
-  token = sessionData.session?.access_token;
-} catch {
-  token = undefined;
-}
-
-const r = await fetch(ENDPOINTS.aiQuery, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  },
-  body: JSON.stringify({ deviceId, question: text }),
-});
-
+      const r = await fetch(ENDPOINTS.aiQuery, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ deviceId, question: text }),
+      });
 
       if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text().catch(() => '')}`);
+
       const ct = r.headers.get('content-type') || '';
       const data = ct.includes('application/json') ? await r.json() : { reply: await r.text() };
       const botText = data?.reply ?? 'Ок.';
-      setMessages((prev) =>
-        prev.map((m) => (m.id === userMsg.id + ':wait' ? { ...m, text: String(botText) } : m))
-      );
+
+      setMessages((prev) => prev.map((m) => (m.id === userMsg.id + ':wait' ? { ...m, text: String(botText) } : m)));
       scrollToEnd();
       if (botText) await speak(String(botText));
     } catch (e: any) {
@@ -265,6 +255,7 @@ const r = await fetch(ENDPOINTS.aiQuery, {
   /* ====== Keyboard menu (Telegram style) ====== */
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
   const [path, setPath] = useState<string[]>(['main']);
+
   const curNode = useMemo<MenuNode>(() => {
     let node: MenuNode = MENU;
     for (let i = 1; i < path.length; i++) {
@@ -294,18 +285,31 @@ const r = await fetch(ENDPOINTS.aiQuery, {
 
   const children = curNode.type === 'menu' ? curNode.children : [];
 
+  // Reserve enough bottom space so last messages are not hidden behind menu+input.
+  const INPUT_BAR_H = 62;
+  const MENU_DOCK_H = 76;
+
   return (
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView
-        behavior={Platform.select({ ios: 'padding', android: undefined })}
-        style={{ flex: 1 }}
-      >
+  style={styles.flex}
+  behavior="padding"
+  keyboardVerticalOffset={
+    Platform.OS === 'ios'
+      ? 80 // <-- pushes up about ~1.5 input heights on iPhone
+      : 90  // <-- Android also usually needs an offset
+  }
+>
         <FlatList
           ref={listRef}
-          contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
-          ListHeaderComponent={<Text style={styles.title}>Чат по карте</Text>}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: INPUT_BAR_H + MENU_DOCK_H + insets.bottom + 24 },
+          ]}
+          keyboardShouldPersistTaps="handled"
           data={messages}
           keyExtractor={(m) => m.id}
+          ListHeaderComponent={<Text style={styles.title}>Чат по карте</Text>}
           renderItem={({ item }) => <Bubble item={item} />}
         />
 
@@ -358,10 +362,11 @@ const r = await fetch(ENDPOINTS.aiQuery, {
         </View>
 
         {/* ===== Input bar ===== */}
-        <View style={styles.inputBar}>
+        <View style={[styles.inputBar, { paddingBottom: 10 + insets.bottom }]}>
           <TextInput
             style={styles.input}
             placeholder="Напишите вопрос…"
+            placeholderTextColor="#8b8e97"
             value={draft}
             onChangeText={setDraft}
             multiline
@@ -369,11 +374,7 @@ const r = await fetch(ENDPOINTS.aiQuery, {
           />
           <Pressable
             onPress={isRecording ? stopRecording : startRecording}
-            style={[
-              styles.iconBtn,
-              isRecording && { backgroundColor: '#ef4444' },
-              isBusy && { opacity: 0.6 },
-            ]}
+            style={[styles.iconBtn, isRecording && { backgroundColor: '#ef4444' }, isBusy && { opacity: 0.6 }]}
             accessibilityRole="button"
             accessibilityLabel={isRecording ? 'Остановить запись' : 'Начать запись'}
             disabled={isBusy}
@@ -399,21 +400,9 @@ const r = await fetch(ENDPOINTS.aiQuery, {
 function Bubble({ item }: { item: Msg }) {
   const me = item.role === 'user';
   return (
-    <View
-      style={[
-        styles.bubbleWrap,
-        me ? { alignItems: 'flex-end' } : { alignItems: 'flex-start' },
-      ]}
-    >
+    <View style={[styles.bubbleWrap, me ? { alignItems: 'flex-end' } : { alignItems: 'flex-start' }]}>
       <View style={[styles.bubble, me ? styles.me : styles.bot]}>
-        {!me && (
-          <Ionicons
-            name="star-outline"
-            size={14}
-            color="#4f46e5"
-            style={{ marginRight: 6 }}
-          />
-        )}
+        {!me && <Ionicons name="star-outline" size={14} color="#4f46e5" style={{ marginRight: 6 }} />}
         <Text style={[styles.bubbleText, me && { color: '#fff' }]}>{item.text}</Text>
       </View>
     </View>
@@ -423,7 +412,11 @@ function Bubble({ item }: { item: Msg }) {
 /* ===== Styles ===== */
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#0b0b0c' },
+  flex: { flex: 1 },
+
   title: { color: '#fff', fontSize: 22, fontWeight: '700', marginBottom: 12 },
+
+  listContent: { padding: 16 },
 
   bubbleWrap: { paddingVertical: 4 },
   bubble: {
@@ -438,16 +431,13 @@ const styles = StyleSheet.create({
   bot: { backgroundColor: 'rgba(255,255,255,0.08)' },
   bubbleText: { color: '#e5e7eb', fontSize: 15 },
 
+  // Input bar is now in normal layout flow so KeyboardAvoidingView can lift it.
   inputBar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 8,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingTop: 10,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(255,255,255,0.12)',
     backgroundColor: '#0b0b0c',
@@ -480,11 +470,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
+  // Menu dock is also in normal flow, above the input bar.
   menuDock: {
-    position: 'absolute',
-    left: 8,
-    right: 8,
-    bottom: 64,
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    paddingBottom: 6,
+    backgroundColor: 'transparent',
   },
   menuHeader: {
     flexDirection: 'row',
