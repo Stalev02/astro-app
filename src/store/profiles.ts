@@ -2,7 +2,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { fetchChartSvg, syncProfiles } from '../shared/api/profiles';
+import { fetchChartSvg, fetchMyProfile, syncProfiles } from '../shared/api/profiles';
 
 /* ───────────────── Types ───────────────── */
 
@@ -64,6 +64,9 @@ type ProfilesState = {
    */
   applyAuthUser: (uid: string) => void;
 
+  /** Pull profile from DB for the logged-in user */
+  loadMeFromServer: () => Promise<void>;
+
   /** sync with server */
   sync: () => Promise<void>;
 
@@ -113,7 +116,6 @@ export const useProfiles = create<ProfilesState>()(
         const nextId = `uid-${uid}`;
         const currentId = get().deviceId;
 
-        // If user switched (or we were previously in guest mode), wipe local data
         if (currentId !== nextId) {
           set({
             deviceId: nextId,
@@ -125,8 +127,45 @@ export const useProfiles = create<ProfilesState>()(
             error: null,
           });
         } else {
-          // same user, just ensure deviceId is correct
           set({ deviceId: nextId });
+        }
+      },
+
+      async loadMeFromServer() {
+        set({ loading: true, error: null });
+        try {
+          const row: any = await fetchMyProfile();
+
+          // Keep deviceId in sync with what backend returns (if present)
+          if (row?.device_id && typeof row.device_id === 'string' && row.device_id !== get().deviceId) {
+            set({ deviceId: row.device_id });
+          }
+
+          const me = (row?.me ?? null) as PersonProfile | null;
+          const other = (row?.other ?? null) as PersonProfile | null;
+
+          // chart svg can be returned either at top-level or embedded in chart_data
+          const svg =
+            row?.chart_svg ??
+            row?.chart_data?.chart_svg ??
+            row?.chart_data?.chart ??
+            row?.chart_data?.svg ??
+            null;
+
+          set({
+            me,
+            other,
+            chart: { chart_svg: svg },
+            onboarded: !!me,
+            loading: false,
+            error: null,
+          });
+        } catch (e: any) {
+          // Important: do NOT wipe local state here. Just report the error.
+          set({
+            loading: false,
+            error: e?.message ?? 'loadMeFromServer failed',
+          });
         }
       },
 
@@ -147,8 +186,10 @@ export const useProfiles = create<ProfilesState>()(
         set({ loading: true, error: null, me: merged });
 
         try {
+          // 1) sync to backend (now includes Authorization header when logged in)
           await get().sync();
 
+          // 2) try fetch SVG chart
           let chart: NatalChart | null = null;
           try {
             const res = await fetchChartSvg(get().deviceId);

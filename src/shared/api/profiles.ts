@@ -1,6 +1,38 @@
 // src/shared/api/profiles.ts
-import type { PersonProfile } from "../../store/profiles";
-import { API_BASE } from "../config/api";
+import { getSupabase } from '@/src/lib/supabase';
+import type { PersonProfile } from '../../store/profiles';
+import { API_BASE } from '../config/api';
+
+/**
+ * Adds Authorization header if a Supabase session exists.
+ * If not logged in (guest), returns empty headers.
+ */
+async function authHeaders(): Promise<Record<string, string>> {
+  try {
+    const sb = await getSupabase();
+    const { data } = await sb.auth.getSession();
+    const token = data.session?.access_token;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    // Supabase not configured or no session
+    return {};
+  }
+}
+
+
+/**
+ * Fetch profile for the currently authenticated user.
+ * Requires backend route: GET /profiles/me (requireAuth).
+ */
+export async function fetchMyProfile() {
+  const headers = await authHeaders();
+  const r = await fetch(`${API_BASE}/profiles/me`, {
+    method: 'GET',
+    headers: { ...headers },
+  });
+  if (!r.ok) throw new Error(`me ${r.status} ${await r.text().catch(() => '')}`);
+  return r.json();
+}
 
 /**
  * Обновляет (или создает) профиль "me" по deviceId,
@@ -11,24 +43,23 @@ import { API_BASE } from "../config/api";
  * @param input - объект профиля; можно передавать только нужные поля (date/time/tz/lat/lng/name/gender и т.д.)
  * @returns обновленный payload, который вернет твой /profiles/sync
  */
-export async function upsertBirthData(
-  deviceId: string,
-  input: Partial<PersonProfile>
-) {
+export async function upsertBirthData(deviceId: string, input: Partial<PersonProfile>) {
   const payload = {
     deviceId,
     me: input as PersonProfile,
-    other: null as PersonProfile | null
+    other: null as PersonProfile | null,
   };
 
+  const headers = await authHeaders();
+
   const r = await fetch(`${API_BASE}/profiles/sync`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...headers },
     body: JSON.stringify(payload),
   });
 
   if (!r.ok) {
-    throw new Error(`upsertBirthData ${r.status} ${await r.text().catch(() => "")}`);
+    throw new Error(`upsertBirthData ${r.status} ${await r.text().catch(() => '')}`);
   }
 
   return r.json();
@@ -44,7 +75,7 @@ export async function upsertBirthData(
 export async function fetchNatalChartByProfileId(deviceId: string) {
   const r = await fetch(`${API_BASE}/profiles/${encodeURIComponent(deviceId)}/chart`);
   if (!r.ok) {
-    throw new Error(`chart-by-id ${r.status} ${await r.text().catch(() => "")}`);
+    throw new Error(`chart-by-id ${r.status} ${await r.text().catch(() => '')}`);
   }
   return r.json() as Promise<{ chart_svg: string | null }>;
 }
@@ -58,15 +89,15 @@ export async function fetchNatalChartByProfileId(deviceId: string) {
  * @returns { chart_svg: string | null, ...optional }
  */
 export async function fetchNatalChartByBirthData(data: {
-  date: string;  // 'YYYY-MM-DD'
-  time: string;  // 'HH:mm'
-  tz: string;    // IANA TZ, например 'Europe/Kyiv'
+  date: string; // 'YYYY-MM-DD'
+  time: string; // 'HH:mm'
+  tz: string; // IANA TZ, например 'Europe/Kyiv'
   lat: number;
   lng: number;
 }) {
   const r = await fetch(`${API_BASE}/charts`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       date: data.date,
       time: data.time,
@@ -77,7 +108,7 @@ export async function fetchNatalChartByBirthData(data: {
   });
 
   if (!r.ok) {
-    throw new Error(`chart-by-birth ${r.status} ${await r.text().catch(() => "")}`);
+    throw new Error(`chart-by-birth ${r.status} ${await r.text().catch(() => '')}`);
   }
 
   // сервер может вернуть доп. поля (planets/houses/ascendant), но мы гарантируем chart_svg
@@ -91,24 +122,28 @@ type SyncPayload = {
 };
 
 export async function syncProfiles(payload: SyncPayload) {
+  const headers = await authHeaders();
+
   const r = await fetch(`${API_BASE}/profiles/sync`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...headers },
     body: JSON.stringify(payload),
   });
-  if (!r.ok) throw new Error(`sync ${r.status} ${await r.text().catch(() => "")}`);
+  if (!r.ok) throw new Error(`sync ${r.status} ${await r.text().catch(() => '')}`);
   return r.json();
 }
 
+// Keeping as-is. Note: your backend currently does NOT show GET /profiles/:deviceId in server/index.js.
+// If you don't use this, it's fine to keep; if you do use it, ensure backend route exists.
 export async function fetchProfiles(deviceId: string) {
   const r = await fetch(`${API_BASE}/profiles/${encodeURIComponent(deviceId)}`);
-  if (!r.ok) throw new Error(`get ${r.status} ${await r.text().catch(() => "")}`);
+  if (!r.ok) throw new Error(`get ${r.status} ${await r.text().catch(() => '')}`);
   return r.json();
 }
 
 export async function fetchChartSvg(deviceId: string) {
   const r = await fetch(`${API_BASE}/profiles/${encodeURIComponent(deviceId)}/chart`);
-  if (!r.ok) throw new Error(`chart ${r.status} ${await r.text().catch(() => "")}`);
+  if (!r.ok) throw new Error(`chart ${r.status} ${await r.text().catch(() => '')}`);
   return r.json() as Promise<{ chart_svg: string | null }>;
 }
 
@@ -119,13 +154,15 @@ export async function searchPlaces(q: string) {
     console.warn('[searchPlaces] geo error', r.status, text);
     throw new Error(`geo ${r.status}`);
   }
-  return r.json() as Promise<{ items: Array<{
-    id: string;
-    displayName: string;
-    city: string;
-    nation: string;
-    lat: number;
-    lng: number;
-    tz: string | null;
-  }> }>;
+  return r.json() as Promise<{
+    items: Array<{
+      id: string;
+      displayName: string;
+      city: string;
+      nation: string;
+      lat: number;
+      lng: number;
+      tz: string | null;
+    }>;
+  }>;
 }

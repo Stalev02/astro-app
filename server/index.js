@@ -32,6 +32,23 @@ import { attachSupabaseUidToDeviceProfile, getProfile, getProfileBySupabaseUid, 
 // ── Create app FIRST (so routes can be registered even if DB init fails)
 const app = express();
 
+// server/index.js
+app.get('/profiles/me', requireAuth, async (req, res) => {
+  try {
+    const supabaseUid = req.user?.id;
+    if (!supabaseUid) return res.status(401).json({ error: 'no user' });
+
+    const row = await getProfileBySupabaseUid(supabaseUid);
+    if (!row) return res.status(404).json({ error: 'profile not found' });
+
+    return res.json(row);
+  } catch (e) {
+    console.error('profiles/me error', e);
+    return res.status(500).json({ error: 'profiles/me failed' });
+  }
+});
+
+
 app.get('/auth/probe', requireAuth, (req, res) => {
   res.json({ ok: true, user: req.user });
 });
