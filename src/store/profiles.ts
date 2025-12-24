@@ -10,12 +10,12 @@ export type PersonProfile = {
   id: string;
   name: string;
 
-  // старые поля
+  // old fields
   date: string; // YYYY-MM-DD
   time?: string; // HH:mm
   place?: string;
 
-  // новые поля
+  // new fields
   birthDateISO?: string;
   timeKnown?: boolean;
   seconds?: number;
@@ -24,7 +24,7 @@ export type PersonProfile = {
   currentCity?: string;
   fullDateTimeISO?: string;
 
-  // гео/время
+  // geo/time
   coords?: { lat: number; lng: number };
   tz?: string;
 
@@ -48,21 +48,29 @@ type ProfilesState = {
   error: string | null;
   onboarded: boolean;
 
+  setDeviceId: (id: string) => void;
+
   setMe: (p: PersonProfile) => void;
   setOther: (p: PersonProfile) => void;
   clearOther: () => void;
 
-  /** синхронизация с сервером */
-  sync: () => Promise<void>;
+  /** Hard reset local profile state (prevents cross-account leak) */
+  resetAll: () => void;
 
   /**
-   * submitOnboarding — атомарно применяет изменения профиля "me",
-   * синхронизирует с сервером и пытается получить SVG карты.
-   * Совместимо с вызовами из modal.tsx и onboarding-profile.tsx.
+   * Call after sign-in / session restore:
+   * - sets deviceId = uid-${uid}
+   * - if switched user, clears me/other/chart/onboarded
    */
+  applyAuthUser: (uid: string) => void;
+
+  /** sync with server */
+  sync: () => Promise<void>;
+
+  /** onboarding submission */
   submitOnboarding: (payload: Partial<PersonProfile>) => Promise<void>;
 
-  /** ручное обновление карты */
+  /** manual chart refresh */
   reloadChart: () => Promise<void>;
 };
 
@@ -85,9 +93,42 @@ export const useProfiles = create<ProfilesState>()(
       error: null,
       onboarded: false,
 
+      setDeviceId: (id) => set({ deviceId: id }),
+
       setMe: (p) => set({ me: p }),
       setOther: (p) => set({ other: p }),
       clearOther: () => set({ other: null }),
+
+      resetAll: () =>
+        set({
+          me: null,
+          other: null,
+          chart: null,
+          onboarded: false,
+          loading: false,
+          error: null,
+        }),
+
+      applyAuthUser: (uid: string) => {
+        const nextId = `uid-${uid}`;
+        const currentId = get().deviceId;
+
+        // If user switched (or we were previously in guest mode), wipe local data
+        if (currentId !== nextId) {
+          set({
+            deviceId: nextId,
+            me: null,
+            other: null,
+            chart: null,
+            onboarded: false,
+            loading: false,
+            error: null,
+          });
+        } else {
+          // same user, just ensure deviceId is correct
+          set({ deviceId: nextId });
+        }
+      },
 
       async sync() {
         const { deviceId, me, other } = get();
@@ -100,85 +141,76 @@ export const useProfiles = create<ProfilesState>()(
       },
 
       async submitOnboarding(payload) {
-  const prev = get().me;
-  const merged = { ...(prev ?? {}), ...payload } as PersonProfile;
+        const prev = get().me;
+        const merged = { ...(prev ?? {}), ...payload } as PersonProfile;
 
-  set({ loading: true, error: null, me: merged });
+        set({ loading: true, error: null, me: merged });
 
-  try {
-    // 1) синхронизируем с бэком
-    await get().sync();
+        try {
+          await get().sync();
 
-    // 2) пробуем подтянуть SVG карты по deviceId
-    let chart: NatalChart | null = null;
-    try {
-      const res = await fetchChartSvg(get().deviceId);
-      chart = { chart_svg: res.chart_svg ?? null };
-    } catch (e) {
-      console.warn('[profiles] fetchChartSvg failed', e);
-      chart = { chart_svg: null };
-    }
+          let chart: NatalChart | null = null;
+          try {
+            const res = await fetchChartSvg(get().deviceId);
+            chart = { chart_svg: res.chart_svg ?? null };
+          } catch (e) {
+            console.warn('[profiles] fetchChartSvg failed', e);
+            chart = { chart_svg: null };
+          }
 
-    set({
-      chart,
-      onboarded: true,
-      loading: false,
-      error: null,
-    });
-    console.log('[profiles] onboarding complete');
-  } catch (e: any) {
-    set({
-      loading: false,
-      error: e?.message ?? 'Ошибка при онбординге',
-    });
-    console.warn('[profiles] onboarding failed', e);
-    throw e;
-  }
-},
-
+          set({
+            chart,
+            onboarded: true,
+            loading: false,
+            error: null,
+          });
+          console.log('[profiles] onboarding complete');
+        } catch (e: any) {
+          set({
+            loading: false,
+            error: e?.message ?? 'Ошибка при онбординге',
+          });
+          console.warn('[profiles] onboarding failed', e);
+          throw e;
+        }
+      },
 
       async reloadChart() {
-  const { deviceId, me } = get();
+        const { deviceId, me } = get();
 
-  if (!me) {
-    console.warn('[profiles] reloadChart: нет профиля');
-    return;
-  }
+        if (!me) {
+          console.warn('[profiles] reloadChart: нет профиля');
+          return;
+        }
 
-  set({ loading: true, error: null });
-  try {
-    const res = await fetchChartSvg(deviceId);
-    const chart: NatalChart = { chart_svg: res.chart_svg ?? null };
-    set({ chart, loading: false });
-    console.log('[profiles] chart reloaded');
-  } catch (e: any) {
-    const msg = String(e?.message || '');
-    if (msg.includes('404')) {
-      console.warn(
-        '[profiles] chart 404 → попробую sync() и повторить'
-      );
-      try {
-        await get().sync();
-        await new Promise((r) => setTimeout(r, 250));
-        const res2 = await fetchChartSvg(deviceId);
-        const chart2: NatalChart = { chart_svg: res2.chart_svg ?? null };
-        set({ chart: chart2, loading: false });
-        return;
-      } catch (e2) {
-        console.warn(
-          '[profiles] повторный reload после sync не удался',
-          e2
-        );
-      }
-    }
-    set({
-      loading: false,
-      error: e?.message ?? 'Не удалось обновить карту',
-    });
-    console.warn('[profiles] reloadChart failed', e);
-  }
-}
-
+        set({ loading: true, error: null });
+        try {
+          const res = await fetchChartSvg(deviceId);
+          const chart: NatalChart = { chart_svg: res.chart_svg ?? null };
+          set({ chart, loading: false });
+          console.log('[profiles] chart reloaded');
+        } catch (e: any) {
+          const msg = String(e?.message || '');
+          if (msg.includes('404')) {
+            console.warn('[profiles] chart 404 → попробую sync() и повторить');
+            try {
+              await get().sync();
+              await new Promise((r) => setTimeout(r, 250));
+              const res2 = await fetchChartSvg(deviceId);
+              const chart2: NatalChart = { chart_svg: res2.chart_svg ?? null };
+              set({ chart: chart2, loading: false });
+              return;
+            } catch (e2) {
+              console.warn('[profiles] повторный reload после sync не удался', e2);
+            }
+          }
+          set({
+            loading: false,
+            error: e?.message ?? 'Не удалось обновить карту',
+          });
+          console.warn('[profiles] reloadChart failed', e);
+        }
+      },
     }),
     {
       name: 'profiles-store',
@@ -193,7 +225,5 @@ export const useProfiles = create<ProfilesState>()(
     }
   )
 );
-
-/* ───────────────── Helpers ───────────────── */
 
 export const newId = () => 'p-' + Math.random().toString(36).slice(2);

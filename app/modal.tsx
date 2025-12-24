@@ -25,13 +25,7 @@ function Label({ children }: { children: React.ReactNode }) {
   return <Text style={styles.label}>{children}</Text>;
 }
 function Input(props: React.ComponentProps<typeof TextInput>) {
-  return (
-    <TextInput
-      {...props}
-      style={[styles.input, props.style]}
-      placeholderTextColor="#8b8e97"
-    />
-  );
+  return <TextInput {...props} style={[styles.input, props.style]} placeholderTextColor="#8b8e97" />;
 }
 
 const genders = [
@@ -43,7 +37,6 @@ const genders = [
 
 type ModeParam = 'me' | 'other' | 'rectification' | undefined;
 
-// Выбранная подсказка
 type PickedGeo = {
   id: string;
   city: string;
@@ -54,15 +47,10 @@ type PickedGeo = {
   displayName: string;
 };
 
-/* ────────── Root modal router ────────── */
 export default function RootModal() {
   const { mode } = useLocalSearchParams<{ mode?: ModeParam }>();
   const headerTitle =
-    mode === 'rectification'
-      ? 'Ректификация'
-      : mode === 'other'
-      ? 'Анкета (другой человек)'
-      : 'Астрологическая анкета';
+    mode === 'rectification' ? 'Ректификация' : mode === 'other' ? 'Анкета (другой человек)' : 'Астрологическая анкета';
 
   return (
     <>
@@ -76,7 +64,6 @@ export default function RootModal() {
           headerTintColor: '#fff',
         }}
       />
-      {/* ВАЖНО: общий тёмный фон через SafeAreaView */}
       <SafeAreaView style={styles.safe}>
         {mode === 'rectification' ? <RectificationBody /> : <ProfileBody mode={mode} />}
       </SafeAreaView>
@@ -90,8 +77,8 @@ type SignSlice = {
   fromISO: string;
   toISO: string;
   what: 'SUN_SIGN' | 'MOON_SIGN' | 'ASC_SIGN';
-  aLabel: string; // «до границы»
-  bLabel: string; // «после границы»
+  aLabel: string;
+  bLabel: string;
   aDesc: string;
   bDesc: string;
 };
@@ -106,18 +93,11 @@ type PredispositionCode =
   | 'imprisonment'
   | 'water_extreme';
 
-type Likert = 1 | 2 | 3 | 4 | 5; // 1=Нет!, 2=Нет, 3=?, 4=Да, 5=Да!
+type Likert = 1 | 2 | 3 | 4 | 5;
 
 type PredAnswer = { code: PredispositionCode; value: Likert; enabled: boolean };
 
-type LifeEventKind =
-  | 'MARRIAGE'
-  | 'DIVORCE'
-  | 'CHILD_BIRTH'
-  | 'RELATIVE_DEATH'
-  | 'HOSPITAL'
-  | 'INJURY'
-  | 'EXTREME';
+type LifeEventKind = 'MARRIAGE' | 'DIVORCE' | 'CHILD_BIRTH' | 'RELATIVE_DEATH' | 'HOSPITAL' | 'INJURY' | 'EXTREME';
 
 type LifeEvent = { id: string; kind: LifeEventKind; month: string; year: string };
 
@@ -127,15 +107,20 @@ function RectificationBody() {
   const loading = useProfiles((s) => s.loading);
   const submitOnboarding = useProfiles((s) => s.submitOnboarding);
 
-  // ---- guard
+  const safeBack = (fallback: string) => {
+    if (router.canGoBack()) router.back();
+    else router.replace(fallback as any);
+  };
+
+  // ---- guard: no profile
   if (!me) {
     return (
-      <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding' })} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding', android: undefined })} style={{ flex: 1 }}>
         <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
           <Text style={styles.caption}>
             Сначала заполните анкету с датой и местом рождения. Затем вернитесь сюда.
           </Text>
-          <Pressable onPress={() => router.back()} style={[styles.primaryBtn, { backgroundColor: '#6b7280' }]}>
+          <Pressable onPress={() => safeBack('/(tabs)/settings')} style={[styles.primaryBtn, { backgroundColor: '#6b7280' }]}>
             <Text style={styles.primaryText}>Понятно</Text>
           </Pressable>
         </ScrollView>
@@ -143,17 +128,15 @@ function RectificationBody() {
     );
   }
 
-  // 🔧 2) Удобные локальные ссылки — теперь TS знает, что me: PersonProfile
   const birthDate = me.birthDateISO ?? me.date;
 
+  // ---- guard: no birthDate
   if (!birthDate) {
     return (
-      <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding' })} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding', android: undefined })} style={{ flex: 1 }}>
         <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-          <Text style={styles.caption}>
-            В профиле отсутствует дата рождения. Укажите её в анкете и попробуйте снова.
-          </Text>
-          <Pressable onPress={() => router.back()} style={[styles.primaryBtn, { backgroundColor: '#6b7280' }]}>
+          <Text style={styles.caption}>В профиле отсутствует дата рождения. Укажите её в анкете и попробуйте снова.</Text>
+          <Pressable onPress={() => safeBack('/(tabs)/settings')} style={[styles.primaryBtn, { backgroundColor: '#6b7280' }]}>
             <Text style={styles.primaryText}>Понятно</Text>
           </Pressable>
         </ScrollView>
@@ -161,22 +144,18 @@ function RectificationBody() {
     );
   }
 
-
-  /* ── Шаги мастера ───────────────────────────────── */
+  /* ── Steps ── */
   const [step, setStep] = useState<0 | 1 | 2 | 3 | 4 | 5>(0);
 
-  // Step 0 — базовый интервал
   const initTime = (me.time ?? '12:00').split(':');
   const [centerH, setCenterH] = useState<number>(+initTime[0] || 12);
   const [centerM, setCenterM] = useState<number>(+initTime[1] || 0);
-  const [rangeMin, setRangeMin] = useState<number>(me.time ? 40 : 12 * 60); // рекомендация: с запасом
+  const [rangeMin, setRangeMin] = useState<number>(me.time ? 40 : 12 * 60);
   const fmt2 = (n: number) => String(Math.max(0, Math.min(59, n))).padStart(2, '0');
 
-  // Step 1 — «срезы» смен знаков (получаем с бэка; тут — mock)
   const [slices, setSlices] = useState<SignSlice[]>([]);
   const [slicePick, setSlicePick] = useState<Record<string, 'A' | 'B' | null>>({});
 
-  // Step 2 — выбор по Асценденту (4 аспекта)
   const [ascPick, setAscPick] = useState<{
     sign?: string;
     psychology?: string;
@@ -185,7 +164,6 @@ function RectificationBody() {
     values?: string;
   }>({});
 
-  // Step 3 — предрасположенности
   const allPreds: PredAnswer[] = [
     { code: 'early_marriage', value: 3, enabled: true },
     { code: 'late_child', value: 3, enabled: true },
@@ -198,7 +176,6 @@ function RectificationBody() {
   ];
   const [preds, setPreds] = useState<PredAnswer[]>(allPreds);
 
-  // Step 4 — события
   const baseEvents: LifeEvent[] = [
     { id: 'e1', kind: 'MARRIAGE', month: '', year: '' },
     { id: 'e2', kind: 'DIVORCE', month: '', year: '' },
@@ -210,13 +187,10 @@ function RectificationBody() {
   ];
   const [events, setEvents] = useState<LifeEvent[]>(baseEvents);
 
-  // Step 5 — результаты
   const [candidates, setCandidates] = useState<{ iso: string; score: number; reasons: string[] }[]>([]);
   const [saving, setSaving] = useState(false);
 
-  /* ── Псевдо-API. Подключишь свой сервер — просто замени реализации. ── */
   async function apiRectifyInit() {
-    // Обычно сервер считает моменты смен знаков/ASC в указанном окне.
     const date = birthDate;
     const base = `${date}T${fmt2(centerH)}:${fmt2(centerM)}:00Z`;
     const mock: SignSlice[] = [
@@ -246,38 +220,25 @@ function RectificationBody() {
   }
 
   async function apiRectifyAscCommit() {
-    // Обычно это сужает окно на сервере; здесь — no-op.
     return true;
   }
 
   async function apiScoreAll() {
-    // Обычно это тяжёлый скоринг; здесь — детерминированный mock.
     const date = birthDate;
     const base = (hh: number, mm: number) => `${date}T${fmt2(hh)}:${fmt2(mm)}:00`;
     const s = (code: PredispositionCode) => preds.find((p) => p.code === code)?.value ?? 3;
 
-    const score1 =
-      10 + (slicePick['s1'] === 'A' ? 3 : 0) + (slicePick['s2'] === 'A' ? 3 : 0) + s('music_success') + s('early_marriage');
-    const score2 =
-      10 + (slicePick['s1'] === 'B' ? 3 : 0) + (slicePick['s2'] === 'B' ? 3 : 0) + s('law_success') + s('late_child');
+    const score1 = 10 + (slicePick['s1'] === 'A' ? 3 : 0) + (slicePick['s2'] === 'A' ? 3 : 0) + s('music_success') + s('early_marriage');
+    const score2 = 10 + (slicePick['s1'] === 'B' ? 3 : 0) + (slicePick['s2'] === 'B' ? 3 : 0) + s('law_success') + s('late_child');
 
     const res = [
-      {
-        iso: base(centerH, Math.max(0, centerM - 5)),
-        score: score1,
-        reasons: ['Солнце: вариант A', 'ASC: вариант A', 'Музыка/ранний брак'],
-      },
-      {
-        iso: base(centerH, Math.min(59, centerM + 7)),
-        score: score2,
-        reasons: ['Солнце: вариант B', 'ASC: вариант B', 'Юриспруденция/поздний ребёнок'],
-      },
+      { iso: base(centerH, Math.max(0, centerM - 5)), score: score1, reasons: ['Солнце: вариант A', 'ASC: вариант A', 'Музыка/ранний брак'] },
+      { iso: base(centerH, Math.min(59, centerM + 7)), score: score2, reasons: ['Солнце: вариант B', 'ASC: вариант B', 'Юриспруденция/поздний ребёнок'] },
     ].sort((a, b) => b.score - a.score);
 
     setCandidates(res);
   }
 
-  /* ── Хелперы ───────────────────────────────────── */
   const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
   const fmtH = (n: number) => String(clamp(n, 0, 23)).padStart(2, '0');
 
@@ -314,17 +275,19 @@ function RectificationBody() {
   const saveCandidate = async (iso: string) => {
     try {
       setSaving(true);
-      const HH = iso.slice(11, 13),
-        MM = iso.slice(14, 16),
-        SS = '00';
+      const HH = iso.slice(11, 13);
+      const MM = iso.slice(14, 16);
+      const SS = '00';
+
       await submitOnboarding({
-  ...me,
-  timeKnown: true,
-  time: `${HH}:${MM}`,
-  seconds: Number(SS),
-  fullDateTimeISO: `${birthDate}T${HH}:${MM}:${SS}`,
-});
-      router.back();
+        ...me,
+        timeKnown: true,
+        time: `${HH}:${MM}`,
+        seconds: Number(SS),
+        fullDateTimeISO: `${birthDate}T${HH}:${MM}:${SS}`,
+      });
+
+      safeBack('/(tabs)/astro-map');
     } catch (e: any) {
       Alert.alert('Сохранение', e?.message || 'Не удалось сохранить время');
     } finally {
@@ -332,13 +295,11 @@ function RectificationBody() {
     }
   };
 
-  /* ── UI ────────────────────────────────────────── */
   return (
-    <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding' })} style={{ flex: 1 }}>
+    <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding', android: undefined })} style={{ flex: 1 }}>
       <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: 24 }]}>
         <Text style={styles.caption}>Мастер ректификации: шаг {step + 1} из 6</Text>
 
-        {/* STEP 0 — Интервал */}
         {step === 0 && (
           <>
             <Text style={[styles.label, { marginTop: 6 }]}>Центр времени</Text>
@@ -376,22 +337,16 @@ function RectificationBody() {
               <Text style={styles.primaryText}>Продолжить</Text>
             </Pressable>
 
-            <Text style={styles.helper}>
-              Если время неизвестно вовсе — поставьте 12:00 и интервал ± 720 минут (12 часов).
-            </Text>
+            <Text style={styles.helper}>Если время неизвестно вовсе — поставьте 12:00 и интервал ± 720 минут (12 часов).</Text>
           </>
         )}
 
-        {/* STEP 1 — Смены знаков / ASC */}
         {step === 1 && (
           <>
             <Text style={[styles.label, { marginBottom: 6 }]}>Выберите трактовки, ближе к человеку</Text>
             {slices.length === 0 && <Text style={styles.caption}>В указанном интервале нет переходов — можно дальше.</Text>}
             {slices.map((s) => (
-              <View
-                key={s.id}
-                style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 10, padding: 12, marginBottom: 10 }}
-              >
+              <View key={s.id} style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 10, padding: 12, marginBottom: 10 }}>
                 <Text style={{ color: '#cfd3dc', marginBottom: 6, fontWeight: '700' }}>
                   {s.what === 'SUN_SIGN' ? 'Солнце меняет знак' : s.what === 'MOON_SIGN' ? 'Луна меняет знак' : 'Асцендент — переход знака'}
                 </Text>
@@ -406,54 +361,36 @@ function RectificationBody() {
                 />
               </View>
             ))}
-
             <WizardNav onBack={() => setStep(0)} onNext={next1} />
           </>
         )}
 
-        {/* STEP 2 — Асцендент: 4 аспекта */}
         {step === 2 && (
           <>
             <Text style={[styles.label, { marginBottom: 6 }]}>Выбор по Асценденту</Text>
             <Text style={styles.helper}>Оцени четыре блока. Можно писать кратко — по ощущениям.</Text>
+
             <Row>
               <Label>Психологические качества</Label>
-              <Input
-                value={ascPick.psychology ?? ''}
-                onChangeText={(t) => setAscPick((p) => ({ ...p, psychology: t }))}
-                placeholder="Импульсивен / аналитичен / мечтателен …"
-              />
+              <Input value={ascPick.psychology ?? ''} onChangeText={(t) => setAscPick((p) => ({ ...p, psychology: t }))} placeholder="Импульсивен / аналитичен / мечтателен …" />
             </Row>
             <Row>
               <Label>Особенности внешности</Label>
-              <Input
-                value={ascPick.appearance ?? ''}
-                onChangeText={(t) => setAscPick((p) => ({ ...p, appearance: t }))}
-                placeholder="Высокий рост, спортивный …"
-              />
+              <Input value={ascPick.appearance ?? ''} onChangeText={(t) => setAscPick((p) => ({ ...p, appearance: t }))} placeholder="Высокий рост, спортивный …" />
             </Row>
             <Row>
               <Label>Бескорыстные интересы</Label>
-              <Input
-                value={ascPick.altruism ?? ''}
-                onChangeText={(t) => setAscPick((p) => ({ ...p, altruism: t }))}
-                placeholder="Спорт, музыка, помощь людям …"
-              />
+              <Input value={ascPick.altruism ?? ''} onChangeText={(t) => setAscPick((p) => ({ ...p, altruism: t }))} placeholder="Спорт, музыка, помощь людям …" />
             </Row>
             <Row>
               <Label>Высшие ценности и приоритеты</Label>
-              <Input
-                value={ascPick.values ?? ''}
-                onChangeText={(t) => setAscPick((p) => ({ ...p, values: t }))}
-                placeholder="Победа / порядок / свобода …"
-              />
+              <Input value={ascPick.values ?? ''} onChangeText={(t) => setAscPick((p) => ({ ...p, values: t }))} placeholder="Победа / порядок / свобода …" />
             </Row>
 
             <WizardNav onBack={() => setStep(1)} onNext={next2} />
           </>
         )}
 
-        {/* STEP 3 — Предрасположенности (Likert) */}
         {step === 3 && (
           <>
             <Text style={[styles.label, { marginBottom: 6 }]}>Предрасположенности</Text>
@@ -471,8 +408,7 @@ function RectificationBody() {
                       foreign_marriage: 'Брак с иностранцем',
                       imprisonment: 'Тюремное заключение/плен',
                       water_extreme: 'Экстремальные ситуации на воде',
-                    } as Record<PredispositionCode, string>)
-                  [p.code]
+                    } as Record<PredispositionCode, string>)[p.code]
                   }
                 </Text>
                 <LikertRow
@@ -487,18 +423,15 @@ function RectificationBody() {
                 />
               </View>
             ))}
-
             <WizardNav onBack={() => setStep(2)} onNext={next3} />
           </>
         )}
 
-        {/* STEP 4 — События */}
         {step === 4 && (
           <>
             <Text style={[styles.label, { marginBottom: 6 }]}>События (месяц и год, можно приблизительно)</Text>
-            <Text style={styles.helper}>
-              Если однотипных событий было несколько — укажи первое. Для «сильных» выбери самые значимые.
-            </Text>
+            <Text style={styles.helper}>Если однотипных событий было несколько — укажи первое. Для «сильных» выбери самые значимые.</Text>
+
             <View style={{ gap: 10 }}>
               {events.map((ev, i) => (
                 <EventRow
@@ -512,8 +445,7 @@ function RectificationBody() {
                       HOSPITAL: 'Длительная госпитализация',
                       INJURY: 'Травма/увечье',
                       EXTREME: 'Экстремальная ситуация',
-                    } as Record<LifeEventKind, string>)
-                  [ev.kind]
+                    } as Record<LifeEventKind, string>)[ev.kind]
                   }
                   month={ev.month}
                   year={ev.year}
@@ -532,21 +464,15 @@ function RectificationBody() {
           </>
         )}
 
-        {/* STEP 5 — Рейтинг и сохранение */}
         {step === 5 && (
           <>
             <Text style={[styles.label, { marginBottom: 8 }]}>Наиболее вероятное время рождения</Text>
             {candidates.length === 0 ? (
-              <Text style={styles.caption}>
-                Не удалось вычислить кандидатов. Попробуйте расширить интервал или уточнить ответы.
-              </Text>
+              <Text style={styles.caption}>Не удалось вычислить кандидатов. Попробуйте расширить интервал или уточнить ответы.</Text>
             ) : (
               <View style={{ gap: 12 }}>
                 {candidates.map((c) => (
-                  <View
-                    key={c.iso}
-                    style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 10, padding: 12 }}
-                  >
+                  <View key={c.iso} style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 10, padding: 12 }}>
                     <Text style={{ color: '#fff', fontWeight: '700', marginBottom: 4 }}>
                       {new Date(c.iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </Text>
@@ -559,10 +485,7 @@ function RectificationBody() {
                     <Pressable
                       onPress={() => saveCandidate(c.iso)}
                       disabled={saving || loading}
-                      style={[
-                        styles.primaryBtn,
-                        { marginTop: 10, backgroundColor: '#4f46e5', opacity: saving || loading ? 0.7 : 1 },
-                      ]}
+                      style={[styles.primaryBtn, { marginTop: 10, backgroundColor: '#4f46e5', opacity: saving || loading ? 0.7 : 1 }]}
                     >
                       <Text style={styles.primaryText}>{saving ? 'Сохраняю…' : 'Выбрать это время'}</Text>
                     </Pressable>
@@ -605,17 +528,7 @@ function ToggleAB(props: {
   onChange: (v: 'A' | 'B') => void;
 }) {
   const { aTitle, bTitle, aDesc, bDesc, value, onChange } = props;
-  const Btn = ({
-    title,
-    desc,
-    active,
-    onPress,
-  }: {
-    title: string;
-    desc: string;
-    active: boolean;
-    onPress: () => void;
-  }) => (
+  const Btn = ({ title, desc, active, onPress }: { title: string; desc: string; active: boolean; onPress: () => void }) => (
     <Pressable
       onPress={onPress}
       style={[
@@ -661,67 +574,47 @@ function LikertRow({ value, onChange }: { value: Likert; onChange: (v: Likert) =
   );
 }
 
-function EventRow({
-  label,
-  month,
-  year,
-  onChange,
-}: {
-  label: string;
-  month: string;
-  year: string;
-  onChange: (m: string, y: string) => void;
-}) {
+function EventRow({ label, month, year, onChange }: { label: string; month: string; year: string; onChange: (m: string, y: string) => void }) {
   return (
     <View style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 10, padding: 10 }}>
       <Text style={{ color: '#cfd3dc', marginBottom: 8 }}>{label}</Text>
       <View style={{ flexDirection: 'row', gap: 10 }}>
         <View style={{ flex: 1 }}>
           <Label>Месяц (1–12)</Label>
-          <Input
-            value={month}
-            keyboardType="number-pad"
-            placeholder="ММ"
-            maxLength={2}
-            onChangeText={(t) => onChange(t.replace(/\D/g, '').slice(0, 2), year)}
-          />
+          <Input value={month} keyboardType="number-pad" placeholder="ММ" maxLength={2} onChangeText={(t) => onChange(t.replace(/\D/g, '').slice(0, 2), year)} />
         </View>
         <View style={{ flex: 1 }}>
           <Label>Год</Label>
-          <Input
-            value={year}
-            keyboardType="number-pad"
-            placeholder="ГГГГ"
-            maxLength={4}
-            onChangeText={(t) => onChange(month, t.replace(/\D/g, '').slice(0, 4))}
-          />
+          <Input value={year} keyboardType="number-pad" placeholder="ГГГГ" maxLength={4} onChangeText={(t) => onChange(month, t.replace(/\D/g, '').slice(0, 4))} />
         </View>
       </View>
     </View>
   );
 }
 
-/* ────────── Profile modal (existing, kept) ────────── */
+/* ────────── Profile modal ────────── */
 function ProfileBody({ mode }: { mode: ModeParam }) {
-  const isMe = mode !== 'other'; // default to "me" if unspecified
+  const isMe = mode !== 'other';
   const { me, other, setMe, setOther, sync } = useProfiles();
   const initial = useMemo<PersonProfile | null>(() => (isMe ? me : other), [isMe, me, other]);
 
-  // --- form state
+  const router = useRouter();
+  const safeBack = (fallback: string) => {
+    if (router.canGoBack()) router.back();
+    else router.replace(fallback as any);
+  };
+
   const [name, setName] = useState<string>(initial?.name ?? '');
-  const [birthDate, setBirthDate] = useState<string>(initial?.birthDateISO ?? initial?.date ?? ''); // YYYY-MM-DD
+  const [birthDate, setBirthDate] = useState<string>(initial?.birthDateISO ?? initial?.date ?? '');
   const [timeKnown, setTimeKnown] = useState<boolean>(initial?.timeKnown ?? true);
-  const [birthTime, setBirthTime] = useState<string>(initial?.time ?? ''); // HH:mm
+  const [birthTime, setBirthTime] = useState<string>(initial?.time ?? '');
   const [useSeconds, setUseSeconds] = useState<boolean>(!!initial?.seconds);
-  const [seconds, setSeconds] = useState<string>(
-    initial?.seconds ? String(initial?.seconds).padStart(2, '0') : ''
-  );
+  const [seconds, setSeconds] = useState<string>(initial?.seconds ? String(initial?.seconds).padStart(2, '0') : '');
   const [livesElsewhere, setLivesElsewhere] = useState<boolean>(initial?.livesElsewhere ?? false);
   const [currentCity, setCurrentCity] = useState<string>(initial?.currentCity ?? '');
   const [gender, setGender] = useState<PersonProfile['gender']>(initial?.gender ?? 'na');
   const [email, setEmail] = useState<string>(initial?.email ?? '');
 
-  // ---- место рождения с автодополнением (строгий выбор)
   const [placeQuery, setPlaceQuery] = useState<string>(initial?.birthPlace ?? initial?.place ?? '');
   const [pickedGeo, setPickedGeo] = useState<PickedGeo | null>(
     initial?.coords && (initial?.tz || null)
@@ -742,7 +635,6 @@ function ProfileBody({ mode }: { mode: ModeParam }) {
 
   const seqRef = useRef(0);
 
-  // дебаунс-поиск подсказок (fix cleanup typing)
   useEffect(() => {
     let t: ReturnType<typeof setTimeout> | null = null;
     const q = placeQuery.trim();
@@ -778,7 +670,6 @@ function ProfileBody({ mode }: { mode: ModeParam }) {
     };
   }, [placeQuery]);
 
-  // если после выбора пользователь редактирует поле — сбрасываем выбор
   useEffect(() => {
     if (!pickedGeo) return;
     const normalized = `${pickedGeo.city}${pickedGeo.nation ? ', ' + pickedGeo.nation : ''}`;
@@ -786,8 +677,6 @@ function ProfileBody({ mode }: { mode: ModeParam }) {
       setPickedGeo(null);
     }
   }, [placeQuery, pickedGeo]);
-
-  const router = useRouter();
 
   const validate = () => {
     if (!name.trim()) {
@@ -812,7 +701,6 @@ function ProfileBody({ mode }: { mode: ModeParam }) {
       }
     }
 
-    // строгий выбор места
     if (!pickedGeo) {
       setPlaceError('Выберите место из списка подсказок');
       Alert.alert('Место рождения', 'Пожалуйста, выберите место из выпадающего списка.');
@@ -846,11 +734,10 @@ function ProfileBody({ mode }: { mode: ModeParam }) {
     const payload: PersonProfile = {
       id: initial?.id ?? newId(),
       name: name.trim(),
-      // старые поля
       date: birthDate,
       time: timeKnown ? birthTime : undefined,
       place: placeQuery,
-      // новые
+
       birthDateISO: birthDate,
       timeKnown,
       seconds: timeKnown && useSeconds ? Number(seconds) : undefined,
@@ -859,12 +746,8 @@ function ProfileBody({ mode }: { mode: ModeParam }) {
       currentCity: livesElsewhere ? currentCity : undefined,
       gender,
       email: email.trim() || undefined,
-      fullDateTimeISO: timeKnown
-      ? `${birthDate}T${birthTime}:${(useSeconds ? seconds : '00').toString().padStart(2, '0')}`
-      : undefined,
-      ...(pickedGeo
-        ? { coords: { lat: pickedGeo.lat, lng: pickedGeo.lng }, tz: pickedGeo.tz || undefined }
-        : {}),
+      fullDateTimeISO: timeKnown ? `${birthDate}T${birthTime}:${(useSeconds ? seconds : '00').toString().padStart(2, '0')}` : undefined,
+      ...(pickedGeo ? { coords: { lat: pickedGeo.lat, lng: pickedGeo.lng }, tz: pickedGeo.tz || undefined } : {}),
     };
 
     isMe ? setMe(payload) : setOther(payload);
@@ -875,7 +758,7 @@ function ProfileBody({ mode }: { mode: ModeParam }) {
       console.warn('[profiles] sync failed', e);
     }
 
-    router.back();
+    safeBack('/(tabs)/settings');
   };
 
   return (
@@ -887,14 +770,14 @@ function ProfileBody({ mode }: { mode: ModeParam }) {
 
         <Row>
           <Label>Имя *</Label>
-          <Input value={name} onChangeText={(t) => setName(t)} placeholder="Иван / Анна" />
+          <Input value={name} onChangeText={setName} placeholder="Иван / Анна" />
         </Row>
 
         <Row>
           <Label>Дата рождения (ГГГГ-ММ-ДД) *</Label>
           <Input
             value={birthDate}
-            onChangeText={(t) => setBirthDate(t)}
+            onChangeText={setBirthDate}
             placeholder="1995-06-15"
             keyboardType="numbers-and-punctuation"
             autoCapitalize="none"
@@ -912,7 +795,7 @@ function ProfileBody({ mode }: { mode: ModeParam }) {
               <Label>Время рождения (ЧЧ:ММ) *</Label>
               <Input
                 value={birthTime}
-                onChangeText={(t) => setBirthTime(t)}
+                onChangeText={setBirthTime}
                 placeholder="14:05"
                 keyboardType="numbers-and-punctuation"
                 autoCapitalize="none"
@@ -921,7 +804,7 @@ function ProfileBody({ mode }: { mode: ModeParam }) {
 
             <View style={styles.switchLine}>
               <Label>Указать секунды</Label>
-              <Switch value={useSeconds} onValueChange={(v) => setUseSeconds(v)} />
+              <Switch value={useSeconds} onValueChange={setUseSeconds} />
             </View>
 
             {useSeconds && (
@@ -940,7 +823,6 @@ function ProfileBody({ mode }: { mode: ModeParam }) {
           </>
         )}
 
-        {/* ====== МЕСТО РОЖДЕНИЯ (строгое автодополнение) ====== */}
         <AutocompletePlace
           placeQuery={placeQuery}
           setPlaceQuery={setPlaceQuery}
@@ -954,20 +836,15 @@ function ProfileBody({ mode }: { mode: ModeParam }) {
           setPlaceError={setPlaceError}
         />
 
-        {/* ====== Проживание ====== */}
         <View style={styles.checkboxLine}>
           <Text style={styles.label}>Проживаю в другом месте</Text>
-          <Switch value={livesElsewhere} onValueChange={(v) => setLivesElsewhere(v)} />
+          <Switch value={livesElsewhere} onValueChange={setLivesElsewhere} />
         </View>
 
         {livesElsewhere && (
           <Row>
             <Label>Город проживания *</Label>
-            <Input
-              value={currentCity}
-              onChangeText={(t) => setCurrentCity(t)}
-              placeholder="Текущий город (пример: Стамбул, Турция)"
-            />
+            <Input value={currentCity} onChangeText={setCurrentCity} placeholder="Текущий город (пример: Стамбул, Турция)" />
           </Row>
         )}
 
@@ -989,21 +866,10 @@ function ProfileBody({ mode }: { mode: ModeParam }) {
 
         <Row>
           <Label>Email (необязательно)</Label>
-          <Input
-            value={email}
-            onChangeText={(t) => setEmail(t)}
-            placeholder="you@email.com"
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
+          <Input value={email} onChangeText={setEmail} placeholder="you@email.com" keyboardType="email-address" autoCapitalize="none" />
         </Row>
 
-        <Pressable
-          style={[styles.primaryBtn, (!pickedGeo || placeError) && { opacity: 0.6 }]}
-          onPress={submit}
-          disabled={!pickedGeo}
-          accessibilityRole="button"
-        >
+        <Pressable style={[styles.primaryBtn, (!pickedGeo || placeError) && { opacity: 0.6 }]} onPress={submit} disabled={!pickedGeo}>
           <Text style={styles.primaryText}>Сохранить</Text>
         </Pressable>
 
@@ -1028,20 +894,8 @@ function AutocompletePlace(props: {
   placeError: string | null;
   setPlaceError: (v: string | null) => void;
 }) {
-  const {
-    placeQuery,
-    setPlaceQuery,
-    pickedGeo,
-    setPickedGeo,
-    suggest,
-    setSuggest,
-    showSuggest,
-    setShowSuggest,
-    placeError,
-    setPlaceError,
-  } = props;
+  const { placeQuery, setPlaceQuery, pickedGeo, setPickedGeo, suggest, setSuggest, showSuggest, setShowSuggest, placeError, setPlaceError } = props;
 
-  // safe debounce with typed cleanup
   useEffect(() => {
     let t: ReturnType<typeof setTimeout> | null = null;
     const q = placeQuery.trim();
@@ -1074,7 +928,6 @@ function AutocompletePlace(props: {
     };
   }, [placeQuery, setShowSuggest, setSuggest]);
 
-  // reset picked when edited
   useEffect(() => {
     if (!pickedGeo) return;
     const normalized = `${pickedGeo.city}${pickedGeo.nation ? ', ' + pickedGeo.nation : ''}`;
@@ -1129,8 +982,8 @@ function AutocompletePlace(props: {
 
 /* ---------- styles ---------- */
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#0b0b0c' }, // <— общий фон
-  scroll: { flex: 1, backgroundColor: '#0b0b0c' }, // <— фон скролла (Android)
+  safe: { flex: 1, backgroundColor: '#0b0b0c' },
+  scroll: { flex: 1, backgroundColor: '#0b0b0c' },
   content: { padding: 16, gap: 14 },
 
   caption: { color: '#c7c9d1', fontSize: 14, lineHeight: 20 },
@@ -1144,6 +997,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
   },
+
   switchLine: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1157,12 +1011,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
-  genderWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 2,
-  },
+
+  genderWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 2 },
   genderBtn: {
     paddingHorizontal: 10,
     paddingVertical: 8,
@@ -1171,10 +1021,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
   },
-  genderBtnActive: {
-    backgroundColor: 'rgba(79,70,229,0.18)',
-    borderColor: 'rgba(79,70,229,0.35)',
-  },
+  genderBtnActive: { backgroundColor: 'rgba(79,70,229,0.18)', borderColor: 'rgba(79,70,229,0.35)' },
   genderText: { color: '#cfd3dc', fontSize: 13, fontWeight: '600' },
   genderTextActive: { color: '#fff' },
 

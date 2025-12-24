@@ -1,9 +1,11 @@
 // app/(tabs)/settings.tsx
 import { getSupabase } from '@/src/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+
 
 const C = {
   bg: '#0b0b0c',
@@ -25,9 +27,15 @@ export default function SettingsScreen() {
   } catch (e: any) {
     console.warn('[logout]', e?.message || e);
   } finally {
+    try {
+      // Clear persisted profile data so next user on same device doesn't see it
+      await AsyncStorage.removeItem('profiles-store');
+    } catch {}
+
     router.replace('/');
   }
 }
+
 
   function openMyForm() {
     router.push({ pathname: '/modal', params: { mode: 'me' } });
