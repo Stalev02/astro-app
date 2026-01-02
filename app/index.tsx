@@ -31,14 +31,21 @@ const {
           }
         } else {
           // есть сессия → смотрим флаг онбординга в аккаунте
-          const accountOnboardingDone =
-            !!session.user?.user_metadata?.onboarding_done;
+          const adminEmail = (process.env.EXPO_PUBLIC_ADMIN_EMAIL || '').trim().toLowerCase();
+const isAdmin = adminEmail && (session.user?.email || '').toLowerCase() === adminEmail;
 
-          if (!accountOnboardingDone) {
-            setTarget('/onboarding');          // онбординг один раз на аккаунт
-          } else {
-            setTarget('/(tabs)/astro-map');    // всё пройдено → основное приложение
-          }
+// normal onboarding flag
+      const accountOnboardingDone = !!session.user?.user_metadata?.onboarding_done;
+
+      // admin override
+      const shouldForceOnboarding = isAdmin;
+
+      if (shouldForceOnboarding || !accountOnboardingDone) {
+        setTarget('/onboarding');
+      } else {
+        setTarget('/(tabs)/astro-map');
+      }
+
         }
       } catch (e) {
         // если Supabase не настроен — просто логин

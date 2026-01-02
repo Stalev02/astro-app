@@ -1,4 +1,5 @@
 // app/onboarding-profile.tsx
+import { getSupabase } from '@/src/lib/supabase';
 import { searchPlaces } from '@/src/shared/api/profiles';
 import { useApp } from '@/src/store/app';
 import { PersonProfile, useProfiles } from '@/src/store/profiles';
@@ -203,6 +204,14 @@ export default function OnboardingProfileWizard() {
       };
 
       await submitOnboarding(input);
+      // ✅ mark onboarding done on the Supabase account (used by app/index.tsx)
+try {
+  const sb = await getSupabase();
+  await sb.auth.updateUser({ data: { onboarding_done: true } });
+} catch (e) {
+  console.warn('[onboarding-profile] updateUser failed', e);
+}
+
 
       // Mark global onboarding as complete once profile is successfully persisted.
       completeOnboarding();
@@ -260,16 +269,7 @@ export default function OnboardingProfileWizard() {
                 setCurrentCity={(t: string) => setCurrentCity(t)}
               />
             )}
-            {step === 'final' && (
-              <ScreenReview
-                onRect={() =>
-                  router.push({
-                    pathname: '/modal',
-                    params: { mode: 'rectification' },
-                  })
-                }
-              />
-            )}
+            {step === 'final' && <ScreenReview />}
           </View>
 
           <View style={s.nav}>
@@ -995,19 +995,11 @@ function ScreenBirthPlaceWithLive(props: {
 }
 
 /* Финал */
-function ScreenReview({ onRect }: { onRect: () => void }) {
+function ScreenReview() {
   return (
     <Card title="Финальный шаг">
-      <Text style={s.p}>
-        Если не знаешь точное время рождения — можно уточнить.
-      </Text>
-      <Pressable
-        onPress={onRect}
-        style={[s.btn, s.ghost, { alignSelf: 'flex-start' }]}
-      >
-        <Text style={s.btnText}>Пройти ректификацию</Text>
-      </Pressable>
-      <Hint>Нажми «Сохранить анкету», чтобы завершить мастер.</Hint>
+      <Text style={s.p}>Нажми «Сохранить анкету», чтобы завершить мастер.</Text>
+      <Hint>После сохранения ты попадёшь в приложение.</Hint>
     </Card>
   );
 }

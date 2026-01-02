@@ -31,7 +31,7 @@ export default function Onboarding() {
 
   // pages: 0..3
   const [page, setPage] = useState(0);
-  const [tos, setTos] = useState<boolean>(tosAccepted);
+  const [tos, setTos] = useState<boolean>(false);
 
   // Guard: onboarding requires an authenticated session
   useEffect(() => {
@@ -45,6 +45,11 @@ export default function Onboarding() {
       }
     })();
   }, [router]);
+
+  useEffect(() => {
+  setTos(false);
+  setTosAccepted(false);
+}, [setTosAccepted]);
 
   const goProfile = () => router.push('/onboarding-profile');
   const goRect = () => router.push({ pathname: '/modal', params: { mode: 'rectification' } });
@@ -162,9 +167,6 @@ function ScreenProfile({ goProfile, goRect }: { goProfile: () => void; goRect: (
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
         <Pressable onPress={goProfile} style={[s.btn, s.primary]}>
           <Text style={[s.btnText, { color: '#fff' }]}>Заполнить анкету</Text>
-        </Pressable>
-        <Pressable onPress={goRect} style={[s.btn, s.ghost]}>
-          <Text style={s.btnText}>Ректификация</Text>
         </Pressable>
       </View>
 

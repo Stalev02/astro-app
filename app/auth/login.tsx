@@ -40,10 +40,15 @@ export default function Login() {
         const sb = await getSupabase();
         const { data: sub } = sb.auth.onAuthStateChange((event, session) => {
   if (event === 'SIGNED_IN' && session?.user) {
-    useProfiles.getState().applyAuthUser(session.user.id);
-    router.replace('/');
+    (async () => {
+      const uid = session.user.id;
+      useProfiles.getState().applyAuthUser(uid);
+      await useProfiles.getState().loadMeFromServer();
+      router.replace('/');
+    })();
   }
 });
+
 
         unsub = () => sub.subscription.unsubscribe();
       } catch {
@@ -55,22 +60,33 @@ export default function Login() {
   }, [router]);
 
   async function signInEmail() {
-    try {
-      const em = email.trim().toLowerCase();
-      if (!em || !password) return Alert.alert('Вход', 'Заполни email и пароль');
+  try {
+    const em = email.trim().toLowerCase();
+    if (!em || !password) return Alert.alert('Вход', 'Заполни email и пароль');
 
-      setLoading(true);
-      const sb = await getSupabase();
-      const { error } = await sb.auth.signInWithPassword({ email: em, password });
-      if (error) throw error;
+    setLoading(true);
 
-      router.replace('/');
-    } catch (e: any) {
-      Alert.alert('Ошибка входа', e?.message || 'Не удалось войти');
-    } finally {
-      setLoading(false);
+    const sb = await getSupabase();
+    const { error } = await sb.auth.signInWithPassword({ email: em, password });
+    if (error) throw error;
+
+    // ✅ pull uid and hydrate store from DB
+    const { data } = await sb.auth.getSession();
+    const uid = data.session?.user?.id;
+
+    if (uid) {
+      useProfiles.getState().applyAuthUser(uid);
+      await useProfiles.getState().loadMeFromServer();
     }
+
+    router.replace('/');
+  } catch (e: any) {
+    Alert.alert('Ошибка входа', e?.message || 'Не удалось войти');
+  } finally {
+    setLoading(false);
   }
+}
+
 
   async function signUpEmail() {
     try {
@@ -92,12 +108,18 @@ if (!e2) {
   const uid = data.session?.user?.id;
 
   if (uid) {
+    // 1) Switch identity (prevents data leak)
     useProfiles.getState().applyAuthUser(uid);
+
+    // 2) Pull profile from DB by supabase_uid
+    await useProfiles.getState().loadMeFromServer();
   }
 
+  // 3) Go through the gate (index.tsx)
   router.replace('/');
   return;
 }
+
 
 
       Alert.alert('Подтверди почту', 'Мы отправили письмо. После подтверждения войди в приложении.');

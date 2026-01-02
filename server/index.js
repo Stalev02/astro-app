@@ -302,11 +302,18 @@ app.post('/profiles/sync', optionalAuth, async (req, res) => {
     if (!deviceId) return res.status(400).json({ error: 'deviceId is required' });
 
     const supabaseUid = req.user?.id || null;
+
+    if (supabaseUid) {
+      await attachSupabaseUidToDeviceProfile(deviceId, supabaseUid);
+    }
+
     const row = await upsertProfileWithIds({ deviceId, supabaseUid, me, other });
-    console.log('[sync] профиль сохранён, запускаю построение карты для', deviceId);
+
+    const effectiveDeviceId = row?.device_id || deviceId;
+    console.log('[sync] профиль сохранён, запускаю построение карты для', effectiveDeviceId);
 
     buildNatalChartIfPossible(row)
-      .then(() => console.log('[sync] генерация карты завершена для', deviceId))
+      .then(() => console.log('[sync] генерация карты завершена для', effectiveDeviceId))
       .catch((err) => console.error('[sync] ошибка построения карты:', err));
 
     return res.json(row);
@@ -315,6 +322,30 @@ app.post('/profiles/sync', optionalAuth, async (req, res) => {
     return res.status(500).json({ error: 'profiles sync failed' });
   }
 });
+
+app.get('/profiles/me/chart', requireAuth, async (req, res) => {
+  try {
+    const supabaseUid = req.user?.id;
+    const row = await getProfileBySupabaseUid(supabaseUid);
+    if (!row) return res.status(404).json({ error: 'profile not found' });
+
+    let svg = row.chart_svg || null;
+    if (!svg && row.chart_data && typeof row.chart_data === 'object') {
+      svg =
+        row.chart_data.chart ||
+        row.chart_data.svg ||
+        row.chart_data.chart_svg ||
+        (row.chart_data.data && (row.chart_data.data.chart || row.chart_data.data.svg)) ||
+        null;
+    }
+    return res.json({ chart_svg: svg });
+  } catch (e) {
+    console.error('me chart get error', e);
+    return res.status(500).json({ error: 'chart get failed' });
+  }
+});
+
+
 
 app.get('/profiles/:deviceId/chart', async (req, res) => {
   try {

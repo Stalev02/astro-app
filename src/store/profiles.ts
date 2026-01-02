@@ -54,26 +54,16 @@ type ProfilesState = {
   setOther: (p: PersonProfile) => void;
   clearOther: () => void;
 
-  /** Hard reset local profile state (prevents cross-account leak) */
   resetAll: () => void;
 
-  /**
-   * Call after sign-in / session restore:
-   * - sets deviceId = uid-${uid}
-   * - if switched user, clears me/other/chart/onboarded
-   */
   applyAuthUser: (uid: string) => void;
 
-  /** Pull profile from DB for the logged-in user */
   loadMeFromServer: () => Promise<void>;
 
-  /** sync with server */
   sync: () => Promise<void>;
 
-  /** onboarding submission */
   submitOnboarding: (payload: Partial<PersonProfile>) => Promise<void>;
 
-  /** manual chart refresh */
   reloadChart: () => Promise<void>;
 };
 
@@ -81,6 +71,18 @@ type ProfilesState = {
 
 const genDeviceId = () =>
   'dev-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+function pickChartSvgFromRow(row: any): string | null {
+  return (
+    row?.chart_svg ??
+    row?.chart_data?.chart_svg ??
+    row?.chart_data?.chart ??
+    row?.chart_data?.svg ??
+    row?.chart_data?.data?.chart ??
+    row?.chart_data?.data?.svg ??
+    null
+  );
+}
 
 /* ───────────────── Store ───────────────── */
 
@@ -116,6 +118,7 @@ export const useProfiles = create<ProfilesState>()(
         const nextId = `uid-${uid}`;
         const currentId = get().deviceId;
 
+        // If user switched (or we were previously guest), wipe local state
         if (currentId !== nextId) {
           set({
             deviceId: nextId,
@@ -136,21 +139,14 @@ export const useProfiles = create<ProfilesState>()(
         try {
           const row: any = await fetchMyProfile();
 
-          // Keep deviceId in sync with what backend returns (if present)
+          // Prefer backend's device_id if present
           if (row?.device_id && typeof row.device_id === 'string' && row.device_id !== get().deviceId) {
             set({ deviceId: row.device_id });
           }
 
           const me = (row?.me ?? null) as PersonProfile | null;
           const other = (row?.other ?? null) as PersonProfile | null;
-
-          // chart svg can be returned either at top-level or embedded in chart_data
-          const svg =
-            row?.chart_svg ??
-            row?.chart_data?.chart_svg ??
-            row?.chart_data?.chart ??
-            row?.chart_data?.svg ??
-            null;
+          const svg = pickChartSvgFromRow(row);
 
           set({
             me,
@@ -161,7 +157,6 @@ export const useProfiles = create<ProfilesState>()(
             error: null,
           });
         } catch (e: any) {
-          // Important: do NOT wipe local state here. Just report the error.
           set({
             loading: false,
             error: e?.message ?? 'loadMeFromServer failed',
@@ -172,8 +167,30 @@ export const useProfiles = create<ProfilesState>()(
       async sync() {
         const { deviceId, me, other } = get();
         try {
-          await syncProfiles({ deviceId, me, other });
-          console.log('[profiles] sync ok', deviceId);
+          // IMPORTANT: use response, do not ignore it
+          const row: any = await syncProfiles({ deviceId, me, other });
+
+          // server returns { device_id, me, other, chart_svg, chart_data, ... }
+          const nextDeviceId =
+            typeof row?.device_id === 'string' && row.device_id.trim()
+              ? row.device_id
+              : deviceId;
+
+          const nextMe = (row?.me ?? me ?? null) as PersonProfile | null;
+          const nextOther = (row?.other ?? other ?? null) as PersonProfile | null;
+
+          const svg = pickChartSvgFromRow(row);
+
+          set({
+            deviceId: nextDeviceId,
+            me: nextMe,
+            other: nextOther,
+            chart: svg !== undefined ? { chart_svg: svg } : get().chart,
+            onboarded: get().onboarded || !!nextMe,
+            error: null,
+          });
+
+          console.log('[profiles] sync ok', nextDeviceId);
         } catch (e) {
           console.warn('[profiles] sync failed', e);
         }
@@ -186,10 +203,10 @@ export const useProfiles = create<ProfilesState>()(
         set({ loading: true, error: null, me: merged });
 
         try {
-          // 1) sync to backend (now includes Authorization header when logged in)
+          // 1) sync (stores in DB)
           await get().sync();
 
-          // 2) try fetch SVG chart
+          // 2) fetch chart (may not exist yet)
           let chart: NatalChart | null = null;
           try {
             const res = await fetchChartSvg(get().deviceId);
@@ -217,38 +234,40 @@ export const useProfiles = create<ProfilesState>()(
       },
 
       async reloadChart() {
-        const { deviceId, me } = get();
-
+        const me = get().me;
         if (!me) {
           console.warn('[profiles] reloadChart: нет профиля');
           return;
         }
 
         set({ loading: true, error: null });
+
         try {
-          const res = await fetchChartSvg(deviceId);
-          const chart: NatalChart = { chart_svg: res.chart_svg ?? null };
-          set({ chart, loading: false });
+          // Try once
+          const res = await fetchChartSvg(get().deviceId);
+          set({ chart: { chart_svg: res.chart_svg ?? null }, loading: false });
           console.log('[profiles] chart reloaded');
+          return;
         } catch (e: any) {
           const msg = String(e?.message || '');
+
+          // If server says profile row not found, sync and try again ONCE
           if (msg.includes('404')) {
             console.warn('[profiles] chart 404 → попробую sync() и повторить');
             try {
               await get().sync();
-              await new Promise((r) => setTimeout(r, 250));
-              const res2 = await fetchChartSvg(deviceId);
-              const chart2: NatalChart = { chart_svg: res2.chart_svg ?? null };
-              set({ chart: chart2, loading: false });
+              await new Promise((r) => setTimeout(r, 300));
+
+              // deviceId might have changed after sync()
+              const res2 = await fetchChartSvg(get().deviceId);
+              set({ chart: { chart_svg: res2.chart_svg ?? null }, loading: false });
               return;
             } catch (e2) {
               console.warn('[profiles] повторный reload после sync не удался', e2);
             }
           }
-          set({
-            loading: false,
-            error: e?.message ?? 'Не удалось обновить карту',
-          });
+
+          set({ loading: false, error: e?.message ?? 'Не удалось обновить карту' });
           console.warn('[profiles] reloadChart failed', e);
         }
       },
