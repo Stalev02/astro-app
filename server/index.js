@@ -195,6 +195,15 @@ const normalizeNation = (val) => {
   return map[v] || null;
 };
 
+
+app.get('/debug/geo', (_req, res) => {
+  res.json({
+    nominatimBase: process.env.NOMINATIM_BASE || null,
+    nominatimEmailPresent: Boolean(process.env.NOMINATIM_EMAIL),
+    geoTimeout: process.env.GEONAMES_TIMEOUT_MS || null,
+    node: process.version,
+  });
+});
 /* ============================= GEO SEARCH ============================= */
 // 🔎 поиск городов через Nominatim (прокси), + tzLookup
 app.get('/geo/search', async (req, res) => {
