@@ -200,7 +200,7 @@ const normalizeNation = (val) => {
 app.get('/geo/search', async (req, res) => {
   const q = String(req.query.q || '').trim();
   console.log('[geo/search] q =', q);
-  console.log("geo url:", `${API_BASE}/geo/search?q=${encodeURIComponent(q)}`);
+  console.log("geo url:", `${NOMINATIM_BASE}/search?q=${encodeURIComponent(q)}`);
   if (!q || q.length < 2) return res.json({ items: [] });
 
   const TIMEOUT = Number(GEONAMES_TIMEOUT_MS || 6000);
