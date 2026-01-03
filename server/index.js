@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import ffmpeg from 'fluent-ffmpeg';
 import multer from 'multer';
+import fetch from 'node-fetch';
 import path from 'path';
 import tzLookup from 'tz-lookup';
 import { fileURLToPath } from 'url';
