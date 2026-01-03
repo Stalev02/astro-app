@@ -8,7 +8,12 @@
     "scheme": "cosmotell",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "extra": {},
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "24a7263c-306f-42ec-96e7-7cb1623197ee"
+      }
+    },
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
@@ -33,11 +38,15 @@
               "NSIncludesSubdomains": true
             }
           }
-        }
-      }
+        },
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "bundleIdentifier": "com.stalev02.astroapp"
     },
     "android": {
-      "permissions": ["RECORD_AUDIO"],
+      "permissions": [
+        "RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

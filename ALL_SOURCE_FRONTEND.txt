@@ -109,8 +109,8 @@ Join our community of developers creating universal apps.
 
 
 --- FILE: app.json ---
---- LINES: 78 ---
---- SHA256: 0d62bee0a9a2d796adf04822c28286b70d17a87b9d7523bc173f8267ded8446d ---
+--- LINES: 87 ---
+--- SHA256: 58ffee4f69a0d5e8408ed0da5029a49b34c3b502adee53a85ea48855a0fad976 ---
 {
   "expo": {
     "name": "astro-app",
@@ -121,7 +121,12 @@ Join our community of developers creating universal apps.
     "scheme": "cosmotell",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "extra": {},
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "24a7263c-306f-42ec-96e7-7cb1623197ee"
+      }
+    },
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
@@ -146,11 +151,15 @@ Join our community of developers creating universal apps.
               "NSIncludesSubdomains": true
             }
           }
-        }
-      }
+        },
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "bundleIdentifier": "com.stalev02.astroapp"
     },
     "android": {
-      "permissions": ["RECORD_AUDIO"],
+      "permissions": [
+        "RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -1218,8 +1227,8 @@ export default function RootLayout() {
 
 
 --- FILE: app/auth/login.tsx ---
---- LINES: 270 ---
---- SHA256: 83fd7001b9d1f8c21e50d25d6a454572ff58d0fe65ccb8c0b6a553f328bacc11 ---
+--- LINES: 286 ---
+--- SHA256: 932ac9b37af186bc0fe1a6d11e8cb2290882c3e3ef2588a869f4dd02012a6b0d ---
 // app/auth/login.tsx
 import { getSupabase } from '@/src/lib/supabase';
 import { useProfiles } from '@/src/store/profiles';
@@ -1262,10 +1271,15 @@ export default function Login() {
         const sb = await getSupabase();
         const { data: sub } = sb.auth.onAuthStateChange((event, session) => {
   if (event === 'SIGNED_IN' && session?.user) {
-    useProfiles.getState().applyAuthUser(session.user.id);
-    router.replace('/');
+    (async () => {
+      const uid = session.user.id;
+      useProfiles.getState().applyAuthUser(uid);
+      await useProfiles.getState().loadMeFromServer();
+      router.replace('/');
+    })();
   }
 });
+
 
         unsub = () => sub.subscription.unsubscribe();
       } catch {
@@ -1277,22 +1291,33 @@ export default function Login() {
   }, [router]);
 
   async function signInEmail() {
-    try {
-      const em = email.trim().toLowerCase();
-      if (!em || !password) return Alert.alert('Вход', 'Заполни email и пароль');
+  try {
+    const em = email.trim().toLowerCase();
+    if (!em || !password) return Alert.alert('Вход', 'Заполни email и пароль');
 
-      setLoading(true);
-      const sb = await getSupabase();
-      const { error } = await sb.auth.signInWithPassword({ email: em, password });
-      if (error) throw error;
+    setLoading(true);
 
-      router.replace('/');
-    } catch (e: any) {
-      Alert.alert('Ошибка входа', e?.message || 'Не удалось войти');
-    } finally {
-      setLoading(false);
+    const sb = await getSupabase();
+    const { error } = await sb.auth.signInWithPassword({ email: em, password });
+    if (error) throw error;
+
+    // ✅ pull uid and hydrate store from DB
+    const { data } = await sb.auth.getSession();
+    const uid = data.session?.user?.id;
+
+    if (uid) {
+      useProfiles.getState().applyAuthUser(uid);
+      await useProfiles.getState().loadMeFromServer();
     }
+
+    router.replace('/');
+  } catch (e: any) {
+    Alert.alert('Ошибка входа', e?.message || 'Не удалось войти');
+  } finally {
+    setLoading(false);
   }
+}
+
 
   async function signUpEmail() {
     try {
@@ -1704,8 +1729,8 @@ const s = StyleSheet.create({
 
 
 --- FILE: app/index.tsx ---
---- LINES: 64 ---
---- SHA256: c0e475e3f85caca7f2814e4be5a4e0fcf19a71d5c1b75f956f1279b7e2a539c9 ---
+--- LINES: 71 ---
+--- SHA256: 5506718efdafe4458a609dfe657c39b26285487966b1ed5cbc67af6f18792838 ---
 import { getSupabase } from '@/src/lib/supabase';
 import { useApp } from '@/src/store/app';
 import { Redirect, useRootNavigationState } from 'expo-router';
@@ -1739,14 +1764,21 @@ const {
           }
         } else {
           // есть сессия → смотрим флаг онбординга в аккаунте
-          const accountOnboardingDone =
-            !!session.user?.user_metadata?.onboarding_done;
+          const adminEmail = (process.env.EXPO_PUBLIC_ADMIN_EMAIL || '').trim().toLowerCase();
+const isAdmin = adminEmail && (session.user?.email || '').toLowerCase() === adminEmail;
 
-          if (!accountOnboardingDone) {
-            setTarget('/onboarding');          // онбординг один раз на аккаунт
-          } else {
-            setTarget('/(tabs)/astro-map');    // всё пройдено → основное приложение
-          }
+// normal onboarding flag
+      const accountOnboardingDone = !!session.user?.user_metadata?.onboarding_done;
+
+      // admin override
+      const shouldForceOnboarding = isAdmin;
+
+      if (shouldForceOnboarding || !accountOnboardingDone) {
+        setTarget('/onboarding');
+      } else {
+        setTarget('/(tabs)/astro-map');
+      }
+
         }
       } catch (e) {
         // если Supabase не настроен — просто логин
@@ -2910,9 +2942,10 @@ const styles = StyleSheet.create({
 
 
 --- FILE: app/onboarding-profile.tsx ---
---- LINES: 1271 ---
---- SHA256: 27c41fc01d32ce18139a6ac5fbf263c89a7c7c4bac71b5e18e2c946c7873b660 ---
+--- LINES: 1263 ---
+--- SHA256: 774bb33ed8e8075ced11ee457c60bc1767d4739475940b19d630d3c4ed646e48 ---
 // app/onboarding-profile.tsx
+import { getSupabase } from '@/src/lib/supabase';
 import { searchPlaces } from '@/src/shared/api/profiles';
 import { useApp } from '@/src/store/app';
 import { PersonProfile, useProfiles } from '@/src/store/profiles';
@@ -3117,6 +3150,14 @@ export default function OnboardingProfileWizard() {
       };
 
       await submitOnboarding(input);
+      // ✅ mark onboarding done on the Supabase account (used by app/index.tsx)
+try {
+  const sb = await getSupabase();
+  await sb.auth.updateUser({ data: { onboarding_done: true } });
+} catch (e) {
+  console.warn('[onboarding-profile] updateUser failed', e);
+}
+
 
       // Mark global onboarding as complete once profile is successfully persisted.
       completeOnboarding();
@@ -3174,16 +3215,7 @@ export default function OnboardingProfileWizard() {
                 setCurrentCity={(t: string) => setCurrentCity(t)}
               />
             )}
-            {step === 'final' && (
-              <ScreenReview
-                onRect={() =>
-                  router.push({
-                    pathname: '/modal',
-                    params: { mode: 'rectification' },
-                  })
-                }
-              />
-            )}
+            {step === 'final' && <ScreenReview />}
           </View>
 
           <View style={s.nav}>
@@ -3909,19 +3941,11 @@ function ScreenBirthPlaceWithLive(props: {
 }
 
 /* Финал */
-function ScreenReview({ onRect }: { onRect: () => void }) {
+function ScreenReview() {
   return (
     <Card title="Финальный шаг">
-      <Text style={s.p}>
-        Если не знаешь точное время рождения — можно уточнить.
-      </Text>
-      <Pressable
-        onPress={onRect}
-        style={[s.btn, s.ghost, { alignSelf: 'flex-start' }]}
-      >
-        <Text style={s.btnText}>Пройти ректификацию</Text>
-      </Pressable>
-      <Hint>Нажми «Сохранить анкету», чтобы завершить мастер.</Hint>
+      <Text style={s.p}>Нажми «Сохранить анкету», чтобы завершить мастер.</Text>
+      <Hint>После сохранения ты попадёшь в приложение.</Hint>
     </Card>
   );
 }
@@ -4185,8 +4209,8 @@ const s = StyleSheet.create({
 
 
 --- FILE: app/onboarding.tsx ---
---- LINES: 267 ---
---- SHA256: a225e6f4d77f38e9aacd6eb76dc164c233454df1c37e51e8bb015eeb8ac4a27c ---
+--- LINES: 269 ---
+--- SHA256: 38c91bad79a0fa738d554f9cc6d383a1422d11d44b546f714097d538e43bba18 ---
 // app/onboarding.tsx
 import { getSupabase } from '@/src/lib/supabase';
 import { useApp } from '@/src/store/app';
@@ -4220,7 +4244,7 @@ export default function Onboarding() {
 
   // pages: 0..3
   const [page, setPage] = useState(0);
-  const [tos, setTos] = useState<boolean>(tosAccepted);
+  const [tos, setTos] = useState<boolean>(false);
 
   // Guard: onboarding requires an authenticated session
   useEffect(() => {
@@ -4234,6 +4258,11 @@ export default function Onboarding() {
       }
     })();
   }, [router]);
+
+  useEffect(() => {
+  setTos(false);
+  setTosAccepted(false);
+}, [setTosAccepted]);
 
   const goProfile = () => router.push('/onboarding-profile');
   const goRect = () => router.push({ pathname: '/modal', params: { mode: 'rectification' } });
@@ -4351,9 +4380,6 @@ function ScreenProfile({ goProfile, goRect }: { goProfile: () => void; goRect: (
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
         <Pressable onPress={goProfile} style={[s.btn, s.primary]}>
           <Text style={[s.btnText, { color: '#fff' }]}>Заполнить анкету</Text>
-        </Pressable>
-        <Pressable onPress={goRect} style={[s.btn, s.ghost]}>
-          <Text style={s.btnText}>Ректификация</Text>
         </Pressable>
       </View>
 
@@ -4678,6 +4704,32 @@ console.log(
     `  - ${OUT_FRONT}\n` +
     `  - ${OUT_BACK}`
 );
+
+
+--- FILE: eas.json ---
+--- LINES: 22 ---
+--- SHA256: c88f5708a66730cb72af2d9eb5d4178b2f214ed8e22243b962d94c4877940d2a ---
+{
+  "cli": {
+    "version": ">= 16.28.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal"
+    },
+    "production": {
+      "autoIncrement": true
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
 
 
 --- FILE: eslint.config.js ---

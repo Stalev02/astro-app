@@ -109,8 +109,8 @@ Join our community of developers creating universal apps.
 
 
 --- FILE: app.json ---
---- LINES: 78 ---
---- SHA256: 0d62bee0a9a2d796adf04822c28286b70d17a87b9d7523bc173f8267ded8446d ---
+--- LINES: 87 ---
+--- SHA256: 58ffee4f69a0d5e8408ed0da5029a49b34c3b502adee53a85ea48855a0fad976 ---
 {
   "expo": {
     "name": "astro-app",
@@ -121,7 +121,12 @@ Join our community of developers creating universal apps.
     "scheme": "cosmotell",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "extra": {},
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "24a7263c-306f-42ec-96e7-7cb1623197ee"
+      }
+    },
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
@@ -146,11 +151,15 @@ Join our community of developers creating universal apps.
               "NSIncludesSubdomains": true
             }
           }
-        }
-      }
+        },
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "bundleIdentifier": "com.stalev02.astroapp"
     },
     "android": {
-      "permissions": ["RECORD_AUDIO"],
+      "permissions": [
+        "RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -435,6 +444,32 @@ const [rows] = await conn.query(`SELECT * FROM \`${table}\``);
 fs.writeFileSync(`${table}.json`, JSON.stringify(rows, null, 2));
 await conn.end();
 console.log(`Wrote ${table}.json`);
+
+--- FILE: eas.json ---
+--- LINES: 22 ---
+--- SHA256: c88f5708a66730cb72af2d9eb5d4178b2f214ed8e22243b962d94c4877940d2a ---
+{
+  "cli": {
+    "version": ">= 16.28.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal"
+    },
+    "production": {
+      "autoIncrement": true
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
+
 
 --- FILE: eslint.config.js ---
 --- LINES: 11 ---
