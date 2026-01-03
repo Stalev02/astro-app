@@ -209,15 +209,12 @@ app.get('/debug/geo', (_req, res) => {
 app.get('/geo/search', async (req, res) => {
   const q = String(req.query.q || '').trim();
   console.log('[geo/search] q =', q);
-  console.log("geo url:", `${NOMINATIM_BASE}/search?q=${encodeURIComponent(q)}`);
   if (!q || q.length < 2) return res.json({ items: [] });
 
-  const TIMEOUT = Number(GEONAMES_TIMEOUT_MS || 6000);
-  const withTimeout = (ms) => {
-    const ac = new AbortController();
-    const t = setTimeout(() => ac.abort(), ms);
-    return { signal: ac.signal, cancel: () => clearTimeout(t) };
-  };
+  const TIMEOUT = Math.max(1000, Number(GEONAMES_TIMEOUT_MS) || 6000);
+
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(), TIMEOUT);
 
   try {
     const url = new URL(`${NOMINATIM_BASE}/search`);
@@ -225,35 +222,45 @@ app.get('/geo/search', async (req, res) => {
     url.searchParams.set('q', q);
     url.searchParams.set('addressdetails', '1');
     url.searchParams.set('limit', '10');
+    // Helpful and policy-friendly
+    if (NOMINATIM_EMAIL) url.searchParams.set('email', NOMINATIM_EMAIL);
 
-    const { signal, cancel } = withTimeout(TIMEOUT);
-    let r, rows;
+    console.log('[geo/search] nominatim url =', url.toString());
+
+    const r = await fetch(url.toString(), {
+      signal: ac.signal,
+      headers: {
+        'User-Agent': `cosmotell/1.0 (${NOMINATIM_EMAIL})`,
+        'Accept': 'application/json',
+        'Accept-Language': 'en',
+      },
+    });
+
+    const txt = await r.text();
+    const ct = r.headers.get('content-type') || '';
+
+    console.log('[geo/search] nominatim status=', r.status);
+    console.log('[geo/search] nominatim ct=', ct);
+    console.log('[geo/search] nominatim first200=', txt.slice(0, 200));
+
+    let rows = null;
     try {
-      r = await fetch(url.toString(), {
-        signal,
-        headers: {
-          'User-Agent': `cosmotell/1.0 (${NOMINATIM_EMAIL})`,
-          Accept: 'application/json',
-        },
-      });
-      const txt = await r.text();
-      try {
-        rows = JSON.parse(txt);
-      } catch {
-        rows = null;
-      }
-    } finally {
-      cancel();
+      rows = JSON.parse(txt);
+    } catch {
+      rows = null;
     }
 
-    if (!r?.ok || !Array.isArray(rows)) {
-      console.warn('[geo/search] http=', r?.status, 'rows ok?', Array.isArray(rows));
-      return res.json({ items: [] });
+    if (!r.ok || !Array.isArray(rows)) {
+      return res.json({
+        items: [],
+        debug: { status: r.status, ct, sample: txt.slice(0, 200) },
+      });
     }
 
     const items = rows.slice(0, 10).map((it) => {
       const lat = Number(it.lat);
       const lng = Number(it.lon);
+
       let tz = null;
       try {
         tz = tzLookup(lat, lng);
@@ -267,6 +274,7 @@ app.get('/geo/search', async (req, res) => {
         addr.hamlet ||
         it.display_name?.split(',')[0] ||
         '';
+
       const nation = (addr.country_code || '').toUpperCase();
       const admin1 = addr.state || addr.county || null;
       const countryName = addr.country || nation || null;
@@ -286,10 +294,13 @@ app.get('/geo/search', async (req, res) => {
     console.log('[geo/search] items =', items.length);
     return res.json({ items });
   } catch (e) {
-    console.error('[geo/search] error', e?.message || e);
-    return res.json({ items: [] });
+    console.error('[geo/search] error', e);
+    return res.status(200).json({ items: [], debug: { error: String(e?.message || e) } });
+  } finally {
+    clearTimeout(t);
   }
 });
+
 
 /* ============================= MOCK CHAT/SPEECH ============================= */
 app.post('/chat', async (req, res) => {
