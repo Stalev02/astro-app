@@ -114,6 +114,15 @@ const sign = (body, ts) => {
 };
 
 /* ============================= HEALTH (early) ============================= */
+
+app.get('/debug/n8n', (_req, res) => {
+  res.json({
+    N8N_CHAT_URL: process.env.N8N_CHAT_URL || null,
+    NODE_ENV: process.env.NODE_ENV || null,
+  });
+});
+
+
 app.get('/health', async (_req, res) => {
   let dbOk = false;
   try {
