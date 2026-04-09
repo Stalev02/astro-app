@@ -54,17 +54,35 @@ app.get('/auth/probe', requireAuth, (req, res) => {
   res.json({ ok: true, user: req.user });
 });
 // CORS headers on every response
-app.use(cors({ origin: true }));
+const {
+  ALLOWED_ORIGINS = 'http://localhost:8081,http://localhost:3000',
+} = process.env;
+
+const allowedOriginSet = new Set(
+  ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+);
+
+app.use(cors({
+  origin: (origin, cb) => {
+    // Allow requests with no Origin header (native mobile apps, curl, server-to-server)
+    if (!origin || allowedOriginSet.has(origin)) return cb(null, true);
+    cb(new Error(`CORS: origin ${origin} not allowed`));
+  },
+  credentials: true,
+}));
 
 // Preflight responder for ALL routes (no path pattern needed)
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*'); // or lock down to your domains
+  const origin = req.headers.origin;
+  if (origin && allowedOriginSet.has(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
   res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   // Short-circuit preflight
   if (req.method === 'OPTIONS') {
-    res.header('Access-Control-Max-Age', '86400'); // cache preflight (optional)
+    res.header('Access-Control-Max-Age', '86400');
     return res.sendStatus(204);
   }
   next();
@@ -88,9 +106,9 @@ ffmpeg.setFfmpegPath(ffmpegPath.path);
 
 // ── Env (used by routes below)
 const {
-  N8N_CHAT_URL = 'https://n8n.astroapp.pp.ua/webhook/astro-app',
+  N8N_CHAT_URL = '',
   N8N_SPEECH_URL = '',
-  N8N_SECRET = '731d816144d1e1e7064aa0d6986c7a8e745be485f82b54f8e35e38e335fa7b66',
+  N8N_SECRET = '',
   ASTRO_API_BASE = '',
   ASTRO_API_KEY = '',
   ASTRO_LANG = 'EN',
@@ -118,7 +136,8 @@ const sign = (body, ts) => {
 app.get('/debug/n8n', (_req, res) => {
   res.json({
     N8N_CHAT_URL: process.env.N8N_CHAT_URL || null,
-    NODE_ENV: process.env.NODE_ENV || null,
+    hasSecret: Boolean(process.env.N8N_SECRET),
+    node: process.version,
   });
 });
 
@@ -273,7 +292,9 @@ app.get('/geo/search', async (req, res) => {
       let tz = null;
       try {
         tz = tzLookup(lat, lng);
-      } catch {}
+      } catch (e) {
+        console.warn('[geo] tzLookup failed for', lat, lng, e?.message || e);
+      }
 
       const addr = it.address || {};
       const city =

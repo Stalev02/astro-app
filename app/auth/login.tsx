@@ -45,7 +45,7 @@ export default function Login() {
       useProfiles.getState().applyAuthUser(uid);
       await useProfiles.getState().loadMeFromServer();
       router.replace('/');
-    })();
+    })().catch((e) => console.error('[auth] onAuthStateChange handler failed:', e));
   }
 });
 
@@ -115,7 +115,10 @@ if (!e2) {
     await useProfiles.getState().loadMeFromServer();
   }
 
-  // 3) Go through the gate (index.tsx)
+  // 3) Reset creating state before navigating away
+  setCreating(false);
+
+  // 4) Go through the gate (index.tsx)
   router.replace('/');
   return;
 }

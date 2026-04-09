@@ -129,14 +129,22 @@ export default function AstroChatScreen() {
         token = undefined;
       }
 
-      const r = await fetch(ENDPOINTS.aiQuery, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ deviceId, question: text }),
-      });
+      const ac = new AbortController();
+      const timeout = setTimeout(() => ac.abort(), 15000);
+      let r: Response;
+      try {
+        r = await fetch(ENDPOINTS.aiQuery, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ deviceId, question: text }),
+          signal: ac.signal,
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
 
       if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text().catch(() => '')}`);
 
@@ -148,10 +156,11 @@ export default function AstroChatScreen() {
       scrollToEnd();
       if (botText) await speak(String(botText));
     } catch (e: any) {
+      const msg = e?.name === 'AbortError' ? 'Сервер не ответил (таймаут)' : (e?.message || 'Ошибка сети');
       setMessages((prev) =>
         prev.map((m) => (m.id === user.id + ':wait' ? { ...m, text: 'Ошибка связи с сервером' } : m))
       );
-      Alert.alert('Чат', e?.message || 'Ошибка сети');
+      Alert.alert('Чат', msg);
     } finally {
       setIsBusy(false);
     }
@@ -227,14 +236,22 @@ export default function AstroChatScreen() {
         token = undefined;
       }
 
-      const r = await fetch(ENDPOINTS.aiQuery, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ deviceId, question: text }),
-      });
+      const ac2 = new AbortController();
+      const timeout2 = setTimeout(() => ac2.abort(), 15000);
+      let r: Response;
+      try {
+        r = await fetch(ENDPOINTS.aiQuery, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ deviceId, question: text }),
+          signal: ac2.signal,
+        });
+      } finally {
+        clearTimeout(timeout2);
+      }
 
       if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text().catch(() => '')}`);
 
@@ -246,7 +263,8 @@ export default function AstroChatScreen() {
       scrollToEnd();
       if (botText) await speak(String(botText));
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.message || 'Проблема с отправкой голоса');
+      const msg = e?.name === 'AbortError' ? 'Сервер не ответил (таймаут)' : (e?.message || 'Проблема с отправкой голоса');
+      Alert.alert('Ошибка', msg);
     } finally {
       setIsBusy(false);
     }

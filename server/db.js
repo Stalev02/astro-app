@@ -6,7 +6,7 @@ const {
   DB_HOST='astroappdb2.mysql.database.azure.com',
   DB_PORT = '3306',
   DB_USER = 'master',
-  DB_PASSWORD = '4YU2c7@@v2zUUdQxJ',
+  DB_PASSWORD = '',
   DB_NAME = 'astro_data',
 
    DB_SSL = 'require',                              // 'require' | 'disable'

@@ -185,7 +185,7 @@ export const useProfiles = create<ProfilesState>()(
             deviceId: nextDeviceId,
             me: nextMe,
             other: nextOther,
-            chart: svg !== undefined ? { chart_svg: svg } : get().chart,
+            chart: { chart_svg: svg },
             onboarded: get().onboarded || !!nextMe,
             error: null,
           });

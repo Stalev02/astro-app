@@ -49,7 +49,7 @@ export default function Onboarding() {
   useEffect(() => {
   setTos(false);
   setTosAccepted(false);
-}, [setTosAccepted]);
+}, [setTos, setTosAccepted]);
 
   const goProfile = () => router.push('/onboarding-profile');
   const goRect = () => router.push({ pathname: '/modal', params: { mode: 'rectification' } });
