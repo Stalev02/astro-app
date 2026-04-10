@@ -423,7 +423,7 @@ app.get('/profiles/:deviceId/chart', async (req, res) => {
 /* ============================= AI → n8n ============================= */
 app.post('/ai/query', optionalAuth, async (req, res) => {
   try {
-    const { deviceId, question } = req.body || {};
+    const { deviceId, question, language = 'ru' } = req.body || {};
     const supabaseUid = req.user?.id || null;
 
     console.log('[ai/query] ids', { supabaseUid, deviceId });
@@ -460,6 +460,7 @@ app.post('/ai/query', optionalAuth, async (req, res) => {
 
     const payload = {
       question,
+      language,
       deviceId: deviceId || row.device_id || null,
       supabase_uid: supabaseUid,
       profile: { me: row.me, other: row.other },

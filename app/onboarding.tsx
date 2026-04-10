@@ -89,10 +89,10 @@ export default function Onboarding() {
         <Progress step={page} />
 
         <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', gap: 16 }}>
-          {page === 0 && <ScreenUniverse onNext={next} />}
+          {page === 0 && <ScreenUniverse />}
           {page === 1 && <ScreenTOS tos={tos} setTos={handleTosChange} />}
           {page === 2 && <ScreenProfile goProfile={goProfile} goRect={goRect} />}
-          {page === 3 && <ScreenFinal onStart={finish} />}
+          {page === 3 && <ScreenFinal />}
         </ScrollView>
 
         <View style={s.nav}>
@@ -127,14 +127,11 @@ export default function Onboarding() {
 
 /* ───────────────── Screens ───────────────── */
 
-function ScreenUniverse({ onNext }: { onNext: () => void }) {
+function ScreenUniverse() {
   return (
     <Card center>
       <Text style={s.huge}>UNIVERSE HAS A MESSAGE FOR YOU</Text>
       <Text style={[s.h1, { color: C.dim, marginTop: 8 }]}>Are you ready?</Text>
-      <Pressable onPress={onNext} style={[s.btn, s.primary, { marginTop: 16 }]}>
-        <Text style={[s.btnText, { color: '#fff' }]}>Continue</Text>
-      </Pressable>
     </Card>
   );
 }
@@ -175,16 +172,13 @@ function ScreenProfile({ goProfile, goRect }: { goProfile: () => void; goRect: (
   );
 }
 
-function ScreenFinal({ onStart }: { onStart: () => void }) {
+function ScreenFinal() {
   return (
     <Card center>
       <Text style={s.h1}>Добро пожаловать в Cosmotell 🌌</Text>
       <Text style={[s.p, { textAlign: 'center' }]}>
         Всё готово. Начинай пользоваться приложением. Чат учитывает твою карту автоматически.
       </Text>
-      <Pressable onPress={onStart} style={[s.btn, s.primary, { marginTop: 12 }]}>
-        <Text style={[s.btnText, { color: '#fff' }]}>Начать</Text>
-      </Pressable>
     </Card>
   );
 }

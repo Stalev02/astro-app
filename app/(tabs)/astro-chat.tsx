@@ -1,6 +1,7 @@
 // app/(tabs)/astro-chat.tsx
 import { getSupabase } from '@/src/lib/supabase';
 import { ENDPOINTS } from '@/src/shared/config/api';
+import { useApp } from '@/src/store/app';
 import { useProfiles } from '@/src/store/profiles';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
@@ -90,6 +91,7 @@ export default function AstroChatScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const deviceId = useProfiles((s) => s.deviceId);
+  const language = useApp((s) => s.language);
 
   const [messages, setMessages] = useState<Msg[]>([
     { id: 'm1', role: 'bot', text: 'Привет! Спроси что-нибудь по своей карте 🌌', ts: Date.now() },
@@ -139,7 +141,7 @@ export default function AstroChatScreen() {
             'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ deviceId, question: text }),
+          body: JSON.stringify({ deviceId, question: text, language }),
           signal: ac.signal,
         });
       } finally {
@@ -246,7 +248,7 @@ export default function AstroChatScreen() {
             'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ deviceId, question: text }),
+          body: JSON.stringify({ deviceId, question: text, language }),
           signal: ac2.signal,
         });
       } finally {

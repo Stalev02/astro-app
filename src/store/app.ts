@@ -9,14 +9,14 @@ type AppState = {
   onboardingDone: boolean;
   tosAccepted: boolean;
 
-  // 👇 новый флаг — интро показано на этом устройстве
   introSeen: boolean;
+
+  language: 'ru' | 'en';
 
   setTosAccepted: (v: boolean) => void;
   completeOnboarding: () => void;
-
-  // 👇 новый сеттер
   setIntroSeen: (v: boolean) => void;
+  setLanguage: (lang: 'ru' | 'en') => void;
 
   _setHydrated: (v: boolean) => void;
 };
@@ -29,15 +29,17 @@ export const useApp = create<AppState>()(
       onboardingDone: false,
       tosAccepted: false,
 
-      // 👇 новое поле
       introSeen: false,
+
+      language: 'ru',
 
       setTosAccepted: (v) => set({ tosAccepted: v }),
 
       completeOnboarding: () => set({ onboardingDone: true }),
 
-      // 👇 новый метод
       setIntroSeen: (v) => set({ introSeen: v }),
+
+      setLanguage: (lang) => set({ language: lang }),
 
       _setHydrated: (v) => set({ hydrated: v }),
     }),
@@ -50,4 +52,3 @@ export const useApp = create<AppState>()(
     }
   )
 );
-
