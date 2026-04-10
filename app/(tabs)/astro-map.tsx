@@ -1,9 +1,36 @@
 // app/(tabs)/astro-map.tsx
+import { useApp } from '@/src/store/app';
 import { useProfiles } from '@/src/store/profiles';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useMemo } from 'react';
-import { Image, SafeAreaView, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { SvgXml } from 'react-native-svg';
+
+const LABELS = {
+  ru: {
+    title: 'Моя Астро-Карта',
+    loading: 'Строим карту…',
+    noProfile: 'Заполни анкету в настройках, чтобы построить карту.',
+    error: 'Не удалось загрузить карту',
+    retry: 'Потяните вниз, чтобы обновить',
+  },
+  en: {
+    title: 'My Astro Chart',
+    loading: 'Building your chart…',
+    noProfile: 'Fill in your profile in settings to build your chart.',
+    error: 'Failed to load chart',
+    retry: 'Pull down to refresh',
+  },
+};
 
 /* ==================== SVG sanitize ==================== */
 function sanitizeSvg(xml: string): string {
@@ -63,142 +90,99 @@ function sanitizeSvg(xml: string): string {
   return s;
 }
 
-/* ==================== Mock stats ==================== */
-function useMockStats() {
-  return useMemo(
-    () => ({
-      sun: 'Солнце: Лев 17°',
-      moon: 'Луна: Телец 25°',
-      asc: 'Асцендент: Скорпион 10°',
-      elements: { fire: 4, earth: 3, air: 2, water: 5 },
-      modalities: { cardinal: 3, fixed: 5, mutable: 6 },
-      aspects: { harmonious: 7, tense: 4, total: 11 },
-    }),
-    []
-  );
-}
-
 /* ==================== Screen ==================== */
 export default function AstroMapScreen() {
   const { width } = useWindowDimensions();
   const chartSize = Math.min(width - 32, 360);
-  const stats = useMockStats();
+
+  const language = useApp((s) => s.language);
+  const t = LABELS[language];
 
   const deviceId = useProfiles((s) => s.deviceId);
+  const me = useProfiles((s) => s.me);
   const chart = useProfiles((s) => s.chart);
   const reloadChart = useProfiles((s) => s.reloadChart);
   const loading = useProfiles((s) => s.loading);
+  const error = useProfiles((s) => s.error);
 
-  const chartSvg = useMemo(
-    () => (chart?.chart_svg ? sanitizeSvg(chart.chart_svg) : null),
-    [chart?.chart_svg]
-  );
+  const [refreshing, setRefreshing] = useState(false);
 
+  // Initial load — attempt up to 5 times with 8s gap while no chart exists
+  const attemptsRef = useRef(0);
   useEffect(() => {
+    attemptsRef.current = 0;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let cancelled = false;
-    const tick = async () => {
-      try {
-        await reloadChart();
-      } catch {}
+
+    const attempt = async () => {
+      if (cancelled || attemptsRef.current >= 5) return;
+      attemptsRef.current++;
+      try { await reloadChart(); } catch {}
       if (cancelled) return;
-      const has = !!useProfiles.getState().chart?.chart_svg;
-      timer = setTimeout(tick, has ? 15000 : 4000);
+      if (!useProfiles.getState().chart?.chart_svg && attemptsRef.current < 5) {
+        timer = setTimeout(attempt, 8000);
+      }
     };
-    tick();
+
+    attempt();
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
   }, [deviceId, reloadChart]);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    attemptsRef.current = 0;
+    try { await reloadChart(); } catch {}
+    setRefreshing(false);
+  }, [reloadChart]);
+
+  const chartSvg = chart?.chart_svg ? sanitizeSvg(chart.chart_svg) : null;
+
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }}>
-        <Text style={styles.title}>Моя Астро-Карта</Text>
+      <ScrollView
+        contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4f46e5" />}
+      >
+        <Text style={styles.title}>{t.title}</Text>
 
         <View style={styles.card}>
+          {/* Chart area */}
           <View style={[styles.chartWrap, { width: chartSize, height: chartSize }]}>
             {chartSvg ? (
               <SvgXml xml={chartSvg} width="100%" height="100%" />
             ) : (
-              <Image
-                source={{
-                  uri: 'https://upload.wikimedia.org/wikipedia/commons/8/82/Astrological_chart_-_natal_chart_example.png',
-                }}
-                resizeMode="contain"
-                style={{ width: '100%', height: '100%', opacity: loading ? 0.5 : 0.35 }}
-                accessible
-                accessibilityLabel="Заглушка: карта готовится"
-              />
+              <View style={styles.placeholder}>
+                {loading ? (
+                  <>
+                    <ActivityIndicator size="large" color="#4f46e5" />
+                    <Text style={styles.placeholderText}>{t.loading}</Text>
+                  </>
+                ) : !me ? (
+                  <>
+                    <Ionicons name="person-circle-outline" size={40} color="#4f46e5" />
+                    <Text style={styles.placeholderText}>{t.noProfile}</Text>
+                  </>
+                ) : error ? (
+                  <>
+                    <Ionicons name="alert-circle-outline" size={40} color="#ef4444" />
+                    <Text style={[styles.placeholderText, { color: '#ef4444' }]}>{t.error}</Text>
+                    <Text style={[styles.placeholderText, { fontSize: 12, marginTop: 4 }]}>{t.retry}</Text>
+                  </>
+                ) : (
+                  <>
+                    <ActivityIndicator size="large" color="#4f46e5" />
+                    <Text style={styles.placeholderText}>{t.loading}</Text>
+                  </>
+                )}
+              </View>
             )}
           </View>
-
-          <View style={styles.row}>
-            <Pill icon="sunny-outline" label={stats.sun} />
-            <Pill icon="moon-outline" label={stats.moon} />
-          </View>
-          <View style={styles.row}>
-            <Pill icon="compass-outline" label={stats.asc} />
-            <Pill
-              icon="star-outline"
-              label={`Аспекты: ${stats.aspects.harmonious} / ${stats.aspects.tense}`}
-            />
-          </View>
-
-          <Section title="Баланс стихий">
-            <Bar label="Огонь" value={stats.elements.fire} max={8} />
-            <Bar label="Земля" value={stats.elements.earth} max={8} />
-            <Bar label="Воздух" value={stats.elements.air} max={8} />
-            <Bar label="Вода" value={stats.elements.water} max={8} />
-          </Section>
-
-          <Section title="Модальности">
-            <Bar label="Кардинальный" value={stats.modalities.cardinal} max={8} />
-            <Bar label="Фиксированный" value={stats.modalities.fixed} max={8} />
-            <Bar label="Мутабельный" value={stats.modalities.mutable} max={8} />
-          </Section>
         </View>
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-/* ===== UI helpers ===== */
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View style={{ gap: 8 }}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <View style={{ gap: 10 }}>{children}</View>
-    </View>
-  );
-}
-function Pill({
-  icon,
-  label,
-}: {
-  icon: React.ComponentProps<typeof Ionicons>['name'];
-  label: string;
-}) {
-  return (
-    <View style={styles.pill}>
-      <Ionicons name={icon} size={16} color="#4f46e5" />
-      <Text style={styles.pillText}>{label}</Text>
-    </View>
-  );
-}
-function Bar({ label, value, max }: { label: string; value: number; max: number }) {
-  const pct = Math.max(0, Math.min(1, value / max));
-  return (
-    <View accessible accessibilityLabel={`${label} ${Math.round(pct * 100)} процентов`}>
-      <View style={styles.barRow}>
-        <Text style={styles.barLabel}>{label}</Text>
-        <Text style={styles.barValue}>{value}</Text>
-      </View>
-      <View style={styles.barTrack}>
-        <View style={[styles.barFill, { width: `${pct * 100}%` }]} />
-      </View>
-    </View>
   );
 }
 
@@ -212,6 +196,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 16,
     padding: 16,
+    alignItems: 'center',
   },
   chartWrap: {
     alignSelf: 'center',
@@ -220,22 +205,18 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.09)',
-    marginBottom: 14,
   },
-  row: { flexDirection: 'row', gap: 8, marginBottom: 10, flexWrap: 'wrap' },
-  pill: {
-    flexDirection: 'row',
+  placeholder: {
+    flex: 1,
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: 'rgba(79,70,229,0.12)',
+    justifyContent: 'center',
+    gap: 12,
+    padding: 24,
   },
-  pillText: { color: '#e5e7eb', fontSize: 13 },
-  sectionTitle: { color: '#c7c9d1', fontSize: 14, fontWeight: '700', letterSpacing: 0.3 },
-  barRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  barLabel: { color: '#d1d5db', fontSize: 13 },
-  barValue: { color: '#9ca3af', fontSize: 13 },
-  barTrack: { height: 8, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
-  barFill: { height: 8, borderRadius: 8, backgroundColor: '#4f46e5' },
+  placeholderText: {
+    color: '#c7c9d1',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
 });

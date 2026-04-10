@@ -399,8 +399,15 @@ app.get('/profiles/me/chart', requireAuth, async (req, res) => {
 
 
 
-app.get('/profiles/:deviceId/chart', async (req, res) => {
+app.get('/profiles/:deviceId/chart', requireAuth, async (req, res) => {
   try {
+    // Only allow users to fetch their own chart
+    const supabaseUid = req.user?.id;
+    const ownRow = await getProfileBySupabaseUid(supabaseUid);
+    if (!ownRow || ownRow.device_id !== req.params.deviceId) {
+      return res.status(403).json({ error: 'forbidden' });
+    }
+
     const row = await getProfile(req.params.deviceId);
     if (!row) return res.status(404).json({ error: 'not found' });
 

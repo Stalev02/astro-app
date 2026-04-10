@@ -13,11 +13,16 @@ const C = {
   primary: '#4f46e5',
 };
 
+const features = [
+  { icon: '🌌', label: 'Personal natal chart built from your birth data' },
+  { icon: '🤖', label: 'AI astrologer that knows your chart' },
+  { icon: '🔮', label: 'Compatibility, forecasts & planetary transits' },
+];
+
 export default function IntroScreen() {
   const router = useRouter();
   const { introSeen, setIntroSeen } = useApp();
 
-  // Если интро уже было, сразу уходим на логин
   useEffect(() => {
     if (introSeen) {
       router.replace('/auth/login');
@@ -31,40 +36,67 @@ export default function IntroScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
-      <View style={s.card}>
-        <Text style={s.huge}>UNIVERSE HAS A MESSAGE FOR YOU</Text>
-        <Text style={[s.h1, { color: C.dim, marginTop: 8 }]}>Are you ready?</Text>
-        <Pressable onPress={onContinue} style={[s.btn, s.primary, { marginTop: 16 }]}>
-          <Text style={[s.btnText, { color: '#fff' }]}>Continue</Text>
-        </Pressable>
+      <View style={s.wrap}>
+        <View style={s.card}>
+          <Text style={s.brand}>COSMOTELL</Text>
+          <Text style={s.tagline}>Your personal AI astrologer</Text>
+
+          <View style={s.featureList}>
+            {features.map((f) => (
+              <View key={f.icon} style={s.featureRow}>
+                <Text style={s.featureIcon}>{f.icon}</Text>
+                <Text style={s.featureLabel}>{f.label}</Text>
+              </View>
+            ))}
+          </View>
+
+          <Pressable onPress={onContinue} style={[s.btn, s.primary]}>
+            <Text style={[s.btnText, { color: '#fff' }]}>Get started</Text>
+          </Pressable>
+        </View>
       </View>
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
+  wrap: { flex: 1, padding: 16, justifyContent: 'center' },
   card: {
-    flex: 1,
-    padding: 16,
-    justifyContent: 'center',
     backgroundColor: C.card,
     borderColor: C.border,
     borderWidth: 1,
     borderRadius: 16,
-    margin: 16,
-    gap: 10,
+    padding: 24,
+    gap: 16,
+    alignItems: 'center',
   },
-  huge: { color: '#fff', fontWeight: '900', fontSize: 26, textAlign: 'center' },
-  h1: { color: '#fff', fontWeight: '800', fontSize: 20, textAlign: 'center' },
+  brand: {
+    color: '#fff',
+    fontWeight: '900',
+    fontSize: 32,
+    letterSpacing: 4,
+    textAlign: 'center',
+  },
+  tagline: {
+    color: C.dim,
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  featureList: { width: '100%', gap: 12, marginVertical: 8 },
+  featureRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  featureIcon: { fontSize: 22 },
+  featureLabel: { color: C.text, fontSize: 15, flex: 1 },
   btn: {
+    width: '100%',
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: C.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  btnText: { color: C.text, fontWeight: '700' },
+  btnText: { color: C.text, fontWeight: '700', fontSize: 16 },
   primary: { backgroundColor: C.primary, borderColor: C.primary },
 });

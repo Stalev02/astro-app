@@ -2,6 +2,7 @@
 import { getSupabase } from '@/src/lib/supabase';
 import { ENDPOINTS } from '@/src/shared/config/api';
 import { useApp } from '@/src/store/app';
+import { useChat } from '@/src/store/chat';
 import { useProfiles } from '@/src/store/profiles';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
@@ -92,10 +93,11 @@ export default function AstroChatScreen() {
   const router = useRouter();
   const deviceId = useProfiles((s) => s.deviceId);
   const language = useApp((s) => s.language);
+  const messages = useChat((s) => s.messages);
+  const addMessage = useChat((s) => s.addMessage);
+  const updateMessage = useChat((s) => s.updateMessage);
+  const clearHistory = useChat((s) => s.clearHistory);
 
-  const [messages, setMessages] = useState<Msg[]>([
-    { id: 'm1', role: 'bot', text: 'Привет! Спроси что-нибудь по своей карте 🌌', ts: Date.now() },
-  ]);
   const [draft, setDraft] = useState('');
   const listRef = useRef<FlatList<Msg>>(null);
 
@@ -115,7 +117,8 @@ export default function AstroChatScreen() {
     if (!text || isBusy) return;
 
     const user: Msg = { id: String(Date.now()), role: 'user', text, ts: Date.now() };
-    setMessages((prev) => [...prev, user, { id: user.id + ':wait', role: 'bot', text: '…', ts: Date.now() + 1 }]);
+    addMessage(user);
+    addMessage({ id: user.id + ':wait', role: 'bot', text: '…', ts: Date.now() + 1 });
     setDraft('');
     scrollToEnd();
 
@@ -154,14 +157,12 @@ export default function AstroChatScreen() {
       const data = ct.includes('application/json') ? await r.json() : { reply: await r.text() };
       const botText = data?.reply ?? 'Ок.';
 
-      setMessages((prev) => prev.map((m) => (m.id === user.id + ':wait' ? { ...m, text: String(botText) } : m)));
+      updateMessage(user.id + ':wait', String(botText));
       scrollToEnd();
       if (botText) await speak(String(botText));
     } catch (e: any) {
       const msg = e?.name === 'AbortError' ? 'Сервер не ответил (таймаут)' : (e?.message || 'Ошибка сети');
-      setMessages((prev) =>
-        prev.map((m) => (m.id === user.id + ':wait' ? { ...m, text: 'Ошибка связи с сервером' } : m))
-      );
+      updateMessage(user.id + ':wait', 'Ошибка связи с сервером');
       Alert.alert('Чат', msg);
     } finally {
       setIsBusy(false);
@@ -226,7 +227,8 @@ export default function AstroChatScreen() {
       }
 
       const userMsg: Msg = { id: String(Date.now()), role: 'user', text, ts: Date.now() };
-      setMessages((prev) => [...prev, userMsg, { id: userMsg.id + ':wait', role: 'bot', text: '…', ts: Date.now() + 1 }]);
+      addMessage(userMsg);
+      addMessage({ id: userMsg.id + ':wait', role: 'bot', text: '…', ts: Date.now() + 1 });
       scrollToEnd();
 
       let token: string | undefined;
@@ -261,7 +263,7 @@ export default function AstroChatScreen() {
       const data = ct.includes('application/json') ? await r.json() : { reply: await r.text() };
       const botText = data?.reply ?? 'Ок.';
 
-      setMessages((prev) => prev.map((m) => (m.id === userMsg.id + ':wait' ? { ...m, text: String(botText) } : m)));
+      updateMessage(userMsg.id + ':wait', String(botText));
       scrollToEnd();
       if (botText) await speak(String(botText));
     } catch (e: any) {
@@ -329,7 +331,24 @@ export default function AstroChatScreen() {
           keyboardShouldPersistTaps="handled"
           data={messages}
           keyExtractor={(m) => m.id}
-          ListHeaderComponent={<Text style={styles.title}>Чат по карте</Text>}
+          ListHeaderComponent={
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={styles.title}>Чат по карте</Text>
+              <Pressable
+                onPress={() => Alert.alert(
+                  language === 'en' ? 'Clear history' : 'Очистить историю',
+                  language === 'en' ? 'Delete all messages?' : 'Удалить все сообщения?',
+                  [
+                    { text: language === 'en' ? 'Cancel' : 'Отмена', style: 'cancel' },
+                    { text: language === 'en' ? 'Clear' : 'Очистить', style: 'destructive', onPress: clearHistory },
+                  ]
+                )}
+                style={{ padding: 6 }}
+              >
+                <Ionicons name="trash-outline" size={18} color="#6b7280" />
+              </Pressable>
+            </View>
+          }
           renderItem={({ item }) => <Bubble item={item} />}
         />
 

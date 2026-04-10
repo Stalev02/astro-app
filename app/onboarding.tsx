@@ -130,8 +130,10 @@ export default function Onboarding() {
 function ScreenUniverse() {
   return (
     <Card center>
-      <Text style={s.huge}>UNIVERSE HAS A MESSAGE FOR YOU</Text>
-      <Text style={[s.h1, { color: C.dim, marginTop: 8 }]}>Are you ready?</Text>
+      <Text style={s.huge}>Welcome to Cosmotell</Text>
+      <Text style={[s.p, { textAlign: 'center', marginTop: 8 }]}>
+        Let's set up your account in a few steps. We'll ask for your birth data to build your natal chart.
+      </Text>
     </Card>
   );
 }

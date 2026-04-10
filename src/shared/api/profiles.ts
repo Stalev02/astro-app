@@ -80,40 +80,6 @@ export async function fetchNatalChartByProfileId(deviceId: string) {
   return r.json() as Promise<{ chart_svg: string | null }>;
 }
 
-/**
- * Строит натальную карту напрямую по birth-данным.
- * На стороне бэка ожидается POST /charts с { date, time, tz, lat, lng }.
- * Если такого роутинга нет — используй fetchNatalChartByProfileId после upsertBirthData.
- *
- * @param data - минимальные birth-данные
- * @returns { chart_svg: string | null, ...optional }
- */
-export async function fetchNatalChartByBirthData(data: {
-  date: string; // 'YYYY-MM-DD'
-  time: string; // 'HH:mm'
-  tz: string; // IANA TZ, например 'Europe/Kyiv'
-  lat: number;
-  lng: number;
-}) {
-  const r = await fetch(`${API_BASE}/charts`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      date: data.date,
-      time: data.time,
-      tz: data.tz,
-      lat: data.lat,
-      lng: data.lng,
-    }),
-  });
-
-  if (!r.ok) {
-    throw new Error(`chart-by-birth ${r.status} ${await r.text().catch(() => '')}`);
-  }
-
-  // сервер может вернуть доп. поля (planets/houses/ascendant), но мы гарантируем chart_svg
-  return r.json() as Promise<{ chart_svg: string | null } & Record<string, any>>;
-}
 
 type SyncPayload = {
   deviceId: string;
@@ -133,13 +99,6 @@ export async function syncProfiles(payload: SyncPayload) {
   return r.json();
 }
 
-// Keeping as-is. Note: your backend currently does NOT show GET /profiles/:deviceId in server/index.js.
-// If you don't use this, it's fine to keep; if you do use it, ensure backend route exists.
-export async function fetchProfiles(deviceId: string) {
-  const r = await fetch(`${API_BASE}/profiles/${encodeURIComponent(deviceId)}`);
-  if (!r.ok) throw new Error(`get ${r.status} ${await r.text().catch(() => '')}`);
-  return r.json();
-}
 
 export async function fetchChartSvg(deviceId: string) {
   const r = await fetch(`${API_BASE}/profiles/${encodeURIComponent(deviceId)}/chart`);
