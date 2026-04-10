@@ -1,5 +1,6 @@
 // app/modal.tsx
 import { searchPlaces } from '@/src/shared/api/profiles';
+import { useT } from '@/src/shared/i18n';
 import { newId, PersonProfile, useProfiles } from '@/src/store/profiles';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -28,12 +29,7 @@ function Input(props: React.ComponentProps<typeof TextInput>) {
   return <TextInput {...props} style={[styles.input, props.style]} placeholderTextColor="#8b8e97" />;
 }
 
-const genders = [
-  { key: 'male', label: 'Мужской' },
-  { key: 'female', label: 'Женский' },
-  { key: 'other', label: 'Другое' },
-  { key: 'na', label: 'Не указывать' },
-] as const;
+const genderKeys = ['male', 'female', 'other', 'na'] as const;
 
 type ModeParam = 'me' | 'other' | 'rectification' | undefined;
 
@@ -49,8 +45,9 @@ type PickedGeo = {
 
 export default function RootModal() {
   const { mode } = useLocalSearchParams<{ mode?: ModeParam }>();
+  const t = useT();
   const headerTitle =
-    mode === 'rectification' ? 'Ректификация' : mode === 'other' ? 'Анкета (другой человек)' : 'Астрологическая анкета';
+    mode === 'rectification' ? t.modal.titleRect : mode === 'other' ? t.modal.titleOther : t.modal.titleMe;
 
   return (
     <>
@@ -103,6 +100,7 @@ type LifeEvent = { id: string; kind: LifeEventKind; month: string; year: string 
 
 function RectificationBody() {
   const router = useRouter();
+  const t = useT();
   const me = useProfiles((s) => s.me);
   const loading = useProfiles((s) => s.loading);
   const submitOnboarding = useProfiles((s) => s.submitOnboarding);
@@ -117,11 +115,9 @@ function RectificationBody() {
     return (
       <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding', android: undefined })} style={{ flex: 1 }}>
         <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-          <Text style={styles.caption}>
-            Сначала заполните анкету с датой и местом рождения. Затем вернитесь сюда.
-          </Text>
+          <Text style={styles.caption}>{t.modal.noProfileMsg}</Text>
           <Pressable onPress={() => safeBack('/(tabs)/settings')} style={[styles.primaryBtn, { backgroundColor: '#6b7280' }]}>
-            <Text style={styles.primaryText}>Понятно</Text>
+            <Text style={styles.primaryText}>{t.common.ok}</Text>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -135,9 +131,9 @@ function RectificationBody() {
     return (
       <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding', android: undefined })} style={{ flex: 1 }}>
         <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-          <Text style={styles.caption}>В профиле отсутствует дата рождения. Укажите её в анкете и попробуйте снова.</Text>
+          <Text style={styles.caption}>{t.modal.noBirthDateMsg}</Text>
           <Pressable onPress={() => safeBack('/(tabs)/settings')} style={[styles.primaryBtn, { backgroundColor: '#6b7280' }]}>
-            <Text style={styles.primaryText}>Понятно</Text>
+            <Text style={styles.primaryText}>{t.common.ok}</Text>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -244,7 +240,7 @@ function RectificationBody() {
 
   const next0 = async () => {
     if (!me?.coords || !me?.tz) {
-      Alert.alert('Ректификация', 'В профиле должны быть координаты и часовой пояс.');
+      Alert.alert(t.modal.titleRect, t.modal.rectCoordsMissing);
       return;
     }
     await apiRectifyInit();
@@ -254,7 +250,7 @@ function RectificationBody() {
   const next1 = () => {
     const any = Object.values(slicePick).some((v) => v != null);
     if (!any && slices.length > 0) {
-      Alert.alert('Выбор', 'Выберите хотя бы один вариант из предложенных карточек.');
+      Alert.alert(t.modal.rectStep1Title, t.modal.rectChooseVariant);
       return;
     }
     setStep(2);
@@ -289,7 +285,7 @@ function RectificationBody() {
 
       safeBack('/(tabs)/astro-map');
     } catch (e: any) {
-      Alert.alert('Сохранение', e?.message || 'Не удалось сохранить время');
+      Alert.alert(t.modal.saveSuccess, e?.message || t.modal.saveFailed);
     } finally {
       setSaving(false);
     }
@@ -298,66 +294,66 @@ function RectificationBody() {
   return (
     <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding', android: undefined })} style={{ flex: 1 }}>
       <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: 24 }]}>
-        <Text style={styles.caption}>Мастер ректификации: шаг {step + 1} из 6</Text>
+        <Text style={styles.caption}>{t.modal.rectStep(step + 1)}</Text>
 
         {step === 0 && (
           <>
-            <Text style={[styles.label, { marginTop: 6 }]}>Центр времени</Text>
+            <Text style={[styles.label, { marginTop: 6 }]}>{t.modal.rectCenterTime}</Text>
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <View style={{ width: 80 }}>
-                <Label>Часы</Label>
+                <Label>{t.profileWizard.hours}</Label>
                 <Input
                   value={fmtH(centerH)}
                   maxLength={2}
                   keyboardType="number-pad"
-                  onChangeText={(t) => setCenterH(clamp(parseInt((t || '0').replace(/\D/g, ''), 10) || 0, 0, 23))}
+                  onChangeText={(v) => setCenterH(clamp(parseInt((v || '0').replace(/\D/g, ''), 10) || 0, 0, 23))}
                 />
               </View>
               <View style={{ width: 80 }}>
-                <Label>Минуты</Label>
+                <Label>{t.profileWizard.minutes}</Label>
                 <Input
                   value={fmt2(centerM)}
                   maxLength={2}
                   keyboardType="number-pad"
-                  onChangeText={(t) => setCenterM(clamp(parseInt((t || '0').replace(/\D/g, ''), 10) || 0, 0, 59))}
+                  onChangeText={(v) => setCenterM(clamp(parseInt((v || '0').replace(/\D/g, ''), 10) || 0, 0, 59))}
                 />
               </View>
             </View>
 
             <View style={{ height: 8 }} />
-            <Label>Интервал поиска (± минуты)</Label>
+            <Label>{t.modal.rectRange}</Label>
             <Input
               value={String(rangeMin)}
               keyboardType="number-pad"
-              onChangeText={(t) => setRangeMin(Math.max(1, parseInt(t.replace(/\D/g, '') || '0', 10)))}
-              placeholder="Напр.: 40 или 720"
+              onChangeText={(v) => setRangeMin(Math.max(1, parseInt(v.replace(/\D/g, '') || '0', 10)))}
+              placeholder={t.modal.rectRangePlaceholder}
             />
 
             <Pressable onPress={next0} style={[styles.primaryBtn, { backgroundColor: '#4f46e5' }]}>
-              <Text style={styles.primaryText}>Продолжить</Text>
+              <Text style={styles.primaryText}>{t.common.continue}</Text>
             </Pressable>
 
-            <Text style={styles.helper}>Если время неизвестно вовсе — поставьте 12:00 и интервал ± 720 минут (12 часов).</Text>
+            <Text style={styles.helper}>{t.modal.rectRangeHint}</Text>
           </>
         )}
 
         {step === 1 && (
           <>
-            <Text style={[styles.label, { marginBottom: 6 }]}>Выберите трактовки, ближе к человеку</Text>
-            {slices.length === 0 && <Text style={styles.caption}>В указанном интервале нет переходов — можно дальше.</Text>}
-            {slices.map((s) => (
-              <View key={s.id} style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 10, padding: 12, marginBottom: 10 }}>
+            <Text style={[styles.label, { marginBottom: 6 }]}>{t.modal.rectStep1Title}</Text>
+            {slices.length === 0 && <Text style={styles.caption}>{t.modal.rectStep1NoTransits}</Text>}
+            {slices.map((sl) => (
+              <View key={sl.id} style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 10, padding: 12, marginBottom: 10 }}>
                 <Text style={{ color: '#cfd3dc', marginBottom: 6, fontWeight: '700' }}>
-                  {s.what === 'SUN_SIGN' ? 'Солнце меняет знак' : s.what === 'MOON_SIGN' ? 'Луна меняет знак' : 'Асцендент — переход знака'}
+                  {sl.what === 'SUN_SIGN' ? t.modal.rectSunSign : sl.what === 'MOON_SIGN' ? t.modal.rectMoonSign : t.modal.rectAscSign}
                 </Text>
 
                 <ToggleAB
-                  aTitle={s.aLabel}
-                  bTitle={s.bLabel}
-                  aDesc={s.aDesc}
-                  bDesc={s.bDesc}
-                  value={slicePick[s.id]}
-                  onChange={(v) => setSlicePick((p) => ({ ...p, [s.id]: v }))}
+                  aTitle={sl.aLabel}
+                  bTitle={sl.bLabel}
+                  aDesc={sl.aDesc}
+                  bDesc={sl.bDesc}
+                  value={slicePick[sl.id]}
+                  onChange={(v) => setSlicePick((p) => ({ ...p, [sl.id]: v }))}
                 />
               </View>
             ))}
@@ -367,24 +363,24 @@ function RectificationBody() {
 
         {step === 2 && (
           <>
-            <Text style={[styles.label, { marginBottom: 6 }]}>Выбор по Асценденту</Text>
-            <Text style={styles.helper}>Оцени четыре блока. Можно писать кратко — по ощущениям.</Text>
+            <Text style={[styles.label, { marginBottom: 6 }]}>{t.modal.rectStep2Title}</Text>
+            <Text style={styles.helper}>{t.modal.rectStep2Hint}</Text>
 
             <Row>
-              <Label>Психологические качества</Label>
-              <Input value={ascPick.psychology ?? ''} onChangeText={(t) => setAscPick((p) => ({ ...p, psychology: t }))} placeholder="Импульсивен / аналитичен / мечтателен …" />
+              <Label>{t.modal.rectStep2Psychology}</Label>
+              <Input value={ascPick.psychology ?? ''} onChangeText={(v) => setAscPick((p) => ({ ...p, psychology: v }))} placeholder="…" />
             </Row>
             <Row>
-              <Label>Особенности внешности</Label>
-              <Input value={ascPick.appearance ?? ''} onChangeText={(t) => setAscPick((p) => ({ ...p, appearance: t }))} placeholder="Высокий рост, спортивный …" />
+              <Label>{t.modal.rectStep2Appearance}</Label>
+              <Input value={ascPick.appearance ?? ''} onChangeText={(v) => setAscPick((p) => ({ ...p, appearance: v }))} placeholder="…" />
             </Row>
             <Row>
-              <Label>Бескорыстные интересы</Label>
-              <Input value={ascPick.altruism ?? ''} onChangeText={(t) => setAscPick((p) => ({ ...p, altruism: t }))} placeholder="Спорт, музыка, помощь людям …" />
+              <Label>{t.modal.rectStep2Altruism}</Label>
+              <Input value={ascPick.altruism ?? ''} onChangeText={(v) => setAscPick((p) => ({ ...p, altruism: v }))} placeholder="…" />
             </Row>
             <Row>
-              <Label>Высшие ценности и приоритеты</Label>
-              <Input value={ascPick.values ?? ''} onChangeText={(t) => setAscPick((p) => ({ ...p, values: t }))} placeholder="Победа / порядок / свобода …" />
+              <Label>{t.modal.rectStep2Values}</Label>
+              <Input value={ascPick.values ?? ''} onChangeText={(v) => setAscPick((p) => ({ ...p, values: v }))} placeholder="…" />
             </Row>
 
             <WizardNav onBack={() => setStep(1)} onNext={next2} />
@@ -393,26 +389,16 @@ function RectificationBody() {
 
         {step === 3 && (
           <>
-            <Text style={[styles.label, { marginBottom: 6 }]}>Предрасположенности</Text>
-            <Text style={styles.helper}>1 — «Нет!», 2 — «Нет», 3 — «?», 4 — «Да», 5 — «Да!»</Text>
+            <Text style={[styles.label, { marginBottom: 6 }]}>{t.modal.rectStep3Title}</Text>
+            <Text style={styles.helper}>{t.modal.rectStep3Scale}</Text>
             {preds.map((p, idx) => (
               <View key={p.code} style={{ marginBottom: 10 }}>
                 <Text style={{ color: '#cfd3dc', marginBottom: 6 }}>
-                  {
-                    ({
-                      early_marriage: 'Ранний брак',
-                      late_child: 'Бездетность или поздний ребёнок',
-                      music_success: 'Успех в музыке/сцене',
-                      law_success: 'Успех в юриспруденции',
-                      religion_success: 'Успех в религиозной деятельности',
-                      foreign_marriage: 'Брак с иностранцем',
-                      imprisonment: 'Тюремное заключение/плен',
-                      water_extreme: 'Экстремальные ситуации на воде',
-                    } as Record<PredispositionCode, string>)[p.code]
-                  }
+                  {t.modal.predispositions[p.code]}
                 </Text>
                 <LikertRow
                   value={p.value as Likert}
+                  likert={t.modal.likert as unknown as string[]}
                   onChange={(v) =>
                     setPreds((prev) => {
                       const copy = [...prev];
@@ -429,23 +415,14 @@ function RectificationBody() {
 
         {step === 4 && (
           <>
-            <Text style={[styles.label, { marginBottom: 6 }]}>События (месяц и год, можно приблизительно)</Text>
-            <Text style={styles.helper}>Если однотипных событий было несколько — укажи первое. Для «сильных» выбери самые значимые.</Text>
+            <Text style={[styles.label, { marginBottom: 6 }]}>{t.modal.rectStep4Title}</Text>
+            <Text style={styles.helper}>{t.modal.rectStep4Hint}</Text>
 
             <View style={{ gap: 10 }}>
               {events.map((ev, i) => (
                 <EventRow
                   key={ev.id}
-                  label={
-                    ({
-                      MARRIAGE: 'Бракосочетание',
-                      DIVORCE: 'Развод',
-                      CHILD_BIRTH: 'Рождение ребёнка',
-                      RELATIVE_DEATH: 'Смерть родственника',
-                      HOSPITAL: 'Длительная госпитализация',
-                      INJURY: 'Травма/увечье',
-                      EXTREME: 'Экстремальная ситуация',
-                    } as Record<LifeEventKind, string>)[ev.kind]
+                  label={t.modal.eventKinds[ev.kind]}
                   }
                   month={ev.month}
                   year={ev.year}
@@ -466,9 +443,9 @@ function RectificationBody() {
 
         {step === 5 && (
           <>
-            <Text style={[styles.label, { marginBottom: 8 }]}>Наиболее вероятное время рождения</Text>
+            <Text style={[styles.label, { marginBottom: 8 }]}>{t.modal.rectStep5Title}</Text>
             {candidates.length === 0 ? (
-              <Text style={styles.caption}>Не удалось вычислить кандидатов. Попробуйте расширить интервал или уточнить ответы.</Text>
+              <Text style={styles.caption}>{t.modal.noCandidates}</Text>
             ) : (
               <View style={{ gap: 12 }}>
                 {candidates.map((c) => (
@@ -476,9 +453,9 @@ function RectificationBody() {
                     <Text style={{ color: '#fff', fontWeight: '700', marginBottom: 4 }}>
                       {new Date(c.iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </Text>
-                    <Text style={{ color: '#9aa0aa', marginBottom: 6 }}>Счёт: {c.score}</Text>
-                    {c.reasons.map((r, i) => (
-                      <Text key={i} style={{ color: '#c7c9d1' }}>
+                    <Text style={{ color: '#9aa0aa', marginBottom: 6 }}>{t.modal.rectScore} {c.score}</Text>
+                    {c.reasons.map((r, ri) => (
+                      <Text key={ri} style={{ color: '#c7c9d1' }}>
                         • {r}
                       </Text>
                     ))}
@@ -487,7 +464,7 @@ function RectificationBody() {
                       disabled={saving || loading}
                       style={[styles.primaryBtn, { marginTop: 10, backgroundColor: '#4f46e5', opacity: saving || loading ? 0.7 : 1 }]}
                     >
-                      <Text style={styles.primaryText}>{saving ? 'Сохраняю…' : 'Выбрать это время'}</Text>
+                      <Text style={styles.primaryText}>{saving ? t.modal.saving : t.modal.selectTime}</Text>
                     </Pressable>
                   </View>
                 ))}
@@ -496,7 +473,7 @@ function RectificationBody() {
 
             <View style={{ height: 8 }} />
             <Pressable onPress={() => setStep(0)} style={[styles.primaryBtn, { backgroundColor: 'rgba(255,255,255,0.08)' }]}>
-              <Text style={styles.primaryText}>Сначала</Text>
+              <Text style={styles.primaryText}>{t.modal.finish}</Text>
             </Pressable>
           </>
         )}
@@ -507,13 +484,14 @@ function RectificationBody() {
 
 /* ── Wizard helpers ───────────────────────────────── */
 function WizardNav({ onBack, onNext }: { onBack: () => void; onNext: () => void }) {
+  const t = useT();
   return (
     <View style={{ flexDirection: 'row', gap: 10, marginTop: 6 }}>
       <Pressable onPress={onBack} style={[styles.primaryBtn, { backgroundColor: 'rgba(255,255,255,0.08)' }]}>
-        <Text style={styles.primaryText}>Назад</Text>
+        <Text style={styles.primaryText}>{t.modal.back}</Text>
       </Pressable>
       <Pressable onPress={onNext} style={[styles.primaryBtn, { backgroundColor: '#4f46e5', flex: 1 }]}>
-        <Text style={styles.primaryText}>Далее</Text>
+        <Text style={styles.primaryText}>{t.modal.forward}</Text>
       </Pressable>
     </View>
   );
@@ -551,8 +529,8 @@ function ToggleAB(props: {
   );
 }
 
-function LikertRow({ value, onChange }: { value: Likert; onChange: (v: Likert) => void }) {
-  const labels = ['Нет!', 'Нет', '?', 'Да', 'Да!'];
+function LikertRow({ value, likert, onChange }: { value: Likert; likert: string[]; onChange: (v: Likert) => void }) {
+  const labels = likert;
   return (
     <View style={{ flexDirection: 'row', gap: 8 }}>
       {[1, 2, 3, 4, 5].map((v) => (
@@ -575,17 +553,18 @@ function LikertRow({ value, onChange }: { value: Likert; onChange: (v: Likert) =
 }
 
 function EventRow({ label, month, year, onChange }: { label: string; month: string; year: string; onChange: (m: string, y: string) => void }) {
+  const t = useT();
   return (
     <View style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 10, padding: 10 }}>
       <Text style={{ color: '#cfd3dc', marginBottom: 8 }}>{label}</Text>
       <View style={{ flexDirection: 'row', gap: 10 }}>
         <View style={{ flex: 1 }}>
-          <Label>Месяц (1–12)</Label>
-          <Input value={month} keyboardType="number-pad" placeholder="ММ" maxLength={2} onChangeText={(t) => onChange(t.replace(/\D/g, '').slice(0, 2), year)} />
+          <Label>{t.modal.rectEventMonth}</Label>
+          <Input value={month} keyboardType="number-pad" placeholder="MM" maxLength={2} onChangeText={(v) => onChange(v.replace(/\D/g, '').slice(0, 2), year)} />
         </View>
         <View style={{ flex: 1 }}>
-          <Label>Год</Label>
-          <Input value={year} keyboardType="number-pad" placeholder="ГГГГ" maxLength={4} onChangeText={(t) => onChange(month, t.replace(/\D/g, '').slice(0, 4))} />
+          <Label>{t.modal.rectEventYear}</Label>
+          <Input value={year} keyboardType="number-pad" placeholder="YYYY" maxLength={4} onChangeText={(v) => onChange(month, v.replace(/\D/g, '').slice(0, 4))} />
         </View>
       </View>
     </View>
@@ -595,6 +574,7 @@ function EventRow({ label, month, year, onChange }: { label: string; month: stri
 /* ────────── Profile modal ────────── */
 function ProfileBody({ mode }: { mode: ModeParam }) {
   const isMe = mode !== 'other';
+  const t = useT();
   const { me, other, setMe, setOther, sync } = useProfiles();
   const initial = useMemo<PersonProfile | null>(() => (isMe ? me : other), [isMe, me, other]);
 
@@ -680,47 +660,47 @@ function ProfileBody({ mode }: { mode: ModeParam }) {
 
   const validate = () => {
     if (!name.trim()) {
-      Alert.alert('Проверьте поля', 'Имя обязательно.');
+      Alert.alert(t.modal.validCheck, t.modal.validName);
       return false;
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) {
-      Alert.alert('Проверьте поля', 'Дата рождения в формате ГГГГ-ММ-ДД обязательна.');
+      Alert.alert(t.modal.validCheck, t.modal.validBirthDate);
       return false;
     }
     if (timeKnown) {
       if (!/^\d{2}:\d{2}$/.test(birthTime)) {
-        Alert.alert('Проверьте поля', 'Время рождения в формате ЧЧ:ММ обязательно (или отключите «Не знаю время»).');
+        Alert.alert(t.modal.validCheck, t.modal.validBirthTime);
         return false;
       }
       if (useSeconds) {
         const sOk = /^\d{2}$/.test(seconds) && Number(seconds) >= 0 && Number(seconds) <= 59;
         if (!sOk) {
-          Alert.alert('Проверьте поля', 'Секунды — от 00 до 59.');
+          Alert.alert(t.modal.validCheck, t.modal.validSecondsRange);
           return false;
         }
       }
     }
 
     if (!pickedGeo) {
-      setPlaceError('Выберите место из списка подсказок');
-      Alert.alert('Место рождения', 'Пожалуйста, выберите место из выпадающего списка.');
+      setPlaceError(t.modal.placeSelectError);
+      Alert.alert(t.modal.placeLabel, t.modal.placeSelectError);
       return false;
     }
 
     const normalized = `${pickedGeo.city}${pickedGeo.nation ? ', ' + pickedGeo.nation : ''}`;
     const ok = placeQuery.trim() === pickedGeo.displayName || placeQuery.trim() === normalized;
     if (!ok) {
-      setPlaceError('Поле изменено после выбора. Выберите из списка.');
-      Alert.alert('Место рождения', 'Поле изменено после выбора — выберите вариант из списка ещё раз.');
+      setPlaceError(t.modal.placeChangedError);
+      Alert.alert(t.modal.placeLabel, t.modal.placeChangedError);
       return false;
     }
 
     if (livesElsewhere && !currentCity.trim()) {
-      Alert.alert('Проверьте поля', 'Укажите текущий город проживания или отключите «Проживаю в другом месте».');
+      Alert.alert(t.modal.validCheck, t.modal.validCurrentCity);
       return false;
     }
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      Alert.alert('Проверьте поля', 'Email указан в неверном формате.');
+      Alert.alert(t.modal.validCheck, t.modal.validEmail);
       return false;
     }
 
@@ -764,17 +744,15 @@ function ProfileBody({ mode }: { mode: ModeParam }) {
   return (
     <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding', android: undefined })} style={{ flex: 1 }}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        <Text style={styles.caption}>
-          Заполните данные рождения. Место выбирайте из подсказок — это гарантирует корректные координаты и часовой пояс.
-        </Text>
+        <Text style={styles.caption}>{t.modal.formCaption}</Text>
 
         <Row>
-          <Label>Имя *</Label>
-          <Input value={name} onChangeText={setName} placeholder="Иван / Анна" />
+          <Label>{t.modal.nameLabel}</Label>
+          <Input value={name} onChangeText={setName} placeholder={t.modal.namePlaceholder} />
         </Row>
 
         <Row>
-          <Label>Дата рождения (ГГГГ-ММ-ДД) *</Label>
+          <Label>{t.modal.birthDateLabel}</Label>
           <Input
             value={birthDate}
             onChangeText={setBirthDate}
@@ -785,14 +763,14 @@ function ProfileBody({ mode }: { mode: ModeParam }) {
         </Row>
 
         <View style={styles.switchLine}>
-          <Label>Не знаю время рождения</Label>
+          <Label>{t.modal.timeUnknown}</Label>
           <Switch value={!timeKnown} onValueChange={(v) => setTimeKnown(!v)} />
         </View>
 
         {timeKnown && (
           <>
             <Row>
-              <Label>Время рождения (ЧЧ:ММ) *</Label>
+              <Label>{t.modal.birthTimeLabel}</Label>
               <Input
                 value={birthTime}
                 onChangeText={setBirthTime}
@@ -803,16 +781,16 @@ function ProfileBody({ mode }: { mode: ModeParam }) {
             </Row>
 
             <View style={styles.switchLine}>
-              <Label>Указать секунды</Label>
+              <Label>{t.modal.useSeconds}</Label>
               <Switch value={useSeconds} onValueChange={setUseSeconds} />
             </View>
 
             {useSeconds && (
               <Row style={{ width: 120 }}>
-                <Label>Секунды</Label>
+                <Label>{t.modal.secondsLabel}</Label>
                 <Input
                   value={seconds}
-                  onChangeText={(t) => setSeconds(t.replace(/\D/g, '').slice(0, 2))}
+                  onChangeText={(v) => setSeconds(v.replace(/\D/g, '').slice(0, 2))}
                   placeholder="00"
                   keyboardType="number-pad"
                   autoCapitalize="none"
@@ -837,45 +815,43 @@ function ProfileBody({ mode }: { mode: ModeParam }) {
         />
 
         <View style={styles.checkboxLine}>
-          <Text style={styles.label}>Проживаю в другом месте</Text>
+          <Text style={styles.label}>{t.modal.livesElsewhere}</Text>
           <Switch value={livesElsewhere} onValueChange={setLivesElsewhere} />
         </View>
 
         {livesElsewhere && (
           <Row>
-            <Label>Город проживания *</Label>
-            <Input value={currentCity} onChangeText={setCurrentCity} placeholder="Текущий город (пример: Стамбул, Турция)" />
+            <Label>{t.modal.currentCityLabel}</Label>
+            <Input value={currentCity} onChangeText={setCurrentCity} placeholder={t.modal.currentCityPlaceholder} />
           </Row>
         )}
 
         <Row>
-          <Label>Пол *</Label>
+          <Label>{t.modal.genderLabel}</Label>
           <View style={styles.genderWrap}>
-            {genders.map((g) => (
+            {genderKeys.map((key) => (
               <Pressable
-                key={g.key}
-                onPress={() => setGender(g.key)}
-                style={[styles.genderBtn, gender === g.key && styles.genderBtnActive]}
+                key={key}
+                onPress={() => setGender(key)}
+                style={[styles.genderBtn, gender === key && styles.genderBtnActive]}
                 accessibilityRole="button"
               >
-                <Text style={[styles.genderText, gender === g.key && styles.genderTextActive]}>{g.label}</Text>
+                <Text style={[styles.genderText, gender === key && styles.genderTextActive]}>{t.modal.genders[key]}</Text>
               </Pressable>
             ))}
           </View>
         </Row>
 
         <Row>
-          <Label>Email (необязательно)</Label>
+          <Label>{t.modal.emailLabel}</Label>
           <Input value={email} onChangeText={setEmail} placeholder="you@email.com" keyboardType="email-address" autoCapitalize="none" />
         </Row>
 
         <Pressable style={[styles.primaryBtn, (!pickedGeo || placeError) && { opacity: 0.6 }]} onPress={submit} disabled={!pickedGeo}>
-          <Text style={styles.primaryText}>Сохранить</Text>
+          <Text style={styles.primaryText}>{t.modal.saveBtn}</Text>
         </Pressable>
 
-        <Text style={styles.helper}>
-          Подсказки подтягивают координаты и часовой пояс автоматически — это нужно, чтобы корректно построить натальную карту.
-        </Text>
+        <Text style={styles.helper}>{t.modal.profileFormHelper}</Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -894,6 +870,7 @@ function AutocompletePlace(props: {
   placeError: string | null;
   setPlaceError: (v: string | null) => void;
 }) {
+  const t = useT();
   const { placeQuery, setPlaceQuery, pickedGeo, setPickedGeo, suggest, setSuggest, showSuggest, setShowSuggest, placeError, setPlaceError } = props;
 
   useEffect(() => {
@@ -938,15 +915,15 @@ function AutocompletePlace(props: {
 
   return (
     <Row>
-      <Label>Место рождения *</Label>
+      <Label>{t.modal.placeLabel}</Label>
       <View style={{ position: 'relative' }}>
         <Input
           value={placeQuery}
-          onChangeText={(t) => {
-            setPlaceQuery(t);
+          onChangeText={(v) => {
+            setPlaceQuery(v);
             setPickedGeo(null);
           }}
-          placeholder="Начните вводить (пример: Москва, RU)"
+          placeholder={t.modal.placePlaceholder}
           onFocus={() => placeQuery.trim().length >= 2 && setShowSuggest(true)}
           onBlur={() => setTimeout(() => setShowSuggest(false), 120)}
         />

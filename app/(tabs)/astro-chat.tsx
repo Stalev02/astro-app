@@ -1,6 +1,7 @@
 // app/(tabs)/astro-chat.tsx
 import { getSupabase } from '@/src/lib/supabase';
 import { ENDPOINTS } from '@/src/shared/config/api';
+import { useT } from '@/src/shared/i18n';
 import { useApp } from '@/src/store/app';
 import { useChat } from '@/src/store/chat';
 import { useProfiles } from '@/src/store/profiles';
@@ -50,42 +51,44 @@ const PROMPTS = {
   forecast_week: 'Опиши темы недели по транзитам личных планет к натальной карте.',
 } as const;
 
-const MENU: MenuNode = {
-  id: 'main',
-  title: 'Быстрые вопросы',
-  type: 'menu',
-  nav: { back: false, home: false },
-  children: [
-    {
-      id: 'my_chart',
-      title: 'Моя карта',
-      type: 'menu',
-      nav: { back: true, home: true },
-      children: [
-        { id: 'destiny_overview', title: 'Моё предназначение', type: 'action', action_id: 'destiny_overview' },
-        { id: 'career_type', title: 'Карьерный тип', type: 'action', action_id: 'career_type' },
-        { id: 'fin_overview', title: 'Финансы (обзор)', type: 'action', action_id: 'fin_overview' },
-      ],
-    },
-    {
-      id: 'compatibility',
-      title: 'Совместимость',
-      type: 'menu',
-      nav: { back: true, home: true },
-      children: [{ id: 'compat_partner', title: 'С партнёром', type: 'action', action_id: 'compat_partner' }],
-    },
-    {
-      id: 'forecast',
-      title: 'Прогнозы',
-      type: 'menu',
-      nav: { back: true, home: true },
-      children: [
-        { id: 'forecast_week', title: 'Неделя', type: 'action', action_id: 'forecast_week' },
-        { id: 'goto_forecasts', title: 'К экрану «Прогнозы»', type: 'nav', goto: 'forecast_transits' },
-      ],
-    },
-  ],
-};
+function buildMenu(mi: typeof import('@/src/shared/i18n/strings').strings['ru']['chat']['menuItems']): MenuNode {
+  return {
+    id: 'main',
+    title: mi.quickQuestions,
+    type: 'menu',
+    nav: { back: false, home: false },
+    children: [
+      {
+        id: 'my_chart',
+        title: mi.myChart,
+        type: 'menu',
+        nav: { back: true, home: true },
+        children: [
+          { id: 'destiny_overview', title: mi.destiny, type: 'action', action_id: 'destiny_overview' },
+          { id: 'career_type', title: mi.career, type: 'action', action_id: 'career_type' },
+          { id: 'fin_overview', title: mi.finance, type: 'action', action_id: 'fin_overview' },
+        ],
+      },
+      {
+        id: 'compatibility',
+        title: mi.compatibility,
+        type: 'menu',
+        nav: { back: true, home: true },
+        children: [{ id: 'compat_partner', title: mi.partner, type: 'action', action_id: 'compat_partner' }],
+      },
+      {
+        id: 'forecast',
+        title: mi.forecast,
+        type: 'menu',
+        nav: { back: true, home: true },
+        children: [
+          { id: 'forecast_week', title: mi.week, type: 'action', action_id: 'forecast_week' },
+          { id: 'goto_forecasts', title: mi.forecasts, type: 'nav', goto: 'forecast_transits' },
+        ],
+      },
+    ],
+  };
+}
 
 /* ==================== Screen ==================== */
 export default function AstroChatScreen() {
@@ -93,6 +96,8 @@ export default function AstroChatScreen() {
   const router = useRouter();
   const deviceId = useProfiles((s) => s.deviceId);
   const language = useApp((s) => s.language);
+  const t = useT();
+  const MENU = useMemo(() => buildMenu(t.chat.menuItems), [t]);
   const messages = useChat((s) => s.messages);
   const addMessage = useChat((s) => s.addMessage);
   const updateMessage = useChat((s) => s.updateMessage);
@@ -107,7 +112,7 @@ export default function AstroChatScreen() {
     try {
       if (Speech.isSpeakingAsync && (await Speech.isSpeakingAsync())) Speech.stop();
     } catch {}
-    Speech.speak(String(text), { language: 'ru-RU', pitch: 1.0, rate: 0.98 });
+    Speech.speak(String(text), { language: language === 'en' ? 'en-US' : 'ru-RU', pitch: 1.0, rate: 0.98 });
   }
 
   const [isBusy, setIsBusy] = useState(false);
@@ -161,9 +166,9 @@ export default function AstroChatScreen() {
       scrollToEnd();
       if (botText) await speak(String(botText));
     } catch (e: any) {
-      const msg = e?.name === 'AbortError' ? 'Сервер не ответил (таймаут)' : (e?.message || 'Ошибка сети');
-      updateMessage(user.id + ':wait', 'Ошибка связи с сервером');
-      Alert.alert('Чат', msg);
+      const msg = e?.name === 'AbortError' ? t.chat.errorTimeout : (e?.message || t.chat.errorNet);
+      updateMessage(user.id + ':wait', t.chat.errorConn);
+      Alert.alert(t.chat.alertTitle, msg);
     } finally {
       setIsBusy(false);
     }
@@ -177,7 +182,7 @@ export default function AstroChatScreen() {
     try {
       const { status } = await Audio.requestPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Микрофон', 'Разрешите доступ к микрофону');
+        Alert.alert(t.chat.alertTitle, t.chat.noMic);
         return;
       }
       await Audio.setAudioModeAsync({
@@ -189,7 +194,7 @@ export default function AstroChatScreen() {
       setRecording(created.recording);
       setIsRecording(true);
     } catch {
-      Alert.alert('Ошибка', 'Не удалось начать запись');
+      Alert.alert(t.chat.alertTitle, t.chat.recError);
     }
   };
 
@@ -222,7 +227,7 @@ export default function AstroChatScreen() {
       } catch {}
       const text = (stt?.text || '').trim();
       if (!text) {
-        Alert.alert('Речь', 'Не удалось распознать голос');
+        Alert.alert(t.chat.alertTitle, t.chat.speechFail);
         return;
       }
 
@@ -267,8 +272,8 @@ export default function AstroChatScreen() {
       scrollToEnd();
       if (botText) await speak(String(botText));
     } catch (e: any) {
-      const msg = e?.name === 'AbortError' ? 'Сервер не ответил (таймаут)' : (e?.message || 'Проблема с отправкой голоса');
-      Alert.alert('Ошибка', msg);
+      const msg = e?.name === 'AbortError' ? t.chat.errorTimeout : (e?.message || t.chat.errorVoice);
+      Alert.alert(t.chat.alertTitle, msg);
     } finally {
       setIsBusy(false);
     }
@@ -333,14 +338,14 @@ export default function AstroChatScreen() {
           keyExtractor={(m) => m.id}
           ListHeaderComponent={
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <Text style={styles.title}>Чат по карте</Text>
+              <Text style={styles.title}>{t.chat.title}</Text>
               <Pressable
                 onPress={() => Alert.alert(
-                  language === 'en' ? 'Clear history' : 'Очистить историю',
-                  language === 'en' ? 'Delete all messages?' : 'Удалить все сообщения?',
+                  t.chat.clearTitle,
+                  t.chat.clearMsg,
                   [
-                    { text: language === 'en' ? 'Cancel' : 'Отмена', style: 'cancel' },
-                    { text: language === 'en' ? 'Clear' : 'Очистить', style: 'destructive', onPress: clearHistory },
+                    { text: t.common.cancel, style: 'cancel' },
+                    { text: t.chat.clearConfirm, style: 'destructive', onPress: clearHistory },
                   ]
                 )}
                 style={{ padding: 6 }}
@@ -361,7 +366,7 @@ export default function AstroChatScreen() {
             >
               <Ionicons name="menu" size={16} color={menuOpen ? '#fff' : '#4f46e5'} />
               <Text style={[styles.menuToggleText, { color: menuOpen ? '#fff' : '#4f46e5' }]}>
-                {menuOpen ? 'Скрыть' : 'Меню'}
+                {menuOpen ? t.chat.menuHide : t.chat.menu}
               </Text>
             </Pressable>
 
@@ -369,12 +374,12 @@ export default function AstroChatScreen() {
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 {curNode.nav?.home && (
                   <Pressable onPress={goHome} style={styles.navChip}>
-                    <Text style={styles.navChipText}>Домой</Text>
+                    <Text style={styles.navChipText}>{t.chat.home}</Text>
                   </Pressable>
                 )}
                 {canGoBack && curNode.nav?.back !== false && (
                   <Pressable onPress={goBack} style={styles.navChip}>
-                    <Text style={styles.navChipText}>Назад</Text>
+                    <Text style={styles.navChipText}>{t.common.back}</Text>
                   </Pressable>
                 )}
               </View>
@@ -404,7 +409,7 @@ export default function AstroChatScreen() {
         <View style={[styles.inputBar, { paddingBottom: 10 + insets.bottom }]}>
           <TextInput
             style={styles.input}
-            placeholder="Напишите вопрос…"
+            placeholder={t.chat.placeholder}
             placeholderTextColor="#8b8e97"
             value={draft}
             onChangeText={setDraft}

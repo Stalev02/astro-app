@@ -1,6 +1,7 @@
 // app/onboarding-profile.tsx
 import { getSupabase } from '@/src/lib/supabase';
 import { searchPlaces } from '@/src/shared/api/profiles';
+import { useT } from '@/src/shared/i18n';
 import { useApp } from '@/src/store/app';
 import { PersonProfile, useProfiles } from '@/src/store/profiles';
 import { useRouter } from 'expo-router';
@@ -50,15 +51,11 @@ type StepKey =
   | 'birthPlace' // место рождения + проживание
   | 'final';
 
-const genders: Array<{ key: PersonProfile['gender'] | 'na'; label: string }> = [
-  { key: 'male', label: 'Мужской' },
-  { key: 'female', label: 'Женский' },
-  { key: 'other', label: 'Другое' },
-  { key: 'na', label: 'Не указывать' },
-];
+const genderKeys: Array<PersonProfile['gender'] | 'na'> = ['male', 'female', 'other', 'na'];
 
 export default function OnboardingProfileWizard() {
   const router = useRouter();
+  const t = useT();
   const submitOnboarding = useProfiles((s) => s.submitOnboarding);
   const loading = useProfiles((s) => s.loading);
 
@@ -135,27 +132,24 @@ export default function OnboardingProfileWizard() {
   function validateAndNext() {
     switch (step) {
       case 'name':
-        if (!name.trim()) return Alert.alert('Имя', 'Укажи имя.');
+        if (!name.trim()) return Alert.alert(t.common.error, t.profileWizard.validName);
         return goNext();
       case 'birthDate':
         if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate))
-          return Alert.alert('Дата', 'Формат ГГГГ-ММ-ДД.');
+          return Alert.alert(t.common.error, t.profileWizard.validDate);
         return goNext();
       case 'birthTime':
         if (!timeKnown) return goNext();
         if (!/^\d{2}:\d{2}$/.test(birthTime))
-          return Alert.alert('Время', 'Формат ЧЧ:ММ.');
+          return Alert.alert(t.common.error, t.profileWizard.validTime);
         if (!/^\d{2}$/.test(seconds))
-          return Alert.alert('Секунды', '00–59.');
+          return Alert.alert(t.common.error, t.profileWizard.validSeconds);
         return goNext();
       case 'birthPlace':
         if (!pickedGeo)
-          return Alert.alert('Место рождения', 'Выбери место из подсказок.');
+          return Alert.alert(t.profileWizard.birthPlaceTitle, t.profileWizard.validPlace);
         if (livesElsewhere && !currentCity.trim())
-          return Alert.alert(
-            'Проживание',
-            'Укажи текущий город или отключи «Проживаю в другом месте».'
-          );
+          return Alert.alert(t.common.error, t.profileWizard.validCurrentCity);
         return goNext();
       default:
         return;
@@ -166,23 +160,20 @@ export default function OnboardingProfileWizard() {
     try {
       // Enforce TOS before accepting profile data (professional / legal safety)
       if (!tosAccepted) {
-        Alert.alert(
-          'Условия использования',
-          'Перед сохранением анкеты нужно согласиться с пользовательским соглашением.'
-        );
+        Alert.alert(t.onboarding.tosTitle, t.profileWizard.validToS);
         router.replace('/onboarding');
         return;
       }
 
-      if (!name.trim()) return Alert.alert('Имя', 'Укажи имя.');
+      if (!name.trim()) return Alert.alert(t.common.error, t.profileWizard.validName);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate))
-        return Alert.alert('Дата', 'Формат ГГГГ-ММ-ДД.');
+        return Alert.alert(t.common.error, t.profileWizard.validDate);
       if (timeKnown && !/^\d{2}:\d{2}$/.test(birthTime))
-        return Alert.alert('Время', 'Формат ЧЧ:ММ.');
+        return Alert.alert(t.common.error, t.profileWizard.validTime);
       if (timeKnown && !/^\d{2}$/.test(seconds))
-        return Alert.alert('Секунды', '00–59.');
+        return Alert.alert(t.common.error, t.profileWizard.validSeconds);
       if (!pickedGeo)
-        return Alert.alert('Место рождения', 'Выбери место из подсказок.');
+        return Alert.alert(t.profileWizard.birthPlaceTitle, t.profileWizard.validPlace);
 
       const input: Partial<PersonProfile> = {
         name: name.trim(),
@@ -218,7 +209,7 @@ try {
 
       router.replace('/(tabs)/astro-map');
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.message || 'Не удалось сохранить анкету');
+      Alert.alert(t.common.error, e?.message || t.profileWizard.saveError);
     }
   }
 
@@ -279,7 +270,7 @@ try {
                 style={[s.btn, s.primary, { flex: 1 }]}
               >
                 <Text style={[s.btnText, { color: '#fff' }]}>
-                  {loading ? 'Загружаю…' : 'Продолжить'}
+                  {loading ? t.profileWizard.loadingBtn : t.profileWizard.continueBtn}
                 </Text>
               </Pressable>
             ) : (
@@ -293,7 +284,7 @@ try {
                 ]}
               >
                 <Text style={[s.btnText, { color: '#fff' }]}>
-                  {loading ? 'Сохраняю…' : 'Сохранить анкету'}
+                  {loading ? t.profileWizard.savingBtn : t.profileWizard.saveBtn}
                 </Text>
               </Pressable>
             )}
@@ -315,6 +306,7 @@ function Header({
   total: number;
   onBack?: () => void;
 }) {
+  const t = useT();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
       {onBack ? (
@@ -322,7 +314,7 @@ function Header({
           onPress={onBack}
           style={[s.btn, s.ghost, { paddingVertical: 8 }]}
         >
-          <Text style={s.btnText}>Назад</Text>
+          <Text style={s.btnText}>{t.common.back}</Text>
         </Pressable>
       ) : (
         <View style={{ width: 80 }} />
@@ -341,7 +333,7 @@ function Header({
         </View>
         <Text
           style={{ color: C.dim, fontSize: 12, textAlign: 'center' }}
-        >{`Шаг ${step} из ${total}`}</Text>
+        >{t.profileWizard.stepLabel(step, total)}</Text>
       </View>
       <View style={{ width: 80 }} />
     </View>
@@ -401,22 +393,23 @@ function ScreenNameGender({
   gender: PersonProfile['gender'] | 'na';
   setGender: (g: PersonProfile['gender'] | 'na') => void;
 }) {
+  const t = useT();
   return (
-    <Card title="Как тебя зовут?">
+    <Card title={t.profileWizard.nameTitle}>
       <Input
         value={name}
-        onChangeText={(t: string) => setName(t)}
-        placeholder="Имя"
+        onChangeText={(v: string) => setName(v)}
+        placeholder={t.profileWizard.namePlaceholder}
         autoFocus
       />
-      <Hint>Выбери пол (необязательно)</Hint>
+      <Hint>{t.profileWizard.genderHint}</Hint>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-        {genders.map((g) => {
-          const active = gender === g.key;
+        {genderKeys.map((key) => {
+          const active = gender === key;
           return (
             <Pressable
-              key={g.key}
-              onPress={() => setGender(g.key)}
+              key={key}
+              onPress={() => setGender(key)}
               style={[s.tag, active && s.tagOn]}
             >
               <Text
@@ -425,7 +418,7 @@ function ScreenNameGender({
                   fontWeight: '600',
                 }}
               >
-                {g.label}
+                {t.profileWizard.genders[key]}
               </Text>
             </Pressable>
           );
@@ -443,6 +436,7 @@ function ScreenBirthDate({
   value: string;
   setValue: (t: string) => void;
 }) {
+  const t = useT();
   const now = new Date();
   const CY = now.getFullYear();
   const CM = now.getMonth() + 1;
@@ -478,21 +472,8 @@ function ScreenBirthDate({
   }, [CY]);
 
   const allMonths = useMemo(
-    () => [
-      { n: 1, title: 'Январь' },
-      { n: 2, title: 'Февраль' },
-      { n: 3, title: 'Март' },
-      { n: 4, title: 'Апрель' },
-      { n: 5, title: 'Май' },
-      { n: 6, title: 'Июнь' },
-      { n: 7, title: 'Июль' },
-      { n: 8, title: 'Август' },
-      { n: 9, title: 'Сентябрь' },
-      { n: 10, title: 'Октябрь' },
-      { n: 11, title: 'Ноябрь' },
-      { n: 12, title: 'Декабрь' },
-    ],
-    []
+    () => t.profileWizard.months.map((title, i) => ({ n: i + 1, title })),
+    [t]
   );
   const months = useMemo(() => {
     const maxM = tmpY === CY ? CM : 12;
@@ -538,11 +519,11 @@ function ScreenBirthDate({
     value || `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
   return (
-    <Card title="Дата рождения">
+    <Card title={t.profileWizard.birthDateTitle}>
       <Pressable onPress={openPicker} style={[s.chip]}>
         <Text style={{ color: '#fff', fontWeight: '700' }}>{friendly}</Text>
       </Pressable>
-      <Hint>Нажми, чтобы выбрать год / месяц / день</Hint>
+      <Hint>{t.profileWizard.birthDateHint}</Hint>
 
       <Modal
         visible={open}
@@ -556,10 +537,10 @@ function ScreenBirthDate({
             onPress={() => setOpen(false)}
           />
           <View style={[s.modalCard, { width: modalWidth, marginTop: TOP_OFFSET }]}>
-            <Text style={[s.h1, { marginBottom: 8 }]}>Выбери дату</Text>
+            <Text style={[s.h1, { marginBottom: 8 }]}>{t.profileWizard.pickerDateTitle}</Text>
             <View style={[s.pickerRow, { gap: innerGap }]}>
               <PickerColumnNumber
-                title="Год"
+                title={t.profileWizard.year}
                 data={years}
                 selected={tmpY}
                 onSelect={(n) => setTmpY(n)}
@@ -567,7 +548,7 @@ function ScreenBirthDate({
                 listHeight={listHeight}
               />
               <PickerColumnMonth
-                title="Месяц"
+                title={t.profileWizard.month}
                 data={months}
                 selected={tmpM}
                 onSelect={(n) => setTmpM(n)}
@@ -575,7 +556,7 @@ function ScreenBirthDate({
                 listHeight={listHeight}
               />
               <PickerColumnNumber
-                title="День"
+                title={t.profileWizard.day}
                 data={days}
                 selected={tmpD}
                 onSelect={(n) => setTmpD(n)}
@@ -588,13 +569,13 @@ function ScreenBirthDate({
                 onPress={() => setOpen(false)}
                 style={[s.btn, s.ghost, { flex: 1 }]}
               >
-                <Text style={s.btnText}>Отмена</Text>
+                <Text style={s.btnText}>{t.common.cancel}</Text>
               </Pressable>
               <Pressable
                 onPress={confirm}
                 style={[s.btn, s.primary, { flex: 1 }]}
               >
-                <Text style={[s.btnText, { color: '#fff' }]}>Готово</Text>
+                <Text style={[s.btnText, { color: '#fff' }]}>{t.common.done}</Text>
               </Pressable>
             </View>
           </View>
@@ -621,6 +602,7 @@ function ScreenBirthTime({
   setSeconds: (t: string) => void;
 }) {
   const router = useRouter();
+  const t = useT();
   const { width: sw, height: sh } = useWindowDimensions();
   const MODAL_PAD = 14;
   const modalWidth = Math.min(sw - 32, 360);
@@ -665,17 +647,17 @@ function ScreenBirthTime({
   const chipTime =
     timeKnown && /^\d{2}:\d{2}$/.test(birthTime)
       ? `${birthTime}:${seconds?.padStart(2, '0') || '00'}`
-      : 'Выбери время';
+      : t.profileWizard.birthTimeSelect;
 
   return (
-    <Card title="Время рождения">
+    <Card title={t.profileWizard.birthTimeTitle}>
       {/* Выбор времени показываем, только если время известно */}
       {timeKnown ? (
         <>
           <Pressable onPress={openPicker} style={[s.chip]}>
             <Text style={{ color: '#fff', fontWeight: '700' }}>{chipTime}</Text>
           </Pressable>
-          <Hint>Нажми, чтобы выбрать ЧЧ / ММ / СС</Hint>
+          <Hint>{t.profileWizard.birthTimeHint}</Hint>
 
           <Modal
             visible={open}
@@ -691,10 +673,10 @@ function ScreenBirthTime({
               <View
                 style={[s.modalCard, { width: modalWidth, marginTop: 80 }]}
               >
-                <Text style={[s.h1, { marginBottom: 8 }]}>Выбери время</Text>
+                <Text style={[s.h1, { marginBottom: 8 }]}>{t.profileWizard.pickerTimeTitle}</Text>
                 <View style={[s.pickerRow, { gap: innerGap }]}>
                   <PickerColumnNumber
-                    title="Часы"
+                    title={t.profileWizard.hours}
                     data={hours}
                     selected={tmpH}
                     onSelect={(n) => setTmpH(n)}
@@ -703,7 +685,7 @@ function ScreenBirthTime({
                     format={(n) => String(n).padStart(2, '0')}
                   />
                   <PickerColumnNumber
-                    title="Минуты"
+                    title={t.profileWizard.minutes}
                     data={mins}
                     selected={tmpM}
                     onSelect={(n) => setTmpM(n)}
@@ -712,7 +694,7 @@ function ScreenBirthTime({
                     format={(n) => String(n).padStart(2, '0')}
                   />
                   <PickerColumnNumber
-                    title="Секунды"
+                    title={t.profileWizard.seconds}
                     data={secs}
                     selected={tmpS}
                     onSelect={(n) => setTmpS(n)}
@@ -726,13 +708,13 @@ function ScreenBirthTime({
                     onPress={() => setOpen(false)}
                     style={[s.btn, s.ghost, { flex: 1 }]}
                   >
-                    <Text style={s.btnText}>Отмена</Text>
+                    <Text style={s.btnText}>{t.common.cancel}</Text>
                   </Pressable>
                   <Pressable
                     onPress={confirm}
                     style={[s.btn, s.primary, { flex: 1 }]}
                   >
-                    <Text style={[s.btnText, { color: '#fff' }]}>Готово</Text>
+                    <Text style={[s.btnText, { color: '#fff' }]}>{t.common.done}</Text>
                   </Pressable>
                 </View>
               </View>
@@ -740,9 +722,7 @@ function ScreenBirthTime({
           </Modal>
         </>
       ) : (
-        <Hint>
-          Если не знаешь точное время, просто продолжай — можно уточнить позже.
-        </Hint>
+        <Hint>{t.profileWizard.timeUnknownHint}</Hint>
       )}
 
       {/* Переключатель под блоком выбора времени — компактный и кликабельный всей строкой */}
@@ -757,7 +737,7 @@ function ScreenBirthTime({
         hitSlop={8}
       >
         <Text style={[s.label, { fontSize: 15, fontWeight: '700' }]}>
-          Не знаю точное время
+          {t.profileWizard.timeUnknown}
         </Text>
         <Switch
           value={!timeKnown}
@@ -783,7 +763,7 @@ function ScreenBirthTime({
         }
         style={[s.btn, s.outline, { alignSelf: 'flex-start' }]}
       >
-        <Text style={s.btnText}>Ректификация</Text>
+        <Text style={s.btnText}>{t.profileWizard.rectification}</Text>
       </Pressable>
     </Card>
   );
@@ -803,6 +783,7 @@ function ScreenBirthPlaceWithLive(props: {
   currentCity: string;
   setCurrentCity: (t: string) => void;
 }) {
+  const t = useT();
   const {
     placeQuery,
     setPlaceQuery,
@@ -866,15 +847,15 @@ function ScreenBirthPlaceWithLive(props: {
   }, [currentCity, livesElsewhere]);
 
   return (
-    <Card title="Место рождения и проживание">
+    <Card title={t.profileWizard.birthPlaceTitle}>
       {/* Место рождения */}
       <Input
         value={placeQuery}
-        onChangeText={(t: string) => {
-          setPlaceQuery(t);
+        onChangeText={(v: string) => {
+          setPlaceQuery(v);
           setPickedGeo(null);
         }}
-        placeholder="Начни вводить (пример: Москва, RU)"
+        placeholder={t.profileWizard.birthPlacePlaceholder}
         onFocus={() => placeQuery.trim().length >= 2 && setShowSuggest(true)}
         onBlur={() => setTimeout(() => setShowSuggest(false), 120)}
       />
@@ -904,11 +885,10 @@ function ScreenBirthPlaceWithLive(props: {
           />
         </View>
       )}
-      <Hint>Выбери вариант из подсказок.</Hint>
+      <Hint>{t.profileWizard.validPlace}</Hint>
 
       {/* Проживание */}
       <View style={{ height: 12 }} />
-      <Text style={s.h1}>Проживание</Text>
 
       {/* Тумблер в стиле "Не знаю точное время" */}
       <Pressable
@@ -922,7 +902,7 @@ function ScreenBirthPlaceWithLive(props: {
         hitSlop={8}
       >
         <Text style={[s.label, { fontSize: 15, fontWeight: '700' }]}>
-          Проживаю в другом месте
+          {t.profileWizard.livesElsewhere}
         </Text>
         <Switch
           value={livesElsewhere}
@@ -944,8 +924,8 @@ function ScreenBirthPlaceWithLive(props: {
         <View style={{ position: 'relative', marginTop: 6 }}>
           <Input
             value={currentCity}
-            onChangeText={(t: string) => setCurrentCity(t)}
-            placeholder="Текущий город (например: Стамбул, TR)"
+            onChangeText={(v: string) => setCurrentCity(v)}
+            placeholder={t.profileWizard.currentCityPlaceholder}
             onFocus={() => currentCity.trim().length >= 2 && setShowLiveSuggest(true)}
             onBlur={() => setTimeout(() => setShowLiveSuggest(false), 120)}
           />
@@ -996,10 +976,10 @@ function ScreenBirthPlaceWithLive(props: {
 
 /* Финал */
 function ScreenReview() {
+  const t = useT();
   return (
-    <Card title="Финальный шаг">
-      <Text style={s.p}>Нажми «Сохранить анкету», чтобы завершить мастер.</Text>
-      <Hint>После сохранения ты попадёшь в приложение.</Hint>
+    <Card title={t.profileWizard.reviewTitle}>
+      <Text style={s.p}>{t.profileWizard.reviewBody}</Text>
     </Card>
   );
 }

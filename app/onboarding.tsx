@@ -1,5 +1,6 @@
 // app/onboarding.tsx
 import { getSupabase } from '@/src/lib/supabase';
+import { useT } from '@/src/shared/i18n';
 import { useApp } from '@/src/store/app';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -26,6 +27,7 @@ const C = {
 
 export default function Onboarding() {
   const router = useRouter();
+  const t = useT();
 
   const { tosAccepted, setTosAccepted, completeOnboarding } = useApp();
 
@@ -64,7 +66,7 @@ export default function Onboarding() {
 
   const finish = async () => {
     if (!tosAccepted) {
-      Alert.alert('Условия', 'Прежде чем начать пользоваться приложением, нужно согласиться с условиями.');
+      Alert.alert(t.onboarding.tosTitle, t.onboarding.tosBody);
       setPage(1);
       return;
     }
@@ -98,7 +100,7 @@ export default function Onboarding() {
         <View style={s.nav}>
           {page > 0 ? (
             <Pressable onPress={prev} style={[s.btn, s.ghost]}>
-              <Text style={s.btnText}>Назад</Text>
+              <Text style={s.btnText}>{t.common.back}</Text>
             </Pressable>
           ) : (
             <View />
@@ -111,12 +113,12 @@ export default function Onboarding() {
               disabled={page === 1 && !tos}
             >
               <Text style={[s.btnText, { color: '#fff' }]}>
-                {page === 1 ? 'Согласен • Далее' : 'Далее'}
+                {page === 1 ? t.onboarding.agreeNext : t.common.next}
               </Text>
             </Pressable>
           ) : (
             <Pressable onPress={finish} style={[s.btn, s.primary]}>
-              <Text style={[s.btnText, { color: '#fff' }]}>Начать</Text>
+              <Text style={[s.btnText, { color: '#fff' }]}>{t.common.start}</Text>
             </Pressable>
           )}
         </View>
@@ -139,18 +141,16 @@ function ScreenUniverse() {
 }
 
 function ScreenTOS({ tos, setTos }: { tos: boolean; setTos: (v: boolean) => void }) {
+  const t = useT();
   return (
     <Card>
-      <Text style={s.h1}>Пользовательское соглашение</Text>
-      <Text style={s.p}>
-        Используя приложение, ты даёшь согласие на обработку персональных данных и понимаешь, что информация носит
-        консультативный характер.
-      </Text>
+      <Text style={s.h1}>{t.onboarding.tosTitle}</Text>
+      <Text style={s.p}>{t.onboarding.tosBody}</Text>
       <Pressable onPress={() => WebBrowser.openBrowserAsync('https://example.com/terms')} style={[s.btn, s.outline]}>
-        <Text style={s.btnText}>Открыть полную версию</Text>
+        <Text style={s.btnText}>{t.onboarding.tosOpen}</Text>
       </Pressable>
       <View style={s.tosRow}>
-        <Text style={{ color: C.text, flex: 1 }}>Я согласен с условиями</Text>
+        <Text style={{ color: C.text, flex: 1 }}>{t.onboarding.tosAgree}</Text>
         <Switch value={tos} onValueChange={setTos} />
       </View>
     </Card>
@@ -158,29 +158,29 @@ function ScreenTOS({ tos, setTos }: { tos: boolean; setTos: (v: boolean) => void
 }
 
 function ScreenProfile({ goProfile, goRect }: { goProfile: () => void; goRect: () => void }) {
+  const t = useT();
   return (
     <Card>
-      <Text style={s.h1}>Заполни анкету</Text>
-      <Text style={s.p}>Чтобы ответы были точнее, укажи место, дату и время рождения.</Text>
+      <Text style={s.h1}>{t.onboarding.profileTitle}</Text>
+      <Text style={s.p}>{t.onboarding.profileBody}</Text>
 
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
         <Pressable onPress={goProfile} style={[s.btn, s.primary]}>
-          <Text style={[s.btnText, { color: '#fff' }]}>Заполнить анкету</Text>
+          <Text style={[s.btnText, { color: '#fff' }]}>{t.onboarding.profileBtn}</Text>
         </Pressable>
       </View>
 
-      <Text style={[s.p, { color: C.dim, marginTop: 8 }]}>Если не знаешь точное время, пройди ректификацию.</Text>
+      <Text style={[s.p, { color: C.dim, marginTop: 8 }]}>{t.onboarding.profileHint}</Text>
     </Card>
   );
 }
 
 function ScreenFinal() {
+  const t = useT();
   return (
     <Card center>
-      <Text style={s.h1}>Добро пожаловать в Cosmotell 🌌</Text>
-      <Text style={[s.p, { textAlign: 'center' }]}>
-        Всё готово. Начинай пользоваться приложением. Чат учитывает твою карту автоматически.
-      </Text>
+      <Text style={s.h1}>{t.onboarding.finalTitle}</Text>
+      <Text style={[s.p, { textAlign: 'center' }]}>{t.onboarding.finalBody}</Text>
     </Card>
   );
 }

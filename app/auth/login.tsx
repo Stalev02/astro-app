@@ -1,5 +1,6 @@
 // app/auth/login.tsx
 import { getSupabase } from '@/src/lib/supabase';
+import { useT } from '@/src/shared/i18n';
 import { useProfiles } from '@/src/store/profiles';
 import { makeRedirectUri } from 'expo-auth-session';
 import { useRouter } from 'expo-router';
@@ -18,6 +19,7 @@ const C = {
 
 export default function Login() {
   const router = useRouter();
+  const t = useT();
 
   const redirectUri = useMemo(
     () => makeRedirectUri({ scheme: 'cosmotell', path: 'auth' }),
@@ -31,7 +33,6 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
 
-  // If auth state changes to signed in, go to the gate
   useEffect(() => {
     let unsub: (() => void) | undefined;
 
@@ -39,16 +40,15 @@ export default function Login() {
       try {
         const sb = await getSupabase();
         const { data: sub } = sb.auth.onAuthStateChange((event, session) => {
-  if (event === 'SIGNED_IN' && session?.user) {
-    (async () => {
-      const uid = session.user.id;
-      useProfiles.getState().applyAuthUser(uid);
-      await useProfiles.getState().loadMeFromServer();
-      router.replace('/');
-    })().catch((e) => console.error('[auth] onAuthStateChange handler failed:', e));
-  }
-});
-
+          if (event === 'SIGNED_IN' && session?.user) {
+            (async () => {
+              const uid = session.user.id;
+              useProfiles.getState().applyAuthUser(uid);
+              await useProfiles.getState().loadMeFromServer();
+              router.replace('/');
+            })().catch((e) => console.error('[auth] onAuthStateChange handler failed:', e));
+          }
+        });
 
         unsub = () => sub.subscription.unsubscribe();
       } catch {
@@ -60,40 +60,38 @@ export default function Login() {
   }, [router]);
 
   async function signInEmail() {
-  try {
-    const em = email.trim().toLowerCase();
-    if (!em || !password) return Alert.alert('Вход', 'Заполни email и пароль');
+    try {
+      const em = email.trim().toLowerCase();
+      if (!em || !password) return Alert.alert(t.auth.alertLogin, t.auth.fillEmailPassword);
 
-    setLoading(true);
+      setLoading(true);
 
-    const sb = await getSupabase();
-    const { error } = await sb.auth.signInWithPassword({ email: em, password });
-    if (error) throw error;
+      const sb = await getSupabase();
+      const { error } = await sb.auth.signInWithPassword({ email: em, password });
+      if (error) throw error;
 
-    // ✅ pull uid and hydrate store from DB
-    const { data } = await sb.auth.getSession();
-    const uid = data.session?.user?.id;
+      const { data } = await sb.auth.getSession();
+      const uid = data.session?.user?.id;
 
-    if (uid) {
-      useProfiles.getState().applyAuthUser(uid);
-      await useProfiles.getState().loadMeFromServer();
+      if (uid) {
+        useProfiles.getState().applyAuthUser(uid);
+        await useProfiles.getState().loadMeFromServer();
+      }
+
+      router.replace('/');
+    } catch (e: any) {
+      Alert.alert(t.auth.loginError, e?.message || t.auth.loginFailed);
+    } finally {
+      setLoading(false);
     }
-
-    router.replace('/');
-  } catch (e: any) {
-    Alert.alert('Ошибка входа', e?.message || 'Не удалось войти');
-  } finally {
-    setLoading(false);
   }
-}
-
 
   async function signUpEmail() {
     try {
       const em = email.trim().toLowerCase();
-      if (!em || !password) return Alert.alert('Регистрация', 'Заполни email и пароль');
-      if (password.length < 6) return Alert.alert('Пароль', 'Минимум 6 символов');
-      if (password !== confirm) return Alert.alert('Пароль', 'Пароли не совпадают');
+      if (!em || !password) return Alert.alert(t.auth.alertRegister, t.auth.fillEmailPassword);
+      if (password.length < 6) return Alert.alert(t.auth.alertPassword, t.auth.passwordMin);
+      if (password !== confirm) return Alert.alert(t.auth.alertPassword, t.auth.passwordMismatch);
 
       setLoading(true);
       const sb = await getSupabase();
@@ -101,34 +99,25 @@ export default function Login() {
       const { error: e1 } = await sb.auth.signUp({ email: em, password });
       if (e1) throw e1;
 
-      // Try immediate sign-in (works when email confirmation is off)
       const { error: e2 } = await sb.auth.signInWithPassword({ email: em, password });
-if (!e2) {
-  const { data } = await sb.auth.getSession();
-  const uid = data.session?.user?.id;
+      if (!e2) {
+        const { data } = await sb.auth.getSession();
+        const uid = data.session?.user?.id;
 
-  if (uid) {
-    // 1) Switch identity (prevents data leak)
-    useProfiles.getState().applyAuthUser(uid);
+        if (uid) {
+          useProfiles.getState().applyAuthUser(uid);
+          await useProfiles.getState().loadMeFromServer();
+        }
 
-    // 2) Pull profile from DB by supabase_uid
-    await useProfiles.getState().loadMeFromServer();
-  }
+        setCreating(false);
+        router.replace('/');
+        return;
+      }
 
-  // 3) Reset creating state before navigating away
-  setCreating(false);
-
-  // 4) Go through the gate (index.tsx)
-  router.replace('/');
-  return;
-}
-
-
-
-      Alert.alert('Подтверди почту', 'Мы отправили письмо. После подтверждения войди в приложении.');
+      Alert.alert(t.auth.confirmEmail, t.auth.confirmEmailMsg);
       setCreating(false);
     } catch (e: any) {
-      Alert.alert('Ошибка регистрации', e?.message || 'Не удалось создать аккаунт');
+      Alert.alert(t.auth.registerError, e?.message || t.auth.registerFailed);
     } finally {
       setLoading(false);
     }
@@ -144,10 +133,8 @@ if (!e2) {
         options: { redirectTo: redirectUri },
       });
       if (error) throw error;
-
-      // onAuthStateChange will route to '/'
     } catch (e: any) {
-      Alert.alert('OAuth', e?.message || 'Не удалось войти через провайдера');
+      Alert.alert('OAuth', e?.message || t.auth.oauthError);
     } finally {
       setLoading(false);
     }
@@ -157,10 +144,10 @@ if (!e2) {
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
       <View style={s.wrap}>
         <View style={s.card}>
-          <Text style={s.h1}>{creating ? 'Регистрация' : 'Вход'}</Text>
+          <Text style={s.h1}>{creating ? t.auth.titleRegister : t.auth.titleLogin}</Text>
 
           <View style={s.row}>
-            <Text style={s.label}>Email</Text>
+            <Text style={s.label}>{t.auth.email}</Text>
             <TextInput
               value={email}
               onChangeText={setEmail}
@@ -173,7 +160,7 @@ if (!e2) {
           </View>
 
           <View style={s.row}>
-            <Text style={s.label}>Пароль</Text>
+            <Text style={s.label}>{t.auth.password}</Text>
             <TextInput
               value={password}
               onChangeText={setPassword}
@@ -186,7 +173,7 @@ if (!e2) {
 
           {creating && (
             <View style={s.row}>
-              <Text style={s.label}>Повтори пароль</Text>
+              <Text style={s.label}>{t.auth.confirmPassword}</Text>
               <TextInput
                 value={confirm}
                 onChangeText={setConfirm}
@@ -201,12 +188,12 @@ if (!e2) {
           {creating ? (
             <Pressable onPress={signUpEmail} disabled={loading} style={[s.btn, s.primary]}>
               <Text style={[s.btnText, { color: '#fff' }]}>
-                {loading ? 'Создаём…' : 'Зарегистрироваться'}
+                {loading ? t.auth.signingUp : t.auth.signUp}
               </Text>
             </Pressable>
           ) : (
             <Pressable onPress={signInEmail} disabled={loading} style={[s.btn, s.primary]}>
-              <Text style={[s.btnText, { color: '#fff' }]}>{loading ? 'Входим…' : 'Войти'}</Text>
+              <Text style={[s.btnText, { color: '#fff' }]}>{loading ? t.auth.signingIn : t.auth.signIn}</Text>
             </Pressable>
           )}
 
@@ -215,7 +202,7 @@ if (!e2) {
             disabled={loading}
             style={[s.btn, s.ghost]}
           >
-            <Text style={s.btnText}>{creating ? 'У меня уже есть аккаунт' : 'Создать аккаунт'}</Text>
+            <Text style={s.btnText}>{creating ? t.auth.haveAccount : t.auth.createAccount}</Text>
           </Pressable>
 
           <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -235,9 +222,7 @@ if (!e2) {
             </Pressable>
           </View>
 
-          <Text style={[s.p, { color: C.dim, fontSize: 12 }]}>
-            Мы не публикуем ничего и не используем почту для рассылок.
-          </Text>
+          <Text style={[s.p, { color: C.dim, fontSize: 12 }]}>{t.auth.disclaimer}</Text>
         </View>
       </View>
     </SafeAreaView>
