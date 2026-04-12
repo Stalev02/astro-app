@@ -423,7 +423,6 @@ function RectificationBody() {
                 <EventRow
                   key={ev.id}
                   label={t.modal.eventKinds[ev.kind]}
-                  }
                   month={ev.month}
                   year={ev.year}
                   onChange={(m, y) => {
